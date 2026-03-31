@@ -5255,6 +5255,7 @@ function SundayBrief({
         headers: {
           "Content-Type": "application/json",
           "x-api-key": window.__claude_api_key || "",
+          "anthropic-version": "2023-06-01",
           "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
@@ -7017,6 +7018,7 @@ Return ONLY valid JSON. No markdown fences.`;
         headers: {
           "Content-Type": "application/json",
           "x-api-key": window.__claude_api_key || "",
+          "anthropic-version": "2023-06-01",
           "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
@@ -7356,6 +7358,7 @@ function PantryBarcodeScanner({
         headers: {
           "Content-Type": "application/json",
           "x-api-key": window.__claude_api_key || "",
+          "anthropic-version": "2023-06-01",
           "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
@@ -13256,6 +13259,7 @@ function HistoryBrowser({
         headers: {
           "Content-Type": "application/json",
           "x-api-key": window.__claude_api_key || "",
+          "anthropic-version": "2023-06-01",
           "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
