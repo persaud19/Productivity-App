@@ -13978,11 +13978,6 @@ function App() {
   React.useEffect(() => {
     window.__current_uid = userCtx?.uid || null;
   }, [userCtx?.uid]);
-  // Keep API key and household ID in sync so all components can use them
-  React.useEffect(() => {
-    window.__claude_api_key = settings.claudeApiKey || "";
-    window.__household_id = settings.householdId || "";
-  }, [settings.claudeApiKey, settings.householdId]);
   const [setupDone, setSetupDone] = useState(null); // null=loading
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [goals, setGoals] = useState(DEFAULT_GOALS);
@@ -13997,6 +13992,12 @@ function App() {
   const [activeUser, setActiveUser] = useState("self"); // self | partner
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Keep API key and household ID in sync so all components can use them
+  React.useEffect(() => {
+    window.__claude_api_key = settings.claudeApiKey || "";
+    window.__household_id = settings.householdId || "";
+  }, [settings.claudeApiKey, settings.householdId]);
 
   // Auto-tab by time of day — maps to section sub-tabs
   useEffect(() => {
