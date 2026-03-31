@@ -172,9 +172,15 @@ const UserContext = React.createContext(null);
 const useUser = () => React.useContext(UserContext);
 const DB = (() => {
   // Firebase path helpers — convert key like "ml:log:2026-03-22" to "users/<uid>/ml/log/2026-03-22"
+  // Shared household keys (food + chores) are routed to "households/<id>/..." when a household is active
+  const SHARED_KEY_PREFIXES = ["ml/food/", "ml/chores"];
   const toPath = k => {
     const uid = window.__current_uid;
     const base = k.replace(/:/g, "/");
+    const householdId = window.__household_id;
+    if (householdId && SHARED_KEY_PREFIXES.some(p => base.startsWith(p))) {
+      return `households/${householdId}/${base}`;
+    }
     return uid ? `users/${uid}/${base}` : base;
   };
 
@@ -373,7 +379,9 @@ const DEFAULT_SETTINGS = {
   savingsTarget: 20000,
   savingsCurrent: 20000,
   uid: "ryan",
-  partnerUid: "sabrina"
+  partnerUid: "sabrina",
+  claudeApiKey: "",
+  householdId: ""
 };
 const DEFAULT_GOALS = {
   weightGoal: 180,
@@ -391,7 +399,7 @@ const DEFAULT_GOALS = {
 // ─────────────────────────────────────────────────────────────────────────────
 // PANTRY SEED — loaded at runtime from /pantry-seed.json (keeps JS lean)
 // ─────────────────────────────────────────────────────────────────────────────
-const PANTRY_SEED = null; // loaded async — see loadAll()
+const PANTRY_SEED = [{"id":"seed000","name":"Coconut Sugar","qty":500.0,"minQty":100.0,"reorderQty":100.0,"unit":"g","cat":"Grains","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed001","name":"Baking Powder","qty":248.0,"minQty":100.0,"reorderQty":100.0,"unit":"g","cat":"Grains","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed002","name":"Baking Soda","qty":500.0,"minQty":100.0,"reorderQty":100.0,"unit":"g","cat":"Grains","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed003","name":"Artificial Vanilla Extract","qty":150.0,"minQty":10.0,"reorderQty":10.0,"unit":"ml","cat":"Grains","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed004","name":"Coconut Oil","qty":250.0,"minQty":100.0,"reorderQty":100.0,"unit":"ml","cat":"Grains","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed005","name":"White Corn Syrup","qty":450.0,"minQty":100.0,"reorderQty":100.0,"unit":"ml","cat":"Grains","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed006","name":"Soy Sauce","qty":300.0,"minQty":100.0,"reorderQty":100.0,"unit":"ml","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed007","name":"Balsamic Vinegar","qty":500.0,"minQty":100.0,"reorderQty":100.0,"unit":"ml","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed008","name":"Oyster Sauce","qty":100.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed009","name":"Sweet Soy Sauce","qty":450.0,"minQty":100.0,"reorderQty":100.0,"unit":"ml","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed010","name":"Hoisin Sauce","qty":200.0,"minQty":100.0,"reorderQty":100.0,"unit":"ml","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed011","name":"Rice Vinegar","qty":325.0,"minQty":100.0,"reorderQty":100.0,"unit":"ml","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed012","name":"Mirin","qty":150.0,"minQty":100.0,"reorderQty":100.0,"unit":"ml","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed013","name":"Roasted Sesame Oil","qty":90.0,"minQty":10.0,"reorderQty":10.0,"unit":"ml","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed014","name":"Ikea Gravy Mix","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed015","name":"Shepherds Pie Mix","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed016","name":"Hollandaise Sauce","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed017","name":"Four Peppercorn Gravy Mix","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed018","name":"Brown Gravy Mix","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed019","name":"Vegetarian Brown Gravy Mix","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed020","name":"Chow Mein Sauce","qty":3.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed021","name":"Chicken Bouillon Mix","qty":6.0,"minQty":6.0,"reorderQty":6.0,"unit":"unit","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed022","name":"Shaoxing Wine","qty":50.0,"minQty":10.0,"reorderQty":10.0,"unit":"ml","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed023","name":"Rice","qty":500.0,"minQty":500.0,"reorderQty":500.0,"unit":"g","cat":"Grains","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed024","name":"Ghee","qty":600.0,"minQty":100.0,"reorderQty":100.0,"unit":"g","cat":"Sauces","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed025","name":"Greek Seasoning","qty":525.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed026","name":"Montreal Chicken","qty":675.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed027","name":"Barbecue Chicken","qty":200.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed028","name":"Smoked Paprika And Onion","qty":360.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed029","name":"Taco Seasoning","qty":500.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed030","name":"Garlic Parmesan","qty":320.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed031","name":"Sea Salt","qty":850.0,"minQty":100.0,"reorderQty":100.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed032","name":"Shawarma","qty":75.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed033","name":"Montreal Burger","qty":60.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed034","name":"Steak Seasoning","qty":100.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed035","name":"Ground Black Pepper","qty":150.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed036","name":"Cajun Seasoning","qty":150.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed037","name":"Trader Joes Allspice","qty":65.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed038","name":"Everything Bagel Seasoning","qty":65.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed039","name":"Garlic Powder","qty":100.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed040","name":"White Pepper","qty":34.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed041","name":"Italian Seasoning","qty":20.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed042","name":"Mediterranean Salad Seasoning","qty":20.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed043","name":"Onion Powder","qty":116.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed044","name":"Dried Parsley","qty":6.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed045","name":"Tahini","qty":125.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed046","name":"Nutmeg Ground","qty":22.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed047","name":"Ground Cinnamon","qty":5.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Spices","expiry":"","notes":"Cooking Area","brand":""},{"id":"seed048","name":"Shawna Paratha","qty":10.0,"minQty":2.0,"reorderQty":2.0,"unit":"pack","cat":"Frozen","expiry":"","notes":"Freezer","brand":""},{"id":"seed049","name":"Breakfast Sausages","qty":15.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Frozen","expiry":"","notes":"Freezer","brand":""},{"id":"seed050","name":"California Mix Veggies","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Frozen","expiry":"2027-11","notes":"Freezer","brand":""},{"id":"seed051","name":"Berry Blend Frozen Fruits","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Frozen","expiry":"2027-02","notes":"Freezer","brand":""},{"id":"seed052","name":"Wild Blueberries","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Frozen","expiry":"2027-02","notes":"Freezer","brand":""},{"id":"seed053","name":"Stir Fry Medley","qty":0.5,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Frozen","expiry":"","notes":"Freezer","brand":""},{"id":"seed054","name":"Fries","qty":0.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Frozen","expiry":"","notes":"Freezer","brand":""},{"id":"seed055","name":"Chicken Strips","qty":13.0,"minQty":6.0,"reorderQty":6.0,"unit":"unit","cat":"Frozen","expiry":"","notes":"Freezer","brand":""},{"id":"seed056","name":"Onion Rings","qty":0.05,"minQty":0.5,"reorderQty":1,"unit":"bag","cat":"Frozen","expiry":"","notes":"Freezer","brand":""},{"id":"seed057","name":"Jamaican Patty","qty":2.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Frozen","expiry":"","notes":"Freezer","brand":""},{"id":"seed058","name":"Veggie Burger","qty":2.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Frozen","expiry":"","notes":"Freezer","brand":""},{"id":"seed059","name":"Vanilla Ice Cream","qty":0.5,"minQty":0.2,"reorderQty":1,"unit":"box","cat":"Snacks","expiry":"","notes":"Freezer","brand":""},{"id":"seed060","name":"Ice Cream Sandwiches","qty":4.5,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Snacks","expiry":"","notes":"Freezer","brand":""},{"id":"seed061","name":"Pita","qty":5.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Produce","expiry":"","notes":"Freezer","brand":""},{"id":"seed062","name":"Tandoori Naan","qty":5.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Produce","expiry":"","notes":"Freezer","brand":""},{"id":"seed063","name":"Garlic Naan","qty":5.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Produce","expiry":"","notes":"Freezer","brand":""},{"id":"seed064","name":"Stewing Beef","qty":875.0,"minQty":500.0,"reorderQty":500.0,"unit":"g","cat":"Protein","expiry":"","notes":"Freezer","brand":""},{"id":"seed065","name":"Ground Beef","qty":1000.0,"minQty":500.0,"reorderQty":500.0,"unit":"g","cat":"Protein","expiry":"","notes":"Freezer","brand":""},{"id":"seed066","name":"Sirloin Steak","qty":3.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Protein","expiry":"","notes":"Freezer","brand":""},{"id":"seed067","name":"Beef Burger","qty":6.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Protein","expiry":"","notes":"Freezer","brand":""},{"id":"seed068","name":"Sausage","qty":10.0,"minQty":5.0,"reorderQty":5.0,"unit":"unit","cat":"Protein","expiry":"","notes":"Freezer","brand":""},{"id":"seed069","name":"Cool Whip","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Produce","expiry":"","notes":"Freezer","brand":""},{"id":"seed070","name":"Homemade Momos","qty":0.5,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Produce","expiry":"","notes":"Freezer","brand":""},{"id":"seed071","name":"Sausage Rolls","qty":32.0,"minQty":10.0,"reorderQty":10.0,"unit":"unit","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed072","name":"Pentys Wings","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed073","name":"Brar Samosa","qty":25.0,"minQty":5.0,"reorderQty":5.0,"unit":"unit","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed074","name":"Chicken Broccoli And Cheese","qty":8.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed075","name":"Chicken Parmesan","qty":2.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed076","name":"Veggie Burgers","qty":12.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed077","name":"Frozen Pizza","qty":6.0,"minQty":2.0,"reorderQty":2.0,"unit":"box","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed078","name":"Frozen Momos Costco","qty":0.5,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed079","name":"Spring Rolls","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"box","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed080","name":"Open Wings","qty":0.2,"minQty":0.0,"reorderQty":1,"unit":"unit","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed081","name":"Ginger Beef","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed082","name":"Salmon Fillets","qty":4.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed083","name":"Chicken Nuggets","qty":0.75,"minQty":0.2,"reorderQty":1,"unit":"box","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed084","name":"Rainbow Tortellini Seven Cheese","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed085","name":"Swedish Meatballs Ikea","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed086","name":"Sweet Potato Fries","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed087","name":"Jamaican Patty Garage","qty":3.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed088","name":"Homefries","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed089","name":"Onion Rings Garage","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed090","name":"Kit Kat","qty":6.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Snacks","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed091","name":"Mango Sorbet","qty":4.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Snacks","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed092","name":"Volcano Cake","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Snacks","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed093","name":"Frozen Chicken Breast","qty":16.0,"minQty":4.0,"reorderQty":4.0,"unit":"unit","cat":"Protein","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed094","name":"Teriyaki Chicken","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Protein","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed095","name":"Chipotle Chicken","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Protein","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed096","name":"Halim","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Produce","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed097","name":"Kidney Beans Frozen","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Produce","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed098","name":"Subzi","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Produce","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed099","name":"Bacon","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Protein","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed100","name":"Tacoitos","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"box","cat":"Frozen","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed101","name":"Shawarma Rice","qty":4.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Produce","expiry":"","notes":"Garage Freezer","brand":""},{"id":"seed102","name":"Steel Wool","qty":4.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Kitchen Sink","brand":""},{"id":"seed103","name":"Steel Sponges","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Kitchen Sink","brand":""},{"id":"seed104","name":"Disposable Gloves","qty":10.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Kitchen Sink","brand":""},{"id":"seed105","name":"Lysol Kitchen","qty":0.5,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Kitchen Sink","brand":""},{"id":"seed106","name":"Febreze","qty":3.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Kitchen Sink","brand":""},{"id":"seed107","name":"Jet-Dry Rinse Aid","qty":1.5,"minQty":0.5,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Kitchen Sink","brand":""},{"id":"seed108","name":"Comet","qty":0.5,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Kitchen Sink","brand":""},{"id":"seed109","name":"Windex Kitchen","qty":0.25,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Kitchen Sink","brand":""},{"id":"seed110","name":"Rubbing Alcohol 70%","qty":0.25,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Kitchen Sink","brand":""},{"id":"seed111","name":"Dishwasher Tablets","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"box","cat":"Other","expiry":"2028-04","notes":"Kitchen Sink","brand":""},{"id":"seed112","name":"Hand Soap Kitchen","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Kitchen Sink","brand":""},{"id":"seed113","name":"Dryer Sheets","qty":4.5,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Other","expiry":"","notes":"Laundry Room","brand":""},{"id":"seed114","name":"Oxiclean","qty":0.5,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Laundry Room","brand":""},{"id":"seed115","name":"Laundry Detergent","qty":2.25,"minQty":0.5,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Laundry Room","brand":""},{"id":"seed116","name":"Fabric Softener","qty":1.0,"minQty":0.5,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Laundry Room","brand":""},{"id":"seed117","name":"Bleach","qty":0.5,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Laundry Room","brand":""},{"id":"seed118","name":"Air Wick","qty":6.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Laundry Room","brand":""},{"id":"seed119","name":"Humidifier Filters","qty":7.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Laundry Room","brand":""},{"id":"seed120","name":"Ryans Toothbrush Heads","qty":9.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed121","name":"Ryans Deodorant","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed122","name":"Ryans Shampoo","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed123","name":"Ryans Body Wash","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed124","name":"Sabrinas Deodorant","qty":3.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed125","name":"Sabrinas Conditioner","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed126","name":"Sabrinas Shampoo","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed127","name":"Toothpaste","qty":4.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed128","name":"Ryans Razor Blades","qty":16.0,"minQty":4.0,"reorderQty":4.0,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed129","name":"Ryans Hair Wax","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed130","name":"Floss Picks","qty":90.0,"minQty":45.0,"reorderQty":45.0,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed131","name":"Cotton Swabs","qty":0.8,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed132","name":"Toothpaste (2)","qty":4.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed133","name":"Ryans Razor Blades (2)","qty":16.0,"minQty":4.0,"reorderQty":4.0,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed134","name":"Ovulation Test","qty":23.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"2027-06","notes":"Linen Closet","brand":""},{"id":"seed135","name":"Pregnancy Test","qty":15.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"2027-06","notes":"Linen Closet","brand":""},{"id":"seed136","name":"Sunscreen Cream","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed137","name":"Sunscreen Spray","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed138","name":"Insect Repellent","qty":4.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Linen Closet","brand":""},{"id":"seed139","name":"Crazy Glue","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Main Floor Closet","brand":""},{"id":"seed140","name":"Painters Tape","qty":2.0,"minQty":0.5,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Main Floor Closet","brand":""},{"id":"seed141","name":"Packing Tape","qty":6.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Laundry Room","brand":""},{"id":"seed142","name":"Toilet Bowl Cleaner","qty":0.25,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Main Washroom","brand":""},{"id":"seed143","name":"Lysol Washroom","qty":0.8,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Main Washroom","brand":""},{"id":"seed144","name":"Tilex","qty":1.0,"minQty":0.1,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Main Washroom","brand":""},{"id":"seed145","name":"Scrubbing Bubbles","qty":0.5,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Main Washroom","brand":""},{"id":"seed146","name":"Windex Washroom","qty":0.4,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Main Washroom","brand":""},{"id":"seed147","name":"Lysol Office","qty":4.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Office Closet","brand":""},{"id":"seed148","name":"Plastic Whiskey Glasses","qty":48.0,"minQty":6.0,"reorderQty":6.0,"unit":"unit","cat":"Other","expiry":"","notes":"Office Closet","brand":""},{"id":"seed149","name":"Wine Tumbler","qty":10.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Office Closet","brand":""},{"id":"seed150","name":"Long Cocktail Glass","qty":39.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Office Closet","brand":""},{"id":"seed151","name":"Wine Glass With Stem","qty":13.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Office Closet","brand":""},{"id":"seed152","name":"Bounty Paper Towels","qty":35.0,"minQty":12.0,"reorderQty":12.0,"unit":"unit","cat":"Other","expiry":"","notes":"Office Closet","brand":""},{"id":"seed153","name":"Toilet Paper","qty":60.0,"minQty":30.0,"reorderQty":30.0,"unit":"unit","cat":"Other","expiry":"","notes":"Office Closet","brand":""},{"id":"seed154","name":"Kleenex Box","qty":15.0,"minQty":6.0,"reorderQty":6.0,"unit":"unit","cat":"Other","expiry":"","notes":"Office Closet","brand":""},{"id":"seed155","name":"Red Lobster Biscuit Mix","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Grains","expiry":"","notes":"Pantry","brand":""},{"id":"seed156","name":"Buldak","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Frozen","expiry":"","notes":"Pantry","brand":""},{"id":"seed157","name":"KD Kraft Dinner","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Frozen","expiry":"","notes":"Pantry","brand":""},{"id":"seed158","name":"Instant Noodles","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Frozen","expiry":"","notes":"Pantry","brand":""},{"id":"seed159","name":"Taco Dinner Kit","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Frozen","expiry":"","notes":"Pantry","brand":""},{"id":"seed160","name":"Coconut Milk","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"can","cat":"Canned","expiry":"2026-08","notes":"Pantry","brand":""},{"id":"seed161","name":"Canned Beans Heinz","qty":4.0,"minQty":1.0,"reorderQty":1,"unit":"can","cat":"Canned","expiry":"2026-06","notes":"Pantry","brand":""},{"id":"seed162","name":"Sweetened Condensed Milk","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"can","cat":"Canned","expiry":"2026-03","notes":"Pantry","brand":""},{"id":"seed163","name":"Pineapple Chunks","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"can","cat":"Canned","expiry":"2026-12","notes":"Pantry","brand":""},{"id":"seed164","name":"Mango Pulp","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"can","cat":"Canned","expiry":"","notes":"Pantry","brand":""},{"id":"seed165","name":"Cream of Mushroom Soup","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"can","cat":"Canned","expiry":"","notes":"Pantry","brand":""},{"id":"seed166","name":"Cream of Chicken Soup","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"can","cat":"Canned","expiry":"","notes":"Pantry","brand":""},{"id":"seed167","name":"Campbells Chunky Beef Soup","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"can","cat":"Canned","expiry":"","notes":"Pantry","brand":""},{"id":"seed168","name":"Black Olives","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"can","cat":"Canned","expiry":"","notes":"Pantry","brand":""},{"id":"seed169","name":"Canned Chicken","qty":11.0,"minQty":6.0,"reorderQty":6.0,"unit":"can","cat":"Canned","expiry":"2028-10","notes":"Pantry","brand":""},{"id":"seed170","name":"Black Beans","qty":2.0,"minQty":2.0,"reorderQty":2.0,"unit":"can","cat":"Canned","expiry":"2027-12","notes":"Pantry","brand":""},{"id":"seed171","name":"Dark Red Kidney Beans","qty":2.0,"minQty":2.0,"reorderQty":2.0,"unit":"can","cat":"Canned","expiry":"2026-11","notes":"Pantry","brand":""},{"id":"seed172","name":"Chickpeas","qty":4.0,"minQty":2.0,"reorderQty":2.0,"unit":"can","cat":"Canned","expiry":"2027-11","notes":"Pantry","brand":""},{"id":"seed173","name":"Swiffer Wet Cloths","qty":0.6,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed174","name":"Swiffer Dry Cloths","qty":0.2,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed175","name":"Kirkland Water Filters","qty":10.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed176","name":"Fridge Water Filter","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed177","name":"Finish Dishwasher Cleaner","qty":12.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"2026-08","notes":"Pantry","brand":""},{"id":"seed178","name":"Finish Jet Dry","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed179","name":"Beef Broth","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"","notes":"Pantry","brand":""},{"id":"seed180","name":"Ketchup","qty":3.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"","notes":"Pantry","brand":""},{"id":"seed181","name":"Salsa","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"","notes":"Pantry","brand":""},{"id":"seed182","name":"Butter Chicken Sauce","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"","notes":"Pantry","brand":""},{"id":"seed183","name":"Teriyaki Sauce","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"2026-11","notes":"Pantry","brand":""},{"id":"seed184","name":"Oyster Sauce Pantry","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"2026-11","notes":"Pantry","brand":""},{"id":"seed185","name":"Vinegar","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"2029-10","notes":"Pantry","brand":""},{"id":"seed186","name":"Mayo","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"","notes":"Pantry","brand":""},{"id":"seed187","name":"Relish","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"","notes":"Pantry","brand":""},{"id":"seed188","name":"Pasta Sauce","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"","notes":"Pantry","brand":""},{"id":"seed189","name":"Ice Cream Sugar Cones","qty":12.0,"minQty":6.0,"reorderQty":6.0,"unit":"unit","cat":"Snacks","expiry":"","notes":"Pantry","brand":""},{"id":"seed190","name":"Ice Cream Waffle Cones","qty":8.0,"minQty":6.0,"reorderQty":6.0,"unit":"unit","cat":"Snacks","expiry":"","notes":"Pantry","brand":""},{"id":"seed191","name":"Salad Topper","qty":1.0,"minQty":0.2,"reorderQty":1,"unit":"kg","cat":"Grains","expiry":"","notes":"Pantry","brand":""},{"id":"seed192","name":"Roasted Chana","qty":400.0,"minQty":100.0,"reorderQty":100.0,"unit":"g","cat":"Grains","expiry":"","notes":"Pantry","brand":""},{"id":"seed193","name":"Rice Krispie Cereal","qty":0.66,"minQty":0.5,"reorderQty":1,"unit":"box","cat":"Grains","expiry":"2026-02","notes":"Pantry","brand":""},{"id":"seed194","name":"Harvest Crunch Granola","qty":1.5,"minQty":0.5,"reorderQty":1,"unit":"box","cat":"Grains","expiry":"","notes":"Pantry","brand":""},{"id":"seed195","name":"Red Lentil Pasta","qty":1.0,"minQty":0.2,"reorderQty":1,"unit":"kg","cat":"Grains","expiry":"","notes":"Pantry","brand":""},{"id":"seed196","name":"Brown Rice","qty":1.0,"minQty":0.2,"reorderQty":1,"unit":"kg","cat":"Grains","expiry":"","notes":"Pantry","brand":""},{"id":"seed197","name":"Spaghetti","qty":1.25,"minQty":0.5,"reorderQty":1,"unit":"pack","cat":"Grains","expiry":"","notes":"Pantry","brand":""},{"id":"seed198","name":"Vega Protein Powder","qty":0.7,"minQty":0.25,"reorderQty":1,"unit":"unit","cat":"Grains","expiry":"","notes":"Pantry","brand":""},{"id":"seed199","name":"Quinoa","qty":0.5,"minQty":0.25,"reorderQty":1,"unit":"unit","cat":"Grains","expiry":"","notes":"Pantry","brand":""},{"id":"seed200","name":"Thai White Glutinous Rice","qty":0.8,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Grains","expiry":"","notes":"Pantry","brand":""},{"id":"seed201","name":"Tetley Orange Pekoe Tea","qty":300.0,"minQty":20.0,"reorderQty":20.0,"unit":"unit","cat":"Grains","expiry":"2028-07","notes":"Pantry","brand":""},{"id":"seed202","name":"Club Soda","qty":6.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed203","name":"Coke","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed204","name":"Captain Morgan Mix","qty":6.0,"minQty":3.0,"reorderQty":3.0,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed205","name":"Tonic Water","qty":6.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed206","name":"White Potatoes","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"lb","cat":"Produce","expiry":"","notes":"Pantry","brand":""},{"id":"seed207","name":"Yellow Onions","qty":9.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Produce","expiry":"","notes":"Pantry","brand":""},{"id":"seed208","name":"Liquid IV","qty":46.0,"minQty":10.0,"reorderQty":10.0,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed209","name":"NyQuil Night Time","qty":21.0,"minQty":5.0,"reorderQty":5.0,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed210","name":"Gummy Multivitamins","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed211","name":"Vitamin D","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed212","name":"Metamucil","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed213","name":"Garbage Bags Black","qty":1.5,"minQty":0.5,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed214","name":"Garbage Bags White","qty":0.6,"minQty":0.2,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed215","name":"Recycling Bags","qty":0.25,"minQty":0.25,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed216","name":"Organic Garbage Bags","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"pack","cat":"Other","expiry":"2027-05","notes":"Pantry","brand":""},{"id":"seed217","name":"Bounty Pantry","qty":8.0,"minQty":2.0,"reorderQty":2.0,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed218","name":"Hot Mango Chutney","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Canned","expiry":"","notes":"Pantry","brand":""},{"id":"seed219","name":"Italian Herb Pesto","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Canned","expiry":"2027-07","notes":"Pantry","brand":""},{"id":"seed220","name":"Pickled Jalapenos","qty":0.0,"minQty":1.0,"reorderQty":1,"unit":"jar","cat":"Canned","expiry":"2027-05","notes":"Pantry","brand":""},{"id":"seed221","name":"Green Olives","qty":0.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Canned","expiry":"","notes":"Pantry","brand":""},{"id":"seed222","name":"Ziploc Freezer Medium","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed223","name":"Ziploc Freezer Large","qty":3.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed224","name":"Aluminum Foil","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed225","name":"Parchment Paper","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed226","name":"Scrub Daddy Sponges","qty":7.0,"minQty":3.0,"reorderQty":3.0,"unit":"unit","cat":"Other","expiry":"2026-12","notes":"Pantry","brand":""},{"id":"seed227","name":"Dawn Power Wash","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Other","expiry":"","notes":"Pantry","brand":""},{"id":"seed228","name":"Avocado Oil","qty":2.0,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"","notes":"Pantry","brand":""},{"id":"seed229","name":"Greek Olive Oil","qty":0.0,"minQty":0.5,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"2026-01","notes":"Pantry","brand":""},{"id":"seed230","name":"Olive Oil","qty":1.5,"minQty":1.0,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"2026-08","notes":"Pantry","brand":""},{"id":"seed231","name":"Vegetable Oil","qty":0.8,"minQty":0.5,"reorderQty":1,"unit":"unit","cat":"Sauces","expiry":"2026-05","notes":"Pantry","brand":""},{"id":"seed232","name":"White Cheddar Popcorn","qty":110.0,"minQty":10.0,"reorderQty":10.0,"unit":"g","cat":"Snacks","expiry":"","notes":"Pantry","brand":""},{"id":"seed233","name":"Doritos","qty":1.0,"minQty":0.0,"reorderQty":1,"unit":"bag","cat":"Snacks","expiry":"","notes":"Pantry","brand":""},{"id":"seed234","name":"Nachos","qty":1.0,"minQty":1.0,"reorderQty":1,"unit":"bag","cat":"Snacks","expiry":"","notes":"Pantry","brand":""}];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHARED UI COMPONENTS
@@ -5243,7 +5251,9 @@ function SundayBrief({
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "x-api-key": window.__claude_api_key || "",
+          "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
@@ -6998,7 +7008,9 @@ Return ONLY valid JSON. No markdown fences.`;
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "x-api-key": window.__claude_api_key || "",
+          "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
@@ -7334,7 +7346,9 @@ function PantryBarcodeScanner({
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "x-api-key": window.__claude_api_key || "",
+          "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
@@ -10248,7 +10262,9 @@ async function callClaude(messages, system) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "x-api-key": window.__claude_api_key || "",
+      "anthropic-dangerous-direct-browser-access": "true"
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
@@ -13230,7 +13246,9 @@ function HistoryBrowser({
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "x-api-key": window.__claude_api_key || "",
+          "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
@@ -13827,6 +13845,131 @@ function HistoryBrowser({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SETTINGS MODAL — API key + household setup
+// ─────────────────────────────────────────────────────────────────────────────
+function SettingsModal({ settings, onSave, onClose }) {
+  const [apiKey, setApiKey] = useState(settings.claudeApiKey || "");
+  const [householdId, setHouseholdId] = useState(settings.householdId || "");
+  const [joinCode, setJoinCode] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [migrateStatus, setMigrateStatus] = useState("");
+
+  const save = async () => {
+    setSaving(true);
+    const updated = { ...settings, claudeApiKey: apiKey.trim(), householdId: householdId.trim() };
+    await DB.set(KEYS.settings(), updated);
+    onSave(updated);
+    setMsg("Saved.");
+    setSaving(false);
+    setTimeout(() => { setMsg(""); onClose(); }, 800);
+  };
+
+  const createHousehold = async () => {
+    const id = Math.random().toString(36).slice(2, 8).toUpperCase();
+    setMigrateStatus("Creating household and migrating your data...");
+    // Migrate existing personal pantry + chores to shared household path
+    try {
+      const pantry = await DB.get(KEYS.pantry());
+      const chores = await DB.get(KEYS.chores());
+      const customMeals = await DB.get(KEYS.customMeals());
+      if (window.__firebase_db) {
+        const base = `households/${id}/ml`;
+        if (pantry) await window.__firebase_db.ref(`${base}/food/pantry`).set(pantry);
+        if (chores) await window.__firebase_db.ref(`${base}/chores`).set(chores);
+        if (customMeals) await window.__firebase_db.ref(`${base}/food/custommeal`).set(customMeals);
+      }
+    } catch(e) { /* migration best-effort */ }
+    setHouseholdId(id);
+    setMigrateStatus("Done! Your household code is: " + id);
+  };
+
+  const joinHousehold = () => {
+    const code = joinCode.trim().toUpperCase();
+    if (code.length < 4) return;
+    setHouseholdId(code);
+    setMigrateStatus("Joined household " + code + ". Save to activate.");
+  };
+
+  const leaveHousehold = () => {
+    setHouseholdId("");
+    setJoinCode("");
+    setMigrateStatus("Left household. Your data is now personal.");
+  };
+
+  const card = { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, padding: "16px 18px", marginBottom: 14 };
+  const label = { color: "#555e73", fontSize: 10, fontFamily: "'Syne',sans-serif", letterSpacing: ".07em", marginBottom: 6, display: "block" };
+  const inp = { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, color: "#d1d5db", fontSize: 13, padding: "9px 12px", boxSizing: "border-box", outline: "none", fontFamily: "'DM Sans',sans-serif" };
+
+  return React.createElement("div", {
+    style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" },
+    onClick: e => { if (e.target === e.currentTarget) onClose(); }
+  },
+    React.createElement("div", {
+      style: { background: "#0f1520", borderRadius: "18px 18px 0 0", width: "100%", maxWidth: 490, padding: "24px 20px 36px", maxHeight: "92vh", overflowY: "auto" }
+    },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 } },
+        React.createElement("p", { style: { color: "#e2e5ed", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, margin: 0, letterSpacing: ".05em" } }, "SETTINGS"),
+        React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", color: "#555e73", fontSize: 20, cursor: "pointer", padding: 0 } }, "✕")
+      ),
+
+      // ── Claude API Key ──
+      React.createElement("div", { style: card },
+        React.createElement("p", { style: { ...label, color: "#a78bfa" } }, "CLAUDE API KEY"),
+        React.createElement("p", { style: { color: "#555e73", fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 } },
+          "Required for AI features: Sunday brief, pantry voice-add, recipe search, pattern insights."
+        ),
+        React.createElement("input", {
+          type: "password",
+          value: apiKey,
+          onChange: e => setApiKey(e.target.value),
+          placeholder: "sk-ant-...",
+          style: inp,
+          autoComplete: "off"
+        }),
+        apiKey && React.createElement("p", { style: { color: "#4ade80", fontSize: 10, margin: "6px 0 0" } }, "Key entered — AI features will be active after saving.")
+      ),
+
+      // ── Household ──
+      React.createElement("div", { style: card },
+        React.createElement("p", { style: { ...label, color: "#60a5fa" } }, "HOUSEHOLD"),
+        React.createElement("p", { style: { color: "#555e73", fontSize: 11, margin: "0 0 12px", lineHeight: 1.5 } },
+          "Link your account with " + (settings.partnerName || "your partner") + " to share Pantry, Meals, and Chores."
+        ),
+
+        householdId
+          ? React.createElement("div", null,
+              React.createElement("div", { style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 8, padding: "10px 14px", marginBottom: 10 } },
+                React.createElement("p", { style: { color: "#60a5fa", fontSize: 11, margin: "0 0 2px", fontWeight: 700 } }, "Active Household"),
+                React.createElement("p", { style: { color: "#d1d5db", fontSize: 18, fontWeight: 800, margin: 0, fontFamily: "'Syne',sans-serif", letterSpacing: ".1em" } }, householdId),
+                React.createElement("p", { style: { color: "#555e73", fontSize: 10, margin: "4px 0 0" } }, "Share this code with " + (settings.partnerName || "your partner") + " so they can join.")
+              ),
+              React.createElement("button", { onClick: leaveHousehold, style: { background: "none", border: "1px solid rgba(239,68,68,.3)", borderRadius: 7, color: "#ef4444", fontSize: 11, padding: "6px 14px", cursor: "pointer" } }, "Leave Household")
+            )
+          : React.createElement("div", null,
+              React.createElement("button", { onClick: createHousehold, style: { width: "100%", background: "rgba(96,165,250,.1)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 8, color: "#60a5fa", fontSize: 12, fontWeight: 700, padding: "10px", cursor: "pointer", marginBottom: 10 } }, "Create Household (you go first)"),
+              React.createElement("p", { style: { color: "#374151", fontSize: 10, textAlign: "center", margin: "0 0 10px" } }, "— or —"),
+              React.createElement("div", { style: { display: "flex", gap: 8 } },
+                React.createElement("input", { value: joinCode, onChange: e => setJoinCode(e.target.value.toUpperCase()), placeholder: "Enter code (e.g. AB3X9K)", style: { ...inp, flex: 1 }, maxLength: 8 }),
+                React.createElement("button", { onClick: joinHousehold, style: { background: "rgba(96,165,250,.1)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 8, color: "#60a5fa", fontSize: 12, fontWeight: 700, padding: "0 14px", cursor: "pointer", whiteSpace: "nowrap" } }, "Join")
+              )
+            ),
+
+        migrateStatus && React.createElement("p", { style: { color: "#4ade80", fontSize: 11, margin: "10px 0 0" } }, migrateStatus)
+      ),
+
+      // ── Save ──
+      React.createElement("button", {
+        onClick: save,
+        disabled: saving,
+        style: { width: "100%", background: "#f4a823", border: "none", borderRadius: 10, color: "#080b11", fontSize: 13, fontWeight: 800, padding: "14px", cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
+      }, saving ? "SAVING..." : "SAVE SETTINGS"),
+      msg && React.createElement("p", { style: { color: "#4ade80", textAlign: "center", fontSize: 12, margin: "10px 0 0" } }, msg)
+    )
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // APP ROOT
 // ─────────────────────────────────────────────────────────────────────────────
 function App() {
@@ -13835,6 +13978,11 @@ function App() {
   React.useEffect(() => {
     window.__current_uid = userCtx?.uid || null;
   }, [userCtx?.uid]);
+  // Keep API key and household ID in sync so all components can use them
+  React.useEffect(() => {
+    window.__claude_api_key = settings.claudeApiKey || "";
+    window.__household_id = settings.householdId || "";
+  }, [settings.claudeApiKey, settings.householdId]);
   const [setupDone, setSetupDone] = useState(null); // null=loading
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [goals, setGoals] = useState(DEFAULT_GOALS);
@@ -13848,6 +13996,7 @@ function App() {
   const [celebration, setCelebration] = useState(null);
   const [activeUser, setActiveUser] = useState("self"); // self | partner
   const [loading, setLoading] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Auto-tab by time of day — maps to section sub-tabs
   useEffect(() => {
@@ -13882,9 +14031,28 @@ function App() {
     if (pan && pan.length > 0) {
       setPantryItems(pan);
     } else {
-      // First launch — embed minimal empty state; user adds items via voice/barcode/manual
-      setPantryItems([]);
-      console.log("[Mission Log] Pantry empty — add items via HOME > PANTRY");
+      // First launch for this user — check if old root-level pantry data exists (pre-auth migration)
+      let migrated = false;
+      if (window.__firebase_db && window.__current_uid) {
+        try {
+          const oldSnap = await window.__firebase_db.ref("ml/food/pantry").once("value");
+          if (oldSnap.exists()) {
+            const oldData = oldSnap.val();
+            if (Array.isArray(oldData) && oldData.length > 0) {
+              setPantryItems(oldData);
+              await DB.set(KEYS.pantry(), oldData);
+              migrated = true;
+              console.log("[Mission Log] Migrated", oldData.length, "pantry items from old path");
+            }
+          }
+        } catch(e) { /* migration optional — continue */ }
+      }
+      if (!migrated) {
+        // Seed from embedded baseline (235 household items)
+        setPantryItems(PANTRY_SEED);
+        await DB.set(KEYS.pantry(), PANTRY_SEED);
+        console.log("[Mission Log] Pantry seeded with", PANTRY_SEED.length, "baseline items");
+      }
     }
     setSetupDone(!!sd);
     if (st) setSettings(st);
@@ -14074,7 +14242,11 @@ function App() {
       maxWidth: 490,
       margin: "0 auto"
     }
-  }, celebration && /*#__PURE__*/React.createElement(CelebrationOverlay, {
+  }, showSettings && /*#__PURE__*/React.createElement(SettingsModal, {
+    settings: settings,
+    onSave: s => { setSettings(s); window.__claude_api_key = s.claudeApiKey || ""; window.__household_id = s.householdId || ""; },
+    onClose: () => setShowSettings(false)
+  }), celebration && /*#__PURE__*/React.createElement(CelebrationOverlay, {
     msg: celebration,
     onDismiss: () => setCelebration(null)
   }), /*#__PURE__*/React.createElement("div", {
@@ -14438,5 +14610,25 @@ function App() {
       objectFit: "cover"
     },
     referrerPolicy: "no-referrer"
-  }) : "⏻"));
+  }) : "⏻"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowSettings(true),
+    style: {
+      position: "fixed",
+      bottom: 108,
+      right: 20,
+      width: 36,
+      height: 36,
+      borderRadius: "50%",
+      background: settings.claudeApiKey ? "rgba(167,139,250,.15)" : "rgba(255,255,255,.06)",
+      border: settings.claudeApiKey ? "1px solid rgba(167,139,250,.35)" : "1px solid rgba(255,255,255,.1)",
+      color: settings.claudeApiKey ? "#a78bfa" : "#555e73",
+      fontSize: 16,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 40
+    },
+    title: "Settings"
+  }, "⚙"));
 }
