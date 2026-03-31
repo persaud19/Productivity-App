@@ -7717,18 +7717,20 @@ function PantryTab({
   const addItems = async newItems => {
     const merged = [...pantryItems];
     newItems.forEach(ni => {
-      // Merge with existing if same name (case-insensitive)
+      // Merge with existing if same name (case-insensitive) — also restores archived items
       const existing = merged.find(p => p.name.toLowerCase() === ni.name.toLowerCase());
       if (existing) {
         existing.qty = parseFloat(existing.qty || 0) + parseFloat(ni.qty || 1);
         if (ni.expiry) existing.expiry = ni.expiry;
+        if (existing.essential === false) existing.essential = true; // restore from archive
       } else {
         merged.push({
           ...ni,
           id: ni.id || "p" + Date.now() + Math.random(),
           cat: ni.cat || "Other",
           minQty: 0,
-          reorderQty: 1
+          reorderQty: 1,
+          essential: true
         });
       }
     });
@@ -7853,7 +7855,8 @@ function PantryTab({
 function PantryItemRow({
   item,
   onEdit,
-  onQuickAdjust
+  onQuickAdjust,
+  onToggleEssential
 }) {
   const qty = parseFloat(item.qty) || 0;
   const minQty = parseFloat(item.minQty) || 0;
@@ -8021,7 +8024,28 @@ function PantryItemRow({
       justifyContent: "center",
       padding: 0
     }
-  }, "\u270E")));
+  }, "\u270E"), /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      onToggleEssential && onToggleEssential(item);
+    },
+    title: "Essential / Must Have — uncheck to archive",
+    style: {
+      width: 24,
+      height: 24,
+      borderRadius: 6,
+      border: "1px solid " + (item.essential === false ? "rgba(255,255,255,.07)" : "rgba(244,168,35,.35)"),
+      background: item.essential === false ? "transparent" : "rgba(244,168,35,.1)",
+      color: item.essential === false ? "#374151" : "#f4a823",
+      cursor: "pointer",
+      fontSize: 12,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 0,
+      flexShrink: 0
+    }
+  }, item.essential === false ? "\u2606" : "\u2605")));
 }
 function PantryLowStockBanner({
   lowItems,
@@ -8229,13 +8253,17 @@ function PantryEditor({
   };
   const quickAdjust = async (item, delta) => {
     const newQty = Math.max(0, parseFloat(item.qty || 0) + delta);
-    const updated = pantryItems.map(p => p.id === item.id ? {
-      ...p,
-      qty: newQty
-    } : p);
+    const updated = pantryItems.map(p => p.id === item.id ? { ...p, qty: newQty } : p);
     setPantryItems(updated);
     await DB.set(KEYS.pantry(), updated);
   };
+  const toggleEssential = async item => {
+    const isNowArchived = item.essential !== false; // currently essential → archive it
+    const updated = pantryItems.map(p => p.id === item.id ? { ...p, essential: !isNowArchived } : p);
+    setPantryItems(updated);
+    await DB.set(KEYS.pantry(), updated);
+  };
+  const [showArchived, setShowArchived] = useState(false);
   const handleAddAllToGrocery = () => {
     const lowItems = pantryItems.filter(p => {
       const {
@@ -8246,11 +8274,10 @@ function PantryEditor({
     onAddToGrocery && onAddToGrocery(lowItems);
   };
 
-  // Categorised alert lists
+  // Categorised alert lists (essential items only)
   const lowItems = pantryItems.filter(p => {
-    const {
-      status
-    } = pantryStatus(p);
+    if (p.essential === false) return false;
+    const { status } = pantryStatus(p);
     return status === "out" || status === "low";
   });
   const expiringItems = pantryItems.filter(p => {
@@ -8260,7 +8287,8 @@ function PantryEditor({
     return daysToExp !== null && daysToExp <= 7;
   });
   const cats = ["All", ...PANTRY_CATEGORIES];
-  const filtered = pantryItems.filter(p => catFilter === "All" || p.cat === catFilter).filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase())).filter(p => {
+  const archivedItems = pantryItems.filter(p => p.essential === false);
+  const filtered = pantryItems.filter(p => p.essential !== false).filter(p => catFilter === "All" || p.cat === catFilter).filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase())).filter(p => {
     if (statusFilter === "low") {
       const {
         status
@@ -8474,12 +8502,38 @@ function PantryEditor({
   }, "Use the PANTRY tab above to add items by voice, barcode, or manually")), filtered.map(item => /*#__PURE__*/React.createElement(PantryItemRow, {
     key: item.id,
     item: item,
-    onEdit: i => {
-      setIsNew(false);
-      setEditItem(i);
+    onEdit: i => { setIsNew(false); setEditItem(i); },
+    onQuickAdjust: quickAdjust,
+    onToggleEssential: toggleEssential
+  })),
+  archivedItems.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 18 } },
+    /*#__PURE__*/React.createElement("button", {
+      onClick: () => setShowArchived(v => !v),
+      style: { width: "100%", padding: "10px 14px", background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 9, color: "#374151", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "'Syne',sans-serif" }
     },
-    onQuickAdjust: quickAdjust
-  })), editItem && /*#__PURE__*/React.createElement(PantryEditModal, {
+      /*#__PURE__*/React.createElement("span", null, "\u2606 Archived (" + archivedItems.length + ")"),
+      /*#__PURE__*/React.createElement("span", null, showArchived ? "\u25B4" : "\u25BE")
+    ),
+    showArchived && /*#__PURE__*/React.createElement("div", { style: { marginTop: 8 } },
+      /*#__PURE__*/React.createElement("p", { style: { color: "#374151", fontSize: 10, margin: "0 0 8px" } }, "These items are hidden from your main pantry. Tap \u2605 to restore."),
+      archivedItems.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase())).map(item =>
+        /*#__PURE__*/React.createElement("div", {
+          key: item.id,
+          style: { display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 9, marginBottom: 5, opacity: 0.6 }
+        },
+          /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+            /*#__PURE__*/React.createElement("span", { style: { color: "#6b7280", fontSize: 13, fontWeight: 600 } }, item.name),
+            /*#__PURE__*/React.createElement("span", { style: { color: "#374151", fontSize: 10, marginLeft: 8 } }, item.cat || "Other")
+          ),
+          /*#__PURE__*/React.createElement("button", {
+            onClick: () => toggleEssential(item),
+            style: { padding: "4px 10px", background: "rgba(244,168,35,.1)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 7, color: "#f4a823", fontSize: 11, fontWeight: 700, cursor: "pointer" }
+          }, "\u2605 Restore")
+        )
+      )
+    )
+  ),
+  editItem && /*#__PURE__*/React.createElement(PantryEditModal, {
     item: editItem,
     isNew: isNew,
     onSave: save,
