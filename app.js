@@ -4064,8 +4064,10 @@ function Evening({
   todayLog,
   onSave,
   settings,
-  onMilestone
+  onMilestone,
+  allLogs
 }) {
+  const allLogsArr = allLogs || [];
   const [view, setView] = useState("log");
   const [histDate, setHistDate] = useState(getToday());
   const [histLog, setHistLog] = useState(null);
@@ -5448,6 +5450,7 @@ function Sunday({
   allSundays,
   choreTasks
 }) {
+  const allLogsArr = allLogs || [];
   const [selectedSunday, setSelectedSunday] = useState(getSundayKey());
   const isCurrentWeek = selectedSunday === getSundayKey();
   const [view, setView] = useState("review");
