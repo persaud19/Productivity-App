@@ -6981,10 +6981,12 @@ function PantryAIChat({
   };
   const send = async text => {
     if (!text.trim()) return;
-    const userMsg = {
-      role: "user",
-      content: text
-    };
+    if (!window.__claude_api_key) {
+      setMessages(prev => [...prev, { role: "user", content: text }, { role: "assistant", content: "No Claude API key set. Tap the ⚙ button (bottom-right) and add your key first." }]);
+      setInput("");
+      return;
+    }
+    const userMsg = { role: "user", content: text };
     const newMsgs = [...messages, userMsg];
     setMessages(newMsgs);
     setInput("");
@@ -7002,12 +7004,14 @@ Extract ALL pantry items mentioned and return a JSON object with:
 
 Rules:
 - name: the food item name (specific, not generic where possible)
-- qty: numeric quantity (default 1 if not mentioned)  
+- qty: numeric quantity (default 1 if not mentioned)
 - unit: one of: g, kg, ml, l, oz, lb, cup, tbsp, tsp, piece, can, bag, box, bottle, bunch, loaf, dozen, unit
 - expiry: YYYY-MM format if mentioned, empty string if not
 - brand: brand name if mentioned, empty string if not
 - reply: short friendly confirmation (1-2 sentences max)
 Return ONLY valid JSON. No markdown fences.`;
+      // Only send user/assistant turns to the API (strip the initial assistant greeting)
+      const apiMsgs = newMsgs.filter((m, i) => !(i === 0 && m.role === "assistant"));
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -7019,10 +7023,11 @@ Return ONLY valid JSON. No markdown fences.`;
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
           system: systemPrompt,
-          messages: newMsgs
+          messages: apiMsgs
         })
       });
       const data = await res.json();
+      if (data.error) throw new Error(data.error.message || "API error");
       const raw = data.content?.[0]?.text || "{}";
       const clean = raw.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
       const parsed = JSON.parse(clean);
@@ -7040,7 +7045,7 @@ Return ONLY valid JSON. No markdown fences.`;
     } catch (e) {
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: "Hmm, couldn't parse that. Try again — list items one by one if needed."
+        content: "Error: " + (e.message || "couldn't reach Claude. Check your API key in ⚙ Settings.")
       }]);
     }
     setLoading(false);
