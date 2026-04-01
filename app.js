@@ -8234,12 +8234,339 @@ function PantryBarcodeScanner({
     }
   }, "Requires camera permission \xB7 Works best in Chrome on Android"));
 }
+function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
+  const [phase, setPhase] = useState("capture"); // capture | processing | review | clarify | done
+  const [procError, setProcError] = useState("");
+  const [imagePreview, setImagePreview] = useState(null);
+  const [matched, setMatched] = useState([]);
+  const [unknowns, setUnknowns] = useState([]);
+  const [selectedMatched, setSelectedMatched] = useState({});
+  const [clarifyIdx, setClarifyIdx] = useState(0);
+  const [clarifyMsgs, setClarifyMsgs] = useState([]);
+  const [clarifyInput, setClarifyInput] = useState("");
+  const [clarifyLoading, setClarifyLoading] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [resolved, setResolved] = useState([]);
+  const fileRef = useRef(null);
+  const voiceRef = useRef(null);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [clarifyMsgs]);
+
+  const findBestMatch = (name) => {
+    const n = name.toLowerCase().trim();
+    const pool = pantryItems.filter(p => p.essential !== false);
+    const exact = pool.find(p => p.name.toLowerCase() === n);
+    if (exact) return exact;
+    const contains = pool.find(p => p.name.toLowerCase().includes(n) || n.includes(p.name.toLowerCase()));
+    if (contains) return contains;
+    const words = n.split(/\s+/).filter(w => w.length > 2);
+    let best = null, bestScore = 0;
+    pool.forEach(p => {
+      const pw = p.name.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+      const overlap = words.filter(w => pw.some(pw => pw.includes(w) || w.includes(pw))).length;
+      const score = overlap / Math.max(words.length, pw.length, 1);
+      if (score >= 0.5 && score > bestScore) { bestScore = score; best = p; }
+    });
+    return best;
+  };
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target.result;
+      setImagePreview(dataUrl);
+      const base64 = dataUrl.split(",")[1];
+      const mediaType = file.type && file.type.startsWith("image/") ? file.type : "image/jpeg";
+      setProcError("");
+      setPhase("processing");
+      try {
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": window.__claude_api_key || "",
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true"
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 2000,
+            messages: [{
+              role: "user",
+              content: [
+                { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+                { type: "text", text: `Extract all food and grocery items from this receipt. Return ONLY valid JSON, no markdown:\n{\n  "items": [\n    {"rawText":"line as it appears on receipt","name":"clean readable name","qty":1,"unit":"piece"}\n  ]\n}\nRules:\n- name: clean human-readable name, not all-caps store abbreviations\n- qty: numeric quantity purchased (default 1)\n- unit: one of: g,kg,ml,l,oz,lb,piece,can,bag,box,bottle,bunch,loaf,dozen,unit\n- Only food/grocery items — skip taxes, fees, totals, store name\n- rawText: exact text from the receipt line` }
+              ]
+            }]
+          })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        const raw = data.content?.[0]?.text || "{}";
+        const clean = raw.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
+        const parsed = JSON.parse(clean);
+        const items = (parsed.items || []).map(i => ({ ...i, qty: parseFloat(i.qty) || 1 }));
+        const matchedArr = [], unknownsArr = [];
+        items.forEach(item => {
+          const pm = findBestMatch(item.name);
+          if (pm) matchedArr.push({ extracted: item, pantryItem: pm });
+          else unknownsArr.push(item);
+        });
+        setMatched(matchedArr);
+        setUnknowns(unknownsArr);
+        const sel = {};
+        matchedArr.forEach((_, i) => { sel[i] = true; });
+        setSelectedMatched(sel);
+        setPhase("review");
+      } catch (e) {
+        setProcError("Could not read receipt: " + (e.message || "check your API key in Settings."));
+        setPhase("capture");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const startClarify = () => {
+    const first = unknowns[0];
+    setClarifyMsgs([{
+      role: "assistant",
+      content: "I found \"" + first.rawText + "\" on your receipt but couldn\u2019t match it to your pantry. What is this item? You can say things like \u201CThat\u2019s almond flour, 500g\u201D, \u201CIt\u2019s a bag of mixed nuts\u201D, or \u201CSkip this one\u201D."
+    }]);
+    setClarifyIdx(0);
+    setResolved([]);
+    setPhase("clarify");
+  };
+
+  const sendClarify = async (text) => {
+    if (!text.trim() || clarifyLoading) return;
+    const userMsg = { role: "user", content: text };
+    const newMsgs = [...clarifyMsgs, userMsg];
+    setClarifyMsgs(newMsgs);
+    setClarifyInput("");
+    setClarifyLoading(true);
+    const current = unknowns[clarifyIdx];
+    const pantryNames = pantryItems.filter(p => p.essential !== false).map(p => p.name).join(", ");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": window.__claude_api_key || "",
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 400,
+          system: "You are helping a user identify a grocery item from a receipt. The receipt shows: \"" + current.rawText + "\". The user's pantry contains: " + pantryNames + ".\n\nRespond with ONLY valid JSON:\n{\"action\":\"resolved\"|\"skip\"|\"clarify\",\"pantryMatch\":\"exact name from pantry or null\",\"newItem\":{\"name\":\"\",\"qty\":1,\"unit\":\"piece\",\"cat\":\"Other\"}|null,\"qty\":1,\"reply\":\"short reply\"}\n\nRules:\n- resolved: user identified the item. Set pantryMatch if it exists in pantry, else newItem.\n- skip: user wants to skip.\n- clarify: response is ambiguous — ask one specific follow-up question.\n- qty: quantity purchased (from receipt or user message, default 1).\n- reply: 1-2 sentences. If resolved, confirm the match. If clarifying, ask one specific question.",
+          messages: newMsgs.filter((m, i) => !(i === 0 && m.role === "assistant"))
+        })
+      });
+      const d = await res.json();
+      const raw = d.content?.[0]?.text || "{}";
+      const clean = raw.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
+      const result = JSON.parse(clean);
+      setClarifyMsgs(prev => [...prev, { role: "assistant", content: result.reply || "Got it!" }]);
+      if (result.action === "resolved" || result.action === "skip") {
+        const resolution = {
+          extracted: current,
+          action: result.action,
+          pantryMatch: result.pantryMatch ? pantryItems.find(p => p.name.toLowerCase() === result.pantryMatch.toLowerCase()) || null : null,
+          newItem: result.newItem || null,
+          qty: parseFloat(result.qty) || current.qty
+        };
+        const newResolved = [...resolved, resolution];
+        setResolved(newResolved);
+        const nextIdx = clarifyIdx + 1;
+        if (nextIdx < unknowns.length) {
+          const next = unknowns[nextIdx];
+          setTimeout(() => {
+            setClarifyMsgs(prev => [...prev, {
+              role: "assistant",
+              content: "Next: I found \"" + next.rawText + "\" on your receipt. What is this item?"
+            }]);
+            setClarifyIdx(nextIdx);
+          }, 500);
+        } else {
+          setTimeout(() => {
+            setClarifyMsgs(prev => [...prev, {
+              role: "assistant",
+              content: "All done! Tap \u201CApply to Pantry\u201D to save everything."
+            }]);
+            setPhase("done");
+          }, 500);
+        }
+      }
+    } catch (e) {
+      setClarifyMsgs(prev => [...prev, { role: "assistant", content: "Error — try again." }]);
+    }
+    setClarifyLoading(false);
+  };
+
+  const startVoice = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert("Voice not supported — try Chrome."); return; }
+    const r = new SR();
+    r.lang = "en-CA"; r.interimResults = false;
+    r.onstart = () => setListening(true);
+    r.onresult = e => { setClarifyInput(prev => (prev ? prev + " " : "") + e.results[0][0].transcript); };
+    r.onend = () => setListening(false);
+    r.onerror = () => setListening(false);
+    r.start();
+    voiceRef.current = r;
+  };
+
+  const applyAll = () => {
+    const edits = matched
+      .filter((_, i) => selectedMatched[i])
+      .map(m => ({ match: m.pantryItem.name, changes: { qtyDelta: m.extracted.qty } }));
+    const resolvedEdits = resolved
+      .filter(r => r.action === "resolved" && r.pantryMatch)
+      .map(r => ({ match: r.pantryMatch.name, changes: { qtyDelta: r.qty } }));
+    const newItems = resolved
+      .filter(r => r.action === "resolved" && r.newItem)
+      .map(r => ({ ...r.newItem, qty: r.qty, id: "p" + Date.now() + Math.random(), essential: true }));
+    onApply({ edits: [...edits, ...resolvedEdits], newItems });
+    onClose();
+  };
+
+  const skipAllUnknowns = () => {
+    setResolved([]);
+    setPhase("done");
+  };
+
+  const card = { background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 10, padding: "12px 14px", marginBottom: 8 };
+
+  // ── Capture ──
+  if (phase === "capture") return /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("input", { ref: fileRef, type: "file", accept: "image/*", capture: "environment", onChange: handleFile, style: { display: "none" } }),
+    /*#__PURE__*/React.createElement("div", {
+      style: { background: "rgba(167,139,250,.06)", border: "2px dashed rgba(167,139,250,.25)", borderRadius: 14, padding: "32px 20px", textAlign: "center", marginBottom: 14 }
+    },
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 40, marginBottom: 10 } }, "\uD83E\uDDFE"),
+      /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 6px" } }, "Scan a Receipt"),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 20px", lineHeight: 1.6 } }, "Take a photo of your grocery receipt. Claude will read it and match items to your pantry automatically."),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => fileRef.current?.click(),
+        style: { width: "100%", padding: "14px", background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 10, color: "#a78bfa", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif", marginBottom: 8 }
+      }, "\uD83D\uDCF8 Take Photo / Upload Receipt")
+    ),
+    procError && /*#__PURE__*/React.createElement("p", { style: { color: "#ef4444", fontSize: 11, textAlign: "center", margin: "0 0 12px" } }, procError),
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, textAlign: "center" } }, "Uses your Claude API key \xB7 Works on any grocery receipt")
+  );
+
+  // ── Processing ──
+  if (phase === "processing") return /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "40px 16px" } },
+    imagePreview && /*#__PURE__*/React.createElement("img", { src: imagePreview, style: { width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 10, marginBottom: 16, opacity: 0.6 } }),
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, justifyContent: "center", marginBottom: 12 } },
+      [0,1,2].map(i => /*#__PURE__*/React.createElement("div", { key: i, style: { width: 8, height: 8, borderRadius: "50%", background: "#a78bfa", animation: "pulse 1.2s " + (i*0.2) + "s ease-in-out infinite" } }))
+    ),
+    /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: "0 0 4px" } }, "Reading your receipt\u2026"),
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11 } }, "Claude is extracting items and matching them to your pantry")
+  );
+
+  // ── Review ──
+  if (phase === "review") return /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: "0 0 14px" } }, "Receipt Review"),
+    matched.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 14 } },
+      /*#__PURE__*/React.createElement("p", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700, margin: "0 0 8px" } }, "\u2713 " + matched.length + " matched to your pantry"),
+      matched.map((m, i) => /*#__PURE__*/React.createElement("div", {
+        key: i,
+        onClick: () => setSelectedMatched(prev => ({ ...prev, [i]: !prev[i] })),
+        style: { display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: selectedMatched[i] ? "rgba(74,222,128,.06)" : "var(--card-bg)", border: "1px solid " + (selectedMatched[i] ? "rgba(74,222,128,.2)" : "var(--card-border)"), borderRadius: 9, marginBottom: 5, cursor: "pointer" }
+      },
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 16 } }, selectedMatched[i] ? "\u2705" : "\u25a1"),
+        /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+          /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 12, fontWeight: 600, margin: "0 0 1px" } }, m.pantryItem.name),
+          /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, "from: " + m.extracted.rawText)
+        ),
+        /*#__PURE__*/React.createElement("span", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700, flexShrink: 0 } }, "+" + m.extracted.qty + " " + (m.extracted.unit || ""))
+      ))
+    ),
+    unknowns.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 14 } },
+      /*#__PURE__*/React.createElement("p", { style: { color: "#f4a823", fontSize: 11, fontWeight: 700, margin: "0 0 8px" } }, "\u2753 " + unknowns.length + " item" + (unknowns.length !== 1 ? "s" : "") + " need clarification"),
+      unknowns.map((u, i) => /*#__PURE__*/React.createElement("div", {
+        key: i,
+        style: { padding: "8px 12px", background: "rgba(244,168,35,.05)", border: "1px solid rgba(244,168,35,.18)", borderRadius: 9, marginBottom: 5 }
+      },
+        /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 12, margin: 0 } }, u.rawText),
+        /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "2px 0 0" } }, "best guess: " + u.name)
+      ))
+    ),
+    matched.length === 0 && unknowns.length === 0 && /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, textAlign: "center", padding: 20 } }, "No grocery items found on the receipt. Try a clearer photo."),
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginTop: 8 } },
+      unknowns.length > 0 && /*#__PURE__*/React.createElement("button", {
+        onClick: startClarify,
+        style: { width: "100%", padding: "13px", background: "#f4a823", border: "none", borderRadius: 10, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+      }, "Clarify " + unknowns.length + " Unknown Item" + (unknowns.length !== 1 ? "s" : "") + " \u2192"),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: unknowns.length > 0 ? skipAllUnknowns : applyAll,
+        style: { width: "100%", padding: "13px", background: "var(--card-bg-2)", border: "1px solid var(--card-border)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+      }, unknowns.length > 0 ? "Skip unknowns \u2014 apply matched only" : "Apply to Pantry \u2192")
+    )
+  );
+
+  // ── Clarify ──
+  if (phase === "clarify" || phase === "done") return /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "58vh" } },
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+      /*#__PURE__*/React.createElement("p", { style: { color: "#f4a823", fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, margin: 0 } },
+        phase === "done" ? "All clarified \u2713" : ("Item " + (clarifyIdx + 1) + " of " + unknowns.length)
+      ),
+      phase === "done" && /*#__PURE__*/React.createElement("button", {
+        onClick: applyAll,
+        style: { padding: "8px 18px", background: "#4ade80", border: "none", borderRadius: 8, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+      }, "Apply to Pantry \u2192")
+    ),
+    /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", paddingBottom: 8 } },
+      clarifyMsgs.map((m, i) => /*#__PURE__*/React.createElement("div", {
+        key: i,
+        style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }
+      },
+        /*#__PURE__*/React.createElement("div", {
+          style: { maxWidth: "82%", padding: "10px 13px", borderRadius: m.role === "user" ? "12px 12px 3px 12px" : "12px 12px 12px 3px", background: m.role === "user" ? "rgba(167,139,250,.18)" : "var(--card-bg-2)", border: "1px solid " + (m.role === "user" ? "rgba(167,139,250,.3)" : "var(--card-border)") }
+        },
+          /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, margin: 0, lineHeight: 1.55, whiteSpace: "pre-wrap" } }, m.content)
+        )
+      )),
+      clarifyLoading && /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 5, padding: "8px 13px", background: "var(--card-bg-3)", borderRadius: 12, width: "fit-content" } },
+        [0,1,2].map(i => /*#__PURE__*/React.createElement("div", { key: i, style: { width: 7, height: 7, borderRadius: "50%", background: "#f4a823", animation: "pulse 1.2s " + (i*0.2) + "s ease-in-out infinite" } }))
+      ),
+      /*#__PURE__*/React.createElement("div", { ref: chatEndRef })
+    ),
+    phase !== "done" && /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 7, paddingTop: 10, borderTop: "1px solid var(--card-border)" } },
+      /*#__PURE__*/React.createElement("div", { style: { flex: 1, position: "relative" } },
+        /*#__PURE__*/React.createElement("input", {
+          value: clarifyInput,
+          onChange: e => setClarifyInput(e.target.value),
+          onKeyDown: e => e.key === "Enter" && sendClarify(clarifyInput),
+          placeholder: "What is this item\u2026",
+          style: { width: "100%", background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", borderRadius: 9, color: "var(--text-primary)", fontSize: 13, padding: "10px 42px 10px 12px", outline: "none", boxSizing: "border-box" }
+        }),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: listening ? () => { voiceRef.current?.stop(); setListening(false); } : startVoice,
+          style: { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", width: 30, height: 30, background: listening ? "rgba(239,68,68,.2)" : "rgba(167,139,250,.15)", border: "1px solid " + (listening ? "rgba(239,68,68,.4)" : "rgba(167,139,250,.3)"), borderRadius: 7, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }
+        }, listening ? "\uD83D\uDD34" : "\uD83C\uDF99")
+      ),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => sendClarify(clarifyInput),
+        disabled: !clarifyInput.trim() || clarifyLoading,
+        style: { padding: "10px 14px", background: clarifyInput.trim() && !clarifyLoading ? "rgba(167,139,250,.15)" : "var(--card-bg-3)", border: "1px solid " + (clarifyInput.trim() && !clarifyLoading ? "rgba(167,139,250,.3)" : "var(--card-border)"), color: clarifyInput.trim() && !clarifyLoading ? "#a78bfa" : "var(--text-muted)", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: clarifyInput.trim() && !clarifyLoading ? "pointer" : "default" }
+      }, "Send")
+    )
+  );
+
+  return null;
+}
+
 function PantryTab({
   pantryItems,
   setPantryItems,
   onAddToGrocery
 }) {
-  const [mode, setMode] = useState("list"); // list | chat | barcode
+  const [mode, setMode] = useState("list"); // list | chat | barcode | receipt
 
   const addItems = async newItems => {
     const merged = [...pantryItems];
@@ -8266,6 +8593,11 @@ function PantryTab({
     setMode("list");
   };
   const addOneItem = async item => { await addItems([item]); };
+
+  const applyReceipt = async ({ edits, newItems }) => {
+    if (newItems?.length > 0) await addItems(newItems);
+    if (edits?.length > 0) await editItems(edits);
+  };
 
   const editItems = async edits => {
     const merged = [...pantryItems];
@@ -8355,6 +8687,18 @@ function PantryTab({
     onItemFound: item => addOneItem(item),
     onClose: () => setMode("list")
   }));
+
+  if (mode === "receipt") return /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
+      /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: 0 } }, "\uD83E\uDDFE Receipt Scanner"),
+      /*#__PURE__*/React.createElement("button", { onClick: () => setMode("list"), style: { padding: "5px 12px", background: "transparent", border: "1px solid var(--card-border)", color: "var(--text-secondary)", borderRadius: 7, fontSize: 11, cursor: "pointer" } }, "\u2190 Back")
+    ),
+    /*#__PURE__*/React.createElement(PantryReceiptScanner, {
+      pantryItems: pantryItems,
+      onApply: applyReceipt,
+      onClose: () => setMode("list")
+    })
+  );
 
   // List mode — show add buttons + PantryEditor
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
