@@ -8,8 +8,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <style>
+    :root{
+      --bg:#080b11;--bg-nav:#0a0f1a;
+      --card-bg:rgba(255,255,255,.03);--card-bg-2:rgba(255,255,255,.06);--card-bg-3:rgba(255,255,255,.04);--card-bg-4:rgba(255,255,255,.08);
+      --card-border:rgba(255,255,255,.07);--card-border-2:rgba(255,255,255,.1);
+      --text-primary:#d1d5db;--text-secondary:#555e73;--text-muted:#374151;
+    }
     *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#080b11;font-family:"DM Sans",sans-serif}
+    body{background:var(--bg);font-family:"DM Sans",sans-serif}
     #root{min-height:100vh}
     ::-webkit-scrollbar{width:4px;height:4px}
     ::-webkit-scrollbar-track{background:transparent}
