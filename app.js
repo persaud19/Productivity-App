@@ -7822,56 +7822,49 @@ function PantryBarcodeScanner({
   onItemFound,
   onClose
 }) {
-  const videoRef = useRef(null);
   const [scanning, setScanning] = useState(false);
-  const [status, setStatus] = useState("idle"); // idle | scanning | looking_up | found | error
+  const [status, setStatus] = useState("idle");
   const [foundItem, setFoundItem] = useState(null);
-  const [form, setForm] = useState({
-    qty: 1,
-    unit: "unit",
-    expiry: ""
-  });
-  const streamRef = useRef(null);
-  const detectorRef = useRef(null);
-  const intervalRef = useRef(null);
+  const [form, setForm] = useState({ qty: 1, unit: "unit", expiry: "" });
+  const [errorMsg, setErrorMsg] = useState("");
+  const scannerRef = useRef(null);
+  const SCANNER_DIV_ID = "pantry-qr-scanner-div";
+
   const startCamera = async () => {
+    if (!window.Html5Qrcode) {
+      setErrorMsg("Scanner library not loaded. Please refresh the page.");
+      setStatus("error");
+      return;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment"
-        }
-      });
-      streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
       setScanning(true);
       setStatus("scanning");
-      if ("BarcodeDetector" in window) {
-        detectorRef.current = new BarcodeDetector({
-          formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"]
-        });
-        intervalRef.current = setInterval(detectBarcode, 500);
-      } else {
-        setStatus("error");
-        setScanning(false);
-      }
+      const scanner = new window.Html5Qrcode(SCANNER_DIV_ID);
+      scannerRef.current = scanner;
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 5, qrbox: { width: 240, height: 100 } },
+        (decodedText) => {
+          stopCamera();
+          lookupBarcode(decodedText);
+        },
+        () => {}
+      );
     } catch (e) {
+      setScanning(false);
       setStatus("error");
+      setErrorMsg(e?.message?.includes("Permission") || e?.message?.includes("permission")
+        ? "Camera permission denied. Please allow camera access in your browser settings."
+        : "Could not start camera. Try refreshing the page.");
     }
   };
-  const detectBarcode = async () => {
-    if (!videoRef.current || !detectorRef.current) return;
-    try {
-      const barcodes = await detectorRef.current.detect(videoRef.current);
-      if (barcodes.length > 0) {
-        clearInterval(intervalRef.current);
-        stopCamera();
-        lookupBarcode(barcodes[0].rawValue);
-      }
-    } catch (e) {}
-  };
+
   const stopCamera = () => {
-    clearInterval(intervalRef.current);
-    streamRef.current?.getTracks().forEach(t => t.stop());
+    if (scannerRef.current) {
+      scannerRef.current.stop().catch(() => {}).finally(() => {
+        scannerRef.current = null;
+      });
+    }
     setScanning(false);
   };
   const lookupBarcode = async barcode => {
@@ -7959,39 +7952,16 @@ function PantryBarcodeScanner({
       setStatus("found");
     }
   };
-  useEffect(() => () => {
-    stopCamera();
-  }, []);
+  useEffect(() => () => { stopCamera(); }, []);
   if (status === "error") return /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center",
-      padding: "24px 16px"
-    }
+    style: { textAlign: "center", padding: "24px 16px" }
   }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#ef4444",
-      fontSize: 14,
-      fontWeight: 700,
-      margin: "0 0 8px"
-    }
-  }, "Barcode scanner not available"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#555e73",
-      fontSize: 12,
-      margin: "0 0 14px",
-      lineHeight: 1.6
-    }
-  }, "Your browser doesn't support the BarcodeDetector API. Try Chrome on Android, or use the voice/text method instead."), /*#__PURE__*/React.createElement("button", {
+    style: { color: "#ef4444", fontSize: 14, fontWeight: 700, margin: "0 0 8px" }
+  }, "Camera error"), /*#__PURE__*/React.createElement("p", {
+    style: { color: "#555e73", fontSize: 12, margin: "0 0 14px", lineHeight: 1.6 }
+  }, errorMsg || "Could not open camera. Try the voice/text method instead."), /*#__PURE__*/React.createElement("button", {
     onClick: onClose,
-    style: {
-      padding: "10px 20px",
-      background: "rgba(255,255,255,.06)",
-      border: "1px solid rgba(255,255,255,.1)",
-      color: "#555e73",
-      borderRadius: 9,
-      fontSize: 13,
-      cursor: "pointer"
-    }
+    style: { padding: "10px 20px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", color: "#555e73", borderRadius: 9, fontSize: 13, cursor: "pointer" }
   }, "Go Back"));
   if (status === "found" && foundItem) return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -8166,7 +8136,18 @@ function PantryBarcodeScanner({
       margin: "0 0 12px",
       lineHeight: 1.6
     }
-  }, "Point your camera at any food barcode. The scanner will detect it automatically."), !scanning ? /*#__PURE__*/React.createElement("button", {
+  }, "Point your camera at any food barcode. The scanner will detect it automatically."),
+  /*#__PURE__*/React.createElement("div", {
+    id: SCANNER_DIV_ID,
+    style: {
+      width: "100%",
+      borderRadius: 10,
+      overflow: "hidden",
+      marginBottom: 12,
+      minHeight: scanning ? 260 : 0
+    }
+  }),
+  !scanning ? /*#__PURE__*/React.createElement("button", {
     onClick: startCamera,
     style: {
       width: "100%",
@@ -8182,64 +8163,8 @@ function PantryBarcodeScanner({
       marginBottom: 12
     }
   }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: "block",
-      fontSize: 28,
-      marginBottom: 6
-    }
-  }, "\uD83D\uDCF7"), "Tap to Start Scanner") : /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: "relative",
-      marginBottom: 12
-    }
-  }, /*#__PURE__*/React.createElement("video", {
-    ref: videoRef,
-    autoPlay: true,
-    playsInline: true,
-    muted: true,
-    style: {
-      width: "100%",
-      borderRadius: 10,
-      border: "1px solid rgba(244,168,35,.3)",
-      background: "#000",
-      aspectRatio: "4/3",
-      objectFit: "cover"
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: "absolute",
-      inset: 0,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      pointerEvents: "none"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 220,
-      height: 100,
-      border: "2px solid #f4a823",
-      borderRadius: 8,
-      boxShadow: "0 0 0 2000px rgba(0,0,0,.4)"
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: "absolute",
-      bottom: 10,
-      left: "50%",
-      transform: "translateX(-50%)",
-      background: "rgba(0,0,0,.7)",
-      borderRadius: 8,
-      padding: "5px 12px"
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#f4a823",
-      fontSize: 11,
-      fontWeight: 700,
-      margin: 0
-    }
-  }, "Scanning..."))), scanning && /*#__PURE__*/React.createElement("button", {
+    style: { display: "block", fontSize: 28, marginBottom: 6 }
+  }, "\uD83D\uDCF7"), "Tap to Start Scanner") : null, scanning && /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       stopCamera();
       setStatus("idle");
