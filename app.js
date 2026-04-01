@@ -318,7 +318,11 @@ const KEYS = {
   mealLog: date => `ml:meallog:${date}`,
   macroTargets: () => `ml:macro:targets`,
   mealLibrary: () => `ml:meal:library`,
-  sabinaPrompts: () => `ml:sabrina:mealPrompts`
+  sabinaPrompts: () => `ml:sabrina:mealPrompts`,
+  financeEnvelopes: month => `ml:finance:envelopes:${month}`,
+  financeTransactions: month => `ml:finance:txns:${month}`,
+  financeAllMonths: () => `ml:finance:months`,
+  financeRollover: month => `ml:finance:rollover:${month}`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15534,6 +15538,443 @@ function SettingsModal({ settings, onSave, onClose }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// FINANCE TAB — envelope budgeting, CSV import, rollover
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Default envelope categories derived from actual spending data
+const FINANCE_ENVELOPES_DEFAULT = [
+  { id: "food_drink",      name: "Food & Drink",      color: "#fb923c", icon: "🍽", highlevel: "Food"          },
+  { id: "household",       name: "Household",         color: "#60a5fa", icon: "🏠", highlevel: "Household"     },
+  { id: "transportation",  name: "Transportation",    color: "#f4a823", icon: "🚗", highlevel: "Transportation" },
+  { id: "subscriptions",   name: "Subscriptions",     color: "#a78bfa", icon: "📱", highlevel: "Reoccuring Bills" },
+  { id: "clothing",        name: "Clothing",          color: "#ec4899", icon: "👗", highlevel: "Leisure"       },
+  { id: "amazon",          name: "Amazon",            color: "#f97316", icon: "📦", highlevel: "Household"     },
+  { id: "entertainment",   name: "Entertainment",     color: "#8b5cf6", icon: "🎬", highlevel: "Leisure"       },
+  { id: "health",          name: "Health",            color: "#4ade80", icon: "💊", highlevel: "Household"     },
+  { id: "travel",          name: "Travel",            color: "#06b6d4", icon: "✈️",  highlevel: "Leisure"      },
+  { id: "alcohol",         name: "Alcohol",           color: "#ef4444", icon: "🍺", highlevel: "Leisure"       },
+  { id: "weed",            name: "Weed",              color: "#22c55e", icon: "🌿", highlevel: "Leisure"       },
+  { id: "gifts",           name: "Gifts",             color: "#f43f5e", icon: "🎁", highlevel: "Leisure"       },
+  { id: "yugioh",          name: "Yugioh / TCG",      color: "#eab308", icon: "🃏", highlevel: "Leisure"       },
+  { id: "learning",        name: "Learning",          color: "#34d399", icon: "📚", highlevel: "Household"     },
+  { id: "work_expense",    name: "Work Expense",      color: "#64748b", icon: "💼", highlevel: "Household"     },
+  { id: "other",           name: "Other",             color: "#6b7280", icon: "📋", highlevel: ""              }
+];
+
+// Map CSV Category column → envelope id
+const CSV_CATEGORY_MAP = {
+  "food & drink": "food_drink",
+  "household":    "household",
+  "transportation":"transportation",
+  "subscription": "subscriptions",
+  "reoccuring bills":"subscriptions",
+  "clothing":     "clothing",
+  "amazon":       "amazon",
+  "entertainment":"entertainment",
+  "health":       "health",
+  "travel":       "travel",
+  "alcohol":      "alcohol",
+  "weed":         "weed",
+  "gift":         "gifts",
+  "gift cards":   "gifts",
+  "yugioh":       "yugioh",
+  "learning":     "learning",
+  "work expense": "work_expense",
+  "payment":      null, // ignore — credit card payments
+  "azai":         "other",
+  "baby":         "household"
+};
+
+// Parse the CSV format: Date,Credit Card,Amount,Category,Sub Category,Description,Highlevel
+function parseFinanceCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const txns = [];
+  for (let i = 1; i < lines.length; i++) {
+    // Handle commas inside quoted fields
+    const cols = [];
+    let cur = "", inQ = false;
+    for (const ch of lines[i]) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ""; }
+      else cur += ch;
+    }
+    cols.push(cur.trim());
+
+    const [dateRaw, card, amtRaw, catRaw, subCat, desc, highlevel] = cols;
+    if (!dateRaw || !amtRaw) continue;
+
+    // Parse amount — strip $, handle negatives (refunds)
+    const amtStr = (amtRaw || "").replace(/[$,\s"]/g, "");
+    const amount = parseFloat(amtStr);
+    if (isNaN(amount)) continue;
+
+    // Parse date MM-DD-YYYY or MM/DD/YYYY
+    const dateParts = dateRaw.replace(/\//g, "-").split("-");
+    let isoDate = "";
+    if (dateParts.length === 3) {
+      const [m, d, y] = dateParts;
+      isoDate = `${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+    }
+    if (!isoDate) continue;
+
+    const cat = (catRaw || "").trim();
+    const envId = CSV_CATEGORY_MAP[cat.toLowerCase()] ?? "other";
+    if (envId === null) continue; // skip payment rows
+
+    txns.push({
+      id: `t_${isoDate}_${i}`,
+      date: isoDate,
+      month: isoDate.slice(0, 7),
+      card: (card || "").trim(),
+      amount,
+      isRefund: amount < 0,
+      category: cat,
+      subCat: (subCat || "").trim(),
+      desc: (desc || "").trim(),
+      highlevel: (highlevel || "").trim(),
+      envelopeId: envId
+    });
+  }
+  return txns;
+}
+
+// FinanceTab component
+function FinanceTab({ settings }) {
+  const [view, setView] = useState("envelopes"); // envelopes | transactions | summary | import
+  const [currentMonth, setCurrentMonth] = useState(() => getToday().slice(0, 7));
+  const [envelopes, setEnvelopes] = useState([]); // [{ ...default, allocated: 0 }]
+  const [transactions, setTransactions] = useState([]);
+  const [rolloverIn, setRolloverIn] = useState({});
+  const [allMonths, setAllMonths] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
+  const [editingEnvelope, setEditingEnvelope] = useState(null);
+  const fileRef = useRef(null);
+
+  const loadMonth = useCallback(async (month) => {
+    setLoading(true);
+    const saved = await DB.get(KEYS.financeEnvelopes(month));
+    const txns = await DB.get(KEYS.financeTransactions(month));
+    const rollover = await DB.get(KEYS.financeRollover(month));
+    const months = await DB.get(KEYS.financeAllMonths());
+
+    // Merge saved allocations with defaults
+    const baseEnvelopes = FINANCE_ENVELOPES_DEFAULT.map(def => {
+      const s = saved?.find(e => e.id === def.id);
+      return { ...def, allocated: s?.allocated ?? 0 };
+    });
+    setEnvelopes(baseEnvelopes);
+    setTransactions(Array.isArray(txns) ? txns : []);
+    setRolloverIn(rollover || {});
+    setAllMonths(Array.isArray(months) ? months : []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadMonth(currentMonth); }, [currentMonth, loadMonth]);
+
+  const saveEnvelopes = async (updated) => {
+    setEnvelopes(updated);
+    await DB.set(KEYS.financeEnvelopes(currentMonth), updated);
+  };
+
+  const handleImportCSV = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportMsg("Parsing...");
+    try {
+      const text = await file.text();
+      const parsed = parseFinanceCSV(text);
+      // Group by month
+      const byMonth = {};
+      parsed.forEach(t => {
+        if (!byMonth[t.month]) byMonth[t.month] = [];
+        byMonth[t.month].push(t);
+      });
+      // Save each month's transactions
+      const monthList = Object.keys(byMonth).sort();
+      for (const m of monthList) {
+        const existing = await DB.get(KEYS.financeTransactions(m)) || [];
+        // Merge — deduplicate by id
+        const existingIds = new Set(existing.map(t => t.id));
+        const newTxns = byMonth[m].filter(t => !existingIds.has(t.id));
+        await DB.set(KEYS.financeTransactions(m), [...existing, ...newTxns]);
+      }
+      await DB.set(KEYS.financeAllMonths(), monthList);
+      setAllMonths(monthList);
+      // Reload current month
+      const curTxns = await DB.get(KEYS.financeTransactions(currentMonth));
+      setTransactions(Array.isArray(curTxns) ? curTxns : []);
+      setImportMsg(`Imported ${parsed.length} transactions across ${monthList.length} months.`);
+      setView("transactions");
+    } catch(err) {
+      setImportMsg("Import failed: " + err.message);
+    }
+    setImporting(false);
+    setTimeout(() => setImportMsg(""), 6000);
+  };
+
+  // Compute spent per envelope for current month
+  const spentByEnvelope = useMemo(() => {
+    const map = {};
+    transactions.forEach(t => {
+      if (t.isRefund) return;
+      map[t.envelopeId] = (map[t.envelopeId] || 0) + t.amount;
+    });
+    return map;
+  }, [transactions]);
+
+  const totalAllocated = envelopes.reduce((a, e) => a + (e.allocated || 0), 0);
+  const totalSpent = Object.values(spentByEnvelope).reduce((a, v) => a + v, 0);
+  const totalRefunds = transactions.filter(t => t.isRefund).reduce((a, t) => a + Math.abs(t.amount), 0);
+  const netSpent = totalSpent - totalRefunds;
+
+  // Compute rollover: previous month's unspent → this month
+  const computeRollover = async () => {
+    const months = allMonths.filter(m => m < currentMonth).sort();
+    if (!months.length) return;
+    const prevMonth = months[months.length - 1];
+    const prevEnv = await DB.get(KEYS.financeEnvelopes(prevMonth)) || [];
+    const prevTxns = await DB.get(KEYS.financeTransactions(prevMonth)) || [];
+    const prevSpent = {};
+    prevTxns.forEach(t => { if (!t.isRefund) prevSpent[t.envelopeId] = (prevSpent[t.envelopeId] || 0) + t.amount; });
+    const rollover = {};
+    prevEnv.forEach(e => {
+      const unspent = (e.allocated || 0) - (prevSpent[e.id] || 0);
+      if (unspent > 0) rollover[e.id] = Math.round(unspent * 100) / 100;
+    });
+    setRolloverIn(rollover);
+    await DB.set(KEYS.financeRollover(currentMonth), rollover);
+  };
+
+  const monthLabel = m => new Date(m + "-15").toLocaleDateString("en-CA", { month: "long", year: "numeric" });
+  const fmt = n => "$" + Math.abs(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+  // ── Render ──────────────────────────────────────────────────────────────
+  const tabBtn = (id, label, col) => /*#__PURE__*/React.createElement("button", {
+    onClick: () => setView(id),
+    style: { flex: 1, padding: "8px 0", border: "none", background: "transparent", cursor: "pointer", fontSize: 10, fontWeight: view === id ? 800 : 500, fontFamily: "'Syne',sans-serif", letterSpacing: ".05em", color: view === id ? col : "var(--text-secondary)", borderBottom: `2px solid ${view === id ? col : "transparent"}` }
+  }, label);
+
+  if (loading) return /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: 13 } }, "Loading...");
+
+  return /*#__PURE__*/React.createElement("div", null,
+
+    // Header
+    /*#__PURE__*/React.createElement("div", { style: { marginBottom: 16 } },
+      /*#__PURE__*/React.createElement(SectionHead, { label: "Finance", color: "#34d399" }),
+
+      // Month picker
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, margin: "6px 0 0 13px" } },
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => { const d = new Date(currentMonth + "-15"); d.setMonth(d.getMonth()-1); setCurrentMonth(d.toISOString().slice(0,7)); },
+          style: { background: "transparent", border: "none", color: "var(--text-secondary)", fontSize: 18, cursor: "pointer", padding: "0 4px", lineHeight: 1 }
+        }, "\u2039"),
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 600 } }, monthLabel(currentMonth)),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => { const d = new Date(currentMonth + "-15"); d.setMonth(d.getMonth()+1); setCurrentMonth(d.toISOString().slice(0,7)); },
+          style: { background: "transparent", border: "none", color: "var(--text-secondary)", fontSize: 18, cursor: "pointer", padding: "0 4px", lineHeight: 1 }
+        }, "\u203a")
+      )
+    ),
+
+    // Sub-tabs
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", borderBottom: "1px solid rgba(255,255,255,.06)", marginBottom: 16 } },
+      tabBtn("envelopes",    "ENVELOPES",    "#34d399"),
+      tabBtn("transactions", "TRANSACTIONS", "#60a5fa"),
+      tabBtn("summary",      "SUMMARY",      "#f4a823"),
+      tabBtn("import",       "IMPORT",       "#a78bfa")
+    ),
+
+    // ── ENVELOPES VIEW ──────────────────────────────────────────────────
+    view === "envelopes" && /*#__PURE__*/React.createElement("div", null,
+
+      // Budget health bar
+      /*#__PURE__*/React.createElement("div", {
+        style: { background: netSpent > totalAllocated ? "rgba(239,68,68,.08)" : "rgba(52,211,153,.07)", border: `1px solid ${netSpent > totalAllocated ? "rgba(239,68,68,.2)" : "rgba(52,211,153,.2)"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16 }
+      },
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 } },
+          /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#34d399", letterSpacing: ".07em" } }, "MONTHLY BUDGET"),
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 700 } }, fmt(netSpent) + " / " + fmt(totalAllocated))
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { height: 8, background: "rgba(255,255,255,.07)", borderRadius: 4, overflow: "hidden" } },
+          /*#__PURE__*/React.createElement("div", { style: { width: totalAllocated ? Math.min(100, netSpent/totalAllocated*100) + "%" : "0%", height: "100%", background: netSpent > totalAllocated ? "#ef4444" : "#34d399", borderRadius: 4, transition: "width .3s" } })
+        ),
+        totalAllocated === 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "6px 0 0" } }, "Tap an envelope to set your monthly allocation"),
+        Object.keys(rolloverIn).length > 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "#4ade80", margin: "6px 0 0", fontWeight: 600 } },
+          "\u21A9 Rollover from last month: " + fmt(Object.values(rolloverIn).reduce((a,v)=>a+v,0))
+        )
+      ),
+
+      // Rollover button
+      allMonths.some(m => m < currentMonth) && /*#__PURE__*/React.createElement("button", {
+        onClick: computeRollover,
+        style: { background: "rgba(74,222,128,.1)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "#4ade80", fontWeight: 700, cursor: "pointer", marginBottom: 14 }
+      }, "\u21A9 Pull rollover from " + monthLabel(allMonths.filter(m=>m<currentMonth).sort().pop())),
+
+      // Envelope list
+      envelopes.map(env => {
+        const spent = spentByEnvelope[env.id] || 0;
+        const rollover = rolloverIn[env.id] || 0;
+        const effective = (env.allocated || 0) + rollover;
+        const remaining = effective - spent;
+        const over = remaining < 0;
+        const pct = effective > 0 ? Math.min(100, spent / effective * 100) : 0;
+        const isEditing = editingEnvelope === env.id;
+
+        return /*#__PURE__*/React.createElement("div", {
+          key: env.id,
+          style: { background: over ? "rgba(239,68,68,.06)" : "rgba(255,255,255,.03)", border: `1px solid ${over ? "rgba(239,68,68,.25)" : "rgba(255,255,255,.07)"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 10 }
+        },
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 16 } }, env.icon),
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 600 } }, env.name),
+              rollover > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "#4ade80", fontWeight: 700, background: "rgba(74,222,128,.12)", borderRadius: 4, padding: "1px 5px" } }, "+" + fmt(rollover))
+            ),
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+              isEditing
+                ? /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 4, alignItems: "center" } },
+                    /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 12 } }, "$"),
+                    /*#__PURE__*/React.createElement("input", {
+                      type: "number", min: "0", step: "10",
+                      defaultValue: env.allocated || "",
+                      autoFocus: true,
+                      onBlur: async e => {
+                        const val = parseFloat(e.target.value) || 0;
+                        const updated = envelopes.map(ev => ev.id === env.id ? { ...ev, allocated: val } : ev);
+                        await saveEnvelopes(updated);
+                        setEditingEnvelope(null);
+                      },
+                      onKeyDown: e => e.key === "Enter" && e.target.blur(),
+                      style: { width: 80, background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 6, padding: "4px 8px", color: "var(--text-primary)", fontSize: 13, outline: "none", textAlign: "right" }
+                    })
+                  )
+                : /*#__PURE__*/React.createElement("button", {
+                    onClick: () => setEditingEnvelope(env.id),
+                    style: { background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 6, padding: "3px 10px", fontSize: 12, color: env.allocated ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer", fontWeight: env.allocated ? 600 : 400 }
+                  }, env.allocated ? fmt(env.allocated) : "Set budget"),
+              /*#__PURE__*/React.createElement("span", {
+                style: { fontSize: 12, fontWeight: 700, color: over ? "#ef4444" : remaining < env.allocated * 0.2 ? "#f4a823" : "#4ade80", minWidth: 52, textAlign: "right" }
+              }, over ? "-" + fmt(Math.abs(remaining)) : fmt(remaining))
+            )
+          ),
+          effective > 0 && /*#__PURE__*/React.createElement("div", { style: { height: 5, background: "rgba(255,255,255,.06)", borderRadius: 3, overflow: "hidden" } },
+            /*#__PURE__*/React.createElement("div", { style: { width: pct + "%", height: "100%", background: over ? "#ef4444" : pct > 80 ? "#f4a823" : env.color, borderRadius: 3, transition: "width .3s" } })
+          ),
+          effective > 0 && /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 4 } },
+            /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Spent: " + fmt(spent)),
+            /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Budget: " + fmt(effective))
+          )
+        );
+      })
+    ),
+
+    // ── TRANSACTIONS VIEW ───────────────────────────────────────────────
+    view === "transactions" && /*#__PURE__*/React.createElement("div", null,
+      transactions.length === 0
+        ? /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "40px 0" } },
+            /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, marginBottom: 12 } }, "No transactions for " + monthLabel(currentMonth)),
+            /*#__PURE__*/React.createElement("button", { onClick: () => setView("import"), style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "8px 18px", color: "#a78bfa", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "Import CSV")
+          )
+        : /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", marginBottom: 10 } }, transactions.length + " transactions \xB7 " + transactions.filter(t=>t.isRefund).length + " refunds"),
+            [...transactions].sort((a,b) => b.date.localeCompare(a.date)).map((t, i) => {
+              const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
+              return /*#__PURE__*/React.createElement("div", {
+                key: t.id || i,
+                style: { display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10, marginBottom: 6 }
+              },
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 18, flexShrink: 0, marginTop: 1 } }, env?.icon || "📋"),
+                /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                  /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc || t.category),
+                  /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + t.card + " \xB7 " + (env?.name || t.category))
+                ),
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)", flexShrink: 0 } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount)))
+              );
+            })
+          )
+    ),
+
+    // ── SUMMARY VIEW ────────────────────────────────────────────────────
+    view === "summary" && /*#__PURE__*/React.createElement("div", null,
+
+      // Month totals
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: "16px", marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#34d399", letterSpacing: ".07em", margin: "0 0 14px" } }, monthLabel(currentMonth).toUpperCase()),
+        [
+          ["Total Allocated", fmt(totalAllocated), "#34d399"],
+          ["Total Spent",     fmt(netSpent),        netSpent > totalAllocated ? "#ef4444" : "var(--text-primary)"],
+          ["Refunds",         "+" + fmt(totalRefunds), "#4ade80"],
+          ["Remaining",       fmt(Math.max(0, totalAllocated - netSpent)), "#60a5fa"],
+          ["Transactions",    transactions.length.toString(), "var(--text-secondary)"]
+        ].map(([label, val, col]) => /*#__PURE__*/React.createElement("div", {
+          key: label, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,.05)" }
+        },
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-secondary)" } }, label),
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 14, fontWeight: 700, color: col } }, val)
+        ))
+      ),
+
+      // Top spending categories
+      /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 10, fontWeight: 800, color: "var(--text-muted)", letterSpacing: ".08em", marginBottom: 10 } }, "BY ENVELOPE"),
+      [...envelopes]
+        .filter(e => spentByEnvelope[e.id] > 0)
+        .sort((a,b) => (spentByEnvelope[b.id]||0) - (spentByEnvelope[a.id]||0))
+        .map(env => {
+          const spent = spentByEnvelope[env.id] || 0;
+          const allocated = env.allocated || 0;
+          const over = allocated > 0 && spent > allocated;
+          return /*#__PURE__*/React.createElement("div", {
+            key: env.id,
+            style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: over ? "rgba(239,68,68,.06)" : "rgba(255,255,255,.03)", borderRadius: 8, marginBottom: 6, border: `1px solid ${over ? "rgba(239,68,68,.2)" : "rgba(255,255,255,.06)"}` }
+          },
+            /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-primary)" } }, env.icon + " " + env.name),
+            /*#__PURE__*/React.createElement("div", { style: { textAlign: "right" } },
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: over ? "#ef4444" : "var(--text-primary)" } }, fmt(spent)),
+              allocated > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)", marginLeft: 4 } }, "/ " + fmt(allocated))
+            )
+          );
+        }),
+
+      // Historical months nav
+      allMonths.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 20 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 10, fontWeight: 800, color: "var(--text-muted)", letterSpacing: ".08em", marginBottom: 10 } }, "PAST MONTHS"),
+        [...allMonths].sort((a,b)=>b.localeCompare(a)).map(m => /*#__PURE__*/React.createElement("button", {
+          key: m, onClick: () => { setCurrentMonth(m); setView("envelopes"); },
+          style: { display: "block", width: "100%", textAlign: "left", background: m === currentMonth ? "rgba(52,211,153,.1)" : "rgba(255,255,255,.03)", border: `1px solid ${m === currentMonth ? "rgba(52,211,153,.25)" : "rgba(255,255,255,.06)"}`, borderRadius: 8, padding: "9px 12px", marginBottom: 6, color: m === currentMonth ? "#34d399" : "var(--text-secondary)", fontSize: 12, fontWeight: m === currentMonth ? 700 : 400, cursor: "pointer" }
+        }, monthLabel(m)))
+      )
+    ),
+
+    // ── IMPORT VIEW ─────────────────────────────────────────────────────
+    view === "import" && /*#__PURE__*/React.createElement("div", null,
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(167,139,250,.07)", border: "1px solid rgba(167,139,250,.2)", borderRadius: 14, padding: "20px 18px", marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#a78bfa", letterSpacing: ".06em", margin: "0 0 8px" } }, "IMPORT CSV"),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, margin: "0 0 16px" } },
+          "Upload your Total_Spending.csv. Transactions are stored per month — re-importing is safe (deduplicates)."
+        ),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "0 0 16px", lineHeight: 1.5 } },
+          "Expected format: Date, Credit Card, Amount, Category, Sub Category, Description, Highlevel"
+        ),
+        /*#__PURE__*/React.createElement("input", {
+          ref: fileRef, type: "file", accept: ".csv", style: { display: "none" },
+          onChange: handleImportCSV
+        }),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => fileRef.current?.click(), disabled: importing,
+          style: { background: "#a78bfa", border: "none", borderRadius: 10, padding: "12px 24px", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: importing ? .6 : 1 }
+        }, importing ? "Importing\u2026" : "Choose CSV File")
+      ),
+      importMsg && /*#__PURE__*/React.createElement("div", {
+        style: { background: "rgba(74,222,128,.1)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 10, padding: "12px 14px", fontSize: 13, color: "#4ade80", fontWeight: 600 }
+      }, importMsg)
+    )
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // REMINDERS / NOTES TAB
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -16085,8 +16526,7 @@ function App() {
     id: "finance",
     label: "FINANCE",
     color: "#34d399",
-    tabs: [],
-    comingSoon: true
+    tabs: []
   }];
 
   // Derive active section from current tab
@@ -16391,61 +16831,9 @@ function App() {
     allLogs: allLogs,
     allSundays: allSundays,
     settings: settings
-  }), tab === "finance" && /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center",
-      padding: "48px 20px"
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      fontSize: 36,
-      margin: "0 0 16px"
-    }
-  }, "\uD83D\uDCB0"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#34d399",
-      fontFamily: "'Syne',sans-serif",
-      fontSize: 20,
-      fontWeight: 800,
-      margin: "0 0 8px"
-    }
-  }, "Finance"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-secondary)",
-      fontSize: 13,
-      margin: "0 0 24px",
-      lineHeight: 1.6
-    }
-  }, "Coming soon \u2014 credit card import (Amex, CIBC, TD), spending by category, payoff goal tracker, savings runway, and monthly expense analysis."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 8,
-      maxWidth: 300,
-      margin: "0 auto"
-    }
-  }, ["CC statement import (CSV/OFX)", "2-year spending categorization", "Loan payoff projection", "Monthly budget vs actual", "Savings milestone tracker"].map(f => /*#__PURE__*/React.createElement("div", {
-    key: f,
-    style: {
-      display: "flex",
-      gap: 10,
-      alignItems: "center",
-      padding: "9px 13px",
-      background: "rgba(52,211,153,.05)",
-      border: "1px solid rgba(52,211,153,.12)",
-      borderRadius: 9
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: "#34d399",
-      fontSize: 11
-    }
-  }, "\u25CB"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: "var(--text-secondary)",
-      fontSize: 12
-    }
-  }, f)))))), /*#__PURE__*/React.createElement("button", {
+  }), tab === "finance" && /*#__PURE__*/React.createElement(FinanceTab, {
+    settings: settings
+  }),
     onClick: handleExport,
     style: {
       position: "fixed",
