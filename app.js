@@ -29,7 +29,14 @@ function AuthGate({
     setError(null);
     try {
       const provider = new window.__GoogleAuthProvider();
-      await window.__firebase_auth.signInWithPopup(provider);
+      provider.addScope("https://www.googleapis.com/auth/tasks");
+      const result = await window.__firebase_auth.signInWithPopup(provider);
+      // Capture Google access token for Tasks API
+      const cred = window.__GoogleAuthProvider.credentialFromResult(result);
+      if (cred?.accessToken) {
+        window.__google_access_token = cred.accessToken;
+        window.__google_token_expiry = Date.now() + 3500000; // ~58 min
+      }
     } catch (e) {
       setError(e.message?.includes("popup-closed") ? null : "Sign-in failed. Try again.");
     }
@@ -173,7 +180,7 @@ const useUser = () => React.useContext(UserContext);
 const DB = (() => {
   // Firebase path helpers — convert key like "ml:log:2026-03-22" to "users/<uid>/ml/log/2026-03-22"
   // Shared household keys (food + chores) are routed to "households/<id>/..." when a household is active
-  const SHARED_KEY_PREFIXES = ["ml/food/", "ml/chores"];
+  const SHARED_KEY_PREFIXES = ["ml/food/", "ml/chores", "ml/reminders/joint"];
   const toPath = k => {
     const uid = window.__current_uid;
     const base = k.replace(/:/g, "/");
@@ -305,7 +312,9 @@ const KEYS = {
   trainHistory: () => `ml:train:history`,
   allSundays: () => `ml:allsundays`,
   winsArchive: () => `ml:wins:all`,
-  sundayIndex: () => `ml:sunday:index`
+  sundayIndex: () => `ml:sunday:index`,
+  reminders: () => `ml:reminders:personal`,
+  jointReminders: () => `ml:reminders:joint`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -4658,7 +4667,9 @@ function Evening({
   onSave,
   settings,
   onMilestone,
-  allLogs
+  allLogs,
+  reminders,
+  jointReminders
 }) {
   const allLogsArr = allLogs || [];
   const [view, setView] = useState("log");
@@ -5000,7 +5011,27 @@ function Evening({
         fontSize: 13
       }
     }))
-  }), /*#__PURE__*/React.createElement(Card, {
+  }), (() => {
+    const today = getToday();
+    const allRem = [...(reminders || []), ...(jointReminders || [])];
+    const doneToday = allRem.filter(r => r.done && r.doneAt && r.doneAt.slice(0, 10) === today);
+    if (!doneToday.length) return null;
+    return /*#__PURE__*/React.createElement(Card, {
+      ch: /*#__PURE__*/React.createElement(React.Fragment, null,
+        /*#__PURE__*/React.createElement(Lbl, { c: "Reminders Completed Today" }),
+        doneToday.map(r => /*#__PURE__*/React.createElement("div", {
+          key: r.id,
+          style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.05)", fontSize: 13, color: "var(--text-secondary)" }
+        },
+          /*#__PURE__*/React.createElement("span", { style: { color: "#4ade80", fontSize: 12 } }, "\u2713"),
+          /*#__PURE__*/React.createElement("span", { style: { flex: 1 } }, r.title),
+          r.type === "joint" && /*#__PURE__*/React.createElement("span", {
+            style: { fontSize: 10, background: "rgba(96,165,250,.15)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 4, padding: "1px 6px", color: "#60a5fa", fontWeight: 700 }
+          }, "JOINT")
+        ))
+      )
+    });
+  })(), /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
       c: `Moment with ${partnerName}${sonName ? " or " + sonName : ""}?`
     }), /*#__PURE__*/React.createElement("input", {
@@ -14972,6 +15003,296 @@ function SettingsModal({ settings, onSave, onClose }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// REMINDERS / NOTES TAB
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TASKS_API = "https://tasks.googleapis.com/tasks/v1";
+
+function gtasksFetch(path, options = {}) {
+  const token = window.__google_access_token;
+  if (!token) throw new Error("no_token");
+  return fetch(TASKS_API + path, {
+    ...options,
+    headers: {
+      "Authorization": "Bearer " + token,
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+}
+
+function RemindersTab({ settings }) {
+  const today = getToday();
+  const [personal, setPersonal] = useState([]);
+  const [joint, setJoint] = useState([]);
+  const [view, setView] = useState("personal");
+  const [input, setInput] = useState("");
+  const [listening, setListening] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+  const [aiSummary, setAiSummary] = useState("");
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const voiceRef = useRef(null);
+
+  const loadReminders = useCallback(async () => {
+    const p = await DB.get(KEYS.reminders());
+    const j = await DB.get(KEYS.jointReminders());
+    setPersonal(Array.isArray(p) ? p : []);
+    setJoint(Array.isArray(j) ? j : []);
+  }, []);
+
+  useEffect(() => { loadReminders(); }, [loadReminders]);
+
+  const savePersonal = async items => { setPersonal(items); await DB.set(KEYS.reminders(), items); };
+  const saveJoint = async items => { setJoint(items); await DB.set(KEYS.jointReminders(), items); };
+
+  const startVoice = () => {
+    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) { alert("Voice input not supported. Try Chrome on Android."); return; }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const r = new SR();
+    r.continuous = false; r.lang = "en-CA"; r.interimResults = false;
+    r.onstart = () => setListening(true);
+    r.onresult = e => setInput(prev => (prev ? prev + " " : "") + e.results[0][0].transcript);
+    r.onend = () => setListening(false);
+    r.onerror = () => setListening(false);
+    r.start(); voiceRef.current = r;
+  };
+
+  const makeItem = (fields, forceType) => ({
+    id: "r_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+    title: fields.title || input.trim(), notes: fields.notes || "",
+    dueDate: fields.dueDate || "", dueTime: fields.dueTime || "",
+    type: forceType || fields.type || "personal",
+    done: false, doneAt: null, createdAt: new Date().toISOString(), googleTaskId: null
+  });
+
+  const handleAdd = async () => {
+    if (!input.trim()) return;
+    const defaultType = view === "joint" ? "joint" : "personal";
+    if (!window.__claude_api_key) {
+      const item = makeItem({ title: input.trim() }, defaultType);
+      if (item.type === "joint") await saveJoint([item, ...joint]); else await savePersonal([item, ...personal]);
+      setInput(""); return;
+    }
+    setAiLoading(true);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001", max_tokens: 300,
+          messages: [{ role: "user", content: `Today is ${today}. Parse this into a reminder/note. Return ONLY valid JSON, no markdown:\n{"title":"short clear title","notes":"extra detail or empty","dueDate":"YYYY-MM-DD or empty","dueTime":"HH:MM 24h or empty","type":"personal or joint"}\nRules: type "joint" if it involves both people/household/we/us/our. Parse relative dates like "Friday","tomorrow" relative to ${today}. Keep title concise.\nInput: "${input.trim()}"` }]
+        })
+      });
+      const data = await res.json();
+      let parsed = {};
+      try { parsed = JSON.parse(data.content?.[0]?.text || "{}"); } catch {}
+      const item = makeItem(parsed, view === "joint" ? "joint" : (parsed.type === "joint" ? "joint" : "personal"));
+      if (item.type === "joint") await saveJoint([item, ...joint]); else await savePersonal([item, ...personal]);
+      setInput("");
+    } catch(e) {
+      const item = makeItem({ title: input.trim() }, defaultType);
+      if (item.type === "joint") await saveJoint([item, ...joint]); else await savePersonal([item, ...personal]);
+      setInput("");
+    }
+    setAiLoading(false);
+  };
+
+  const toggleDone = async (item, isJoint) => {
+    const updated = { ...item, done: !item.done, doneAt: !item.done ? new Date().toISOString() : null };
+    if (isJoint) await saveJoint(joint.map(r => r.id === item.id ? updated : r));
+    else await savePersonal(personal.map(r => r.id === item.id ? updated : r));
+    if (updated.googleTaskId && window.__google_access_token) {
+      try { await gtasksFetch(`/lists/@default/tasks/${updated.googleTaskId}`, { method: "PATCH", body: JSON.stringify({ status: updated.done ? "completed" : "needsAction" }) }); } catch {}
+    }
+  };
+
+  const deleteItem = async (item, isJoint) => {
+    if (isJoint) await saveJoint(joint.filter(r => r.id !== item.id));
+    else await savePersonal(personal.filter(r => r.id !== item.id));
+    if (item.googleTaskId && window.__google_access_token) {
+      try { await gtasksFetch(`/lists/@default/tasks/${item.googleTaskId}`, { method: "DELETE" }); } catch {}
+    }
+  };
+
+  const syncGoogleTasks = async () => {
+    const tokenExpired = window.__google_token_expiry && Date.now() > window.__google_token_expiry;
+    if (!window.__google_access_token || tokenExpired) { setSyncMsg("Token expired \u2014 sign out and sign back in to refresh."); return; }
+    setSyncing(true); setSyncMsg("Syncing\u2026");
+    try {
+      const res = await gtasksFetch("/lists/@default/tasks?showCompleted=true&showHidden=true&maxResults=100");
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || "Tasks API error"); }
+      const data = await res.json();
+      const googleTaskMap = {};
+      (data.items || []).forEach(t => { googleTaskMap[t.id] = t; });
+      let changes = 0;
+      const processItems = items => items.map(r => {
+        if (!r.googleTaskId) return r;
+        const gt = googleTaskMap[r.googleTaskId];
+        if (!gt) { changes++; return null; }
+        const googleDone = gt.status === "completed";
+        if (googleDone !== r.done) { changes++; return { ...r, done: googleDone, doneAt: googleDone ? (gt.completed || new Date().toISOString()) : null }; }
+        return r;
+      }).filter(Boolean);
+      let newPersonal = processItems([...personal]);
+      let newJoint = processItems([...joint]);
+      const allUnlinked = [...newPersonal.filter(r => !r.googleTaskId && !r.done), ...newJoint.filter(r => !r.googleTaskId && !r.done)];
+      for (const r of allUnlinked) {
+        try {
+          const body = { title: r.title + (r.notes ? " \u2014 " + r.notes : "") };
+          if (r.dueDate) body.due = r.dueDate + "T00:00:00.000Z";
+          const cr = await gtasksFetch("/lists/@default/tasks", { method: "POST", body: JSON.stringify(body) });
+          const created = await cr.json();
+          if (created.id) {
+            changes++;
+            newPersonal = newPersonal.map(p => p.id === r.id ? { ...p, googleTaskId: created.id } : p);
+            newJoint = newJoint.map(j => j.id === r.id ? { ...j, googleTaskId: created.id } : j);
+          }
+        } catch {}
+      }
+      await savePersonal(newPersonal); await saveJoint(newJoint);
+      setSyncMsg(`Synced \u2014 ${changes} change${changes !== 1 ? "s" : ""} applied.`);
+    } catch(e) { setSyncMsg("Sync failed: " + (e.message || "unknown error")); }
+    setSyncing(false); setTimeout(() => setSyncMsg(""), 5000);
+  };
+
+  const generateSummary = async () => {
+    if (!window.__claude_api_key) { setAiSummary("Add your Claude API key in Settings first."); return; }
+    const openItems = [...personal.filter(r => !r.done), ...joint.filter(r => !r.done)];
+    if (!openItems.length) { setAiSummary("Nothing open \u2014 you're clear!"); return; }
+    setSummaryLoading(true);
+    try {
+      const list = openItems.map(r => `[${r.type.toUpperCase()}] ${r.title}${r.notes ? " \u2014 " + r.notes : ""}${r.dueDate ? " (due " + r.dueDate + ")" : ""}`).join("\n");
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 150, messages: [{ role: "user", content: `Today is ${today}. Give a 2-sentence brief of these open reminders. Flag overdue items and what needs action today or this week. Be direct \u2014 no bullet points.\n\nItems:\n${list}` }] })
+      });
+      const d = await res.json();
+      setAiSummary(d.content?.[0]?.text || "");
+    } catch { setAiSummary("Summary failed."); }
+    setSummaryLoading(false);
+  };
+
+  const isOverdue = r => r.dueDate && r.dueDate < today && !r.done;
+  const isDueToday = r => r.dueDate === today && !r.done;
+  const activePersonal = personal.filter(r => !r.done);
+  const activeJoint = joint.filter(r => !r.done);
+  const doneAll = [...personal.filter(r => r.done), ...joint.filter(r => r.done)].sort((a, b) => (b.doneAt || "").localeCompare(a.doneAt || ""));
+  const overdueCount = [...activePersonal, ...activeJoint].filter(isOverdue).length;
+  const dueTodayCount = [...activePersonal, ...activeJoint].filter(isDueToday).length;
+  const hasGoogleToken = !!window.__google_access_token && (!window.__google_token_expiry || Date.now() < window.__google_token_expiry);
+  const displayItems = view === "personal" ? activePersonal : view === "joint" ? activeJoint : doneAll;
+  const isDoneView = view === "done";
+
+  const tabBtn = (id, label, count, col) => /*#__PURE__*/React.createElement("button", {
+    key: id, onClick: () => setView(id),
+    style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, letterSpacing: ".06em", background: view === id ? col + "22" : "transparent", color: view === id ? col : "var(--text-muted)" }
+  }, `${label} (${count})`);
+
+  return /*#__PURE__*/React.createElement("div", null,
+
+    (overdueCount > 0 || dueTodayCount > 0) && /*#__PURE__*/React.createElement("div", {
+      style: { background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 12 }
+    },
+      overdueCount > 0 && /*#__PURE__*/React.createElement("span", { style: { color: "#ef4444", fontWeight: 700, marginRight: 12 } }, overdueCount + " overdue"),
+      dueTodayCount > 0 && /*#__PURE__*/React.createElement("span", { style: { color: "#f4a823", fontWeight: 700 } }, dueTodayCount + " due today")
+    ),
+
+    /*#__PURE__*/React.createElement("div", { style: { marginBottom: 16 } },
+      aiSummary && /*#__PURE__*/React.createElement("div", {
+        style: { background: "rgba(167,139,250,.08)", border: "1px solid rgba(167,139,250,.2)", borderRadius: 10, padding: "12px 14px", fontSize: 12, color: "var(--text-primary)", lineHeight: 1.65, marginBottom: 8 }
+      }, aiSummary),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: generateSummary, disabled: summaryLoading,
+        style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "7px 14px", fontSize: 11, color: "#a78bfa", fontWeight: 700, cursor: "pointer", letterSpacing: ".05em", opacity: summaryLoading ? .6 : 1 }
+      }, summaryLoading ? "Summarising..." : "AI Brief")
+    ),
+
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16, alignItems: "center" } },
+      /*#__PURE__*/React.createElement("button", {
+        onClick: listening ? () => { voiceRef.current?.stop(); setListening(false); } : startVoice,
+        style: { width: 40, height: 40, borderRadius: "50%", cursor: "pointer", fontSize: 16, flexShrink: 0, background: listening ? "rgba(239,68,68,.2)" : "rgba(167,139,250,.15)", border: `1px solid ${listening ? "rgba(239,68,68,.4)" : "rgba(167,139,250,.3)"}`, color: listening ? "#ef4444" : "#a78bfa", display: "flex", alignItems: "center", justifyContent: "center" }
+      }, listening ? "\u23F9" : "\uD83C\uDFA4"),
+      /*#__PURE__*/React.createElement("input", {
+        type: "text", value: input, onChange: e => setInput(e.target.value),
+        onKeyDown: e => e.key === "Enter" && handleAdd(),
+        placeholder: "Add a reminder or note\u2026",
+        style: { flex: 1, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "10px 12px", color: "var(--text-primary)", fontSize: 14, outline: "none", fontFamily: "'DM Sans',sans-serif" }
+      }),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: handleAdd, disabled: !input.trim() || aiLoading,
+        style: { background: "#a78bfa", border: "none", borderRadius: 10, padding: "10px 14px", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", flexShrink: 0, opacity: !input.trim() || aiLoading ? .4 : 1 }
+      }, aiLoading ? "\u2026" : "Add")
+    ),
+
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 16, background: "rgba(255,255,255,.03)", borderRadius: 10, padding: 4 } },
+      tabBtn("personal", "MINE", activePersonal.length, "#a78bfa"),
+      tabBtn("joint", "JOINT", activeJoint.length, "#60a5fa"),
+      tabBtn("done", "DONE", doneAll.length, "#4ade80")
+    ),
+
+    displayItems.length === 0 && /*#__PURE__*/React.createElement("div", {
+      style: { textAlign: "center", padding: "32px 0", color: "var(--text-muted)", fontSize: 13 }
+    }, isDoneView ? "Nothing completed yet." : "Nothing here \u2014 add one above."),
+
+    ...displayItems.map(r => {
+      const isJoint = r.type === "joint";
+      const overdue = isOverdue(r);
+      const dueToday = isDueToday(r);
+      return /*#__PURE__*/React.createElement("div", {
+        key: r.id,
+        style: { background: r.done ? "rgba(255,255,255,.02)" : "rgba(255,255,255,.04)", border: `1px solid ${overdue ? "rgba(239,68,68,.3)" : dueToday ? "rgba(244,168,35,.3)" : "rgba(255,255,255,.07)"}`, borderRadius: 10, padding: "12px 14px", marginBottom: 10, display: "flex", alignItems: "flex-start", gap: 12 }
+      },
+        !isDoneView && /*#__PURE__*/React.createElement("button", {
+          onClick: () => toggleDone(r, isJoint),
+          style: { width: 22, height: 22, borderRadius: "50%", flexShrink: 0, cursor: "pointer", marginTop: 2, background: r.done ? "rgba(74,222,128,.2)" : "transparent", border: `2px solid ${r.done ? "#4ade80" : overdue ? "#ef4444" : "rgba(255,255,255,.2)"}`, color: "#4ade80", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }
+        }, r.done ? "\u2713" : ""),
+        /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+          /*#__PURE__*/React.createElement("div", {
+            style: { fontSize: 14, color: r.done ? "var(--text-muted)" : "var(--text-primary)", fontWeight: 500, textDecoration: r.done ? "line-through" : "none", wordBreak: "break-word" }
+          }, r.title),
+          r.notes && /*#__PURE__*/React.createElement("div", { style: { fontSize: 11, color: "var(--text-secondary)", marginTop: 3, lineHeight: 1.5 } }, r.notes),
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 5, flexWrap: "wrap", alignItems: "center" } },
+            r.dueDate && /*#__PURE__*/React.createElement("span", {
+              style: { fontSize: 10, fontWeight: 700, letterSpacing: ".04em", color: overdue ? "#ef4444" : dueToday ? "#f4a823" : "var(--text-muted)" }
+            }, overdue ? "OVERDUE \xB7 " + r.dueDate : dueToday ? "TODAY" + (r.dueTime ? " \xB7 " + r.dueTime : "") : r.dueDate + (r.dueTime ? " \xB7 " + r.dueTime : "")),
+            isJoint && !isDoneView && /*#__PURE__*/React.createElement("span", {
+              style: { fontSize: 10, background: "rgba(96,165,250,.15)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 4, padding: "1px 6px", color: "#60a5fa", fontWeight: 700 }
+            }, "JOINT"),
+            r.googleTaskId && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "\u2713 Google"),
+            isDoneView && r.doneAt && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Done " + r.doneAt.slice(0, 10))
+          )
+        ),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => deleteItem(r, isJoint),
+          style: { background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 18, padding: "0 2px", flexShrink: 0, lineHeight: 1 }
+        }, "\xD7")
+      );
+    }),
+
+    /*#__PURE__*/React.createElement("div", {
+      style: { marginTop: 28, padding: "14px 16px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 12 }
+    },
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+        /*#__PURE__*/React.createElement("span", {
+          style: { fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: hasGoogleToken ? "#4ade80" : "var(--text-muted)" }
+        }, hasGoogleToken ? "\u25CF GOOGLE TASKS CONNECTED" : "\u25CB GOOGLE TASKS"),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: syncGoogleTasks, disabled: syncing,
+          style: { background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "var(--text-primary)", fontWeight: 700, cursor: "pointer", opacity: syncing ? .5 : 1 }
+        }, syncing ? "Syncing\u2026" : "Sync Now")
+      ),
+      !hasGoogleToken && /*#__PURE__*/React.createElement("p", {
+        style: { fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }
+      }, "Sign out and sign back in to connect Google Tasks \u2014 grants permission once."),
+      syncMsg && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "#4ade80", margin: "6px 0 0", fontWeight: 600 } }, syncMsg)
+    )
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // APP ROOT
 // ─────────────────────────────────────────────────────────────────────────────
 function App() {
@@ -14990,6 +15311,8 @@ function App() {
   const [streak, setStreak] = useState(0);
   const [tasks, setTasks] = useState([]);
   const [pantryItems, setPantryItems] = useState([]);
+  const [reminders, setReminders] = useState([]);
+  const [jointReminders, setJointReminders] = useState([]);
   const [celebration, setCelebration] = useState(null);
   const [activeUser, setActiveUser] = useState("self"); // self | partner
   const [loading, setLoading] = useState(true);
@@ -15082,6 +15405,12 @@ function App() {
       });
     }
     setAllLogs(logs);
+
+    // Load reminders
+    const rp = await DB.get(KEYS.reminders());
+    const rj = await DB.get(KEYS.jointReminders());
+    setReminders(Array.isArray(rp) ? rp : []);
+    setJointReminders(Array.isArray(rj) ? rj : []);
 
     // Calculate streak
     let s = 0;
@@ -15177,6 +15506,10 @@ function App() {
       id: "sunday",
       l: "SUNDAY",
       c: "#4ade80"
+    }, {
+      id: "reminders",
+      l: "REMINDERS",
+      c: "#a78bfa"
     }]
   }, {
     id: "health",
@@ -15481,7 +15814,9 @@ function App() {
     onSave: loadAll,
     settings: settings,
     onMilestone: handleMilestone,
-    allLogs: allLogs
+    allLogs: allLogs,
+    reminders: reminders,
+    jointReminders: jointReminders
   }), tab === "food" && /*#__PURE__*/React.createElement(FoodTab, {
     uid: settings.uid || "ryan",
     partnerUid: settings.partnerUid || "sabrina",
@@ -15508,6 +15843,8 @@ function App() {
     settings: settings,
     allSundays: allSundays,
     choreTasks: tasks
+  }), tab === "reminders" && /*#__PURE__*/React.createElement(RemindersTab, {
+    settings: settings
   }), tab === "history" && /*#__PURE__*/React.createElement(HistoryBrowser, {
     allLogs: allLogs,
     allSundays: allSundays,
