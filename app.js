@@ -314,7 +314,11 @@ const KEYS = {
   winsArchive: () => `ml:wins:all`,
   sundayIndex: () => `ml:sunday:index`,
   reminders: () => `ml:reminders:personal`,
-  jointReminders: () => `ml:reminders:joint`
+  jointReminders: () => `ml:reminders:joint`,
+  mealLog: date => `ml:meallog:${date}`,
+  macroTargets: () => `ml:macro:targets`,
+  mealLibrary: () => `ml:meal:library`,
+  sabinaPrompts: () => `ml:sabrina:mealPrompts`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3939,7 +3943,10 @@ function Train({
   onSave,
   settings
 }) {
-  const date = getToday();
+  const todayStr = getToday();
+  const [trainView, setTrainView] = useState("today"); // "today" | "backlog"
+  const [backlogDate, setBacklogDate] = useState(null); // selected past date
+  const date = backlogDate || todayStr;
   const schedule = getTodaySchedule(date);
   const dow = new Date().getDay();
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -3950,6 +3957,12 @@ function Train({
   const [walkType, setWalkType] = useState(null);
   const [strengthPair, setStrengthPair] = useState(null);
   const [sessionDone, setSessionDone] = useState(null); // { type, label }
+
+  // Past 7 days for backlog
+  const past7 = Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(todayStr, -(i + 1));
+    return { date: d, label: new Date(d + "T12:00:00").toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" }) };
+  });
   const resetChoices = () => {
     setWorkoutType(null);
     setCardioType(null);
@@ -4008,16 +4021,46 @@ function Train({
     style: {
       marginBottom: 20
     }
-  }, /*#__PURE__*/React.createElement(SectionHead, {
-    label: "Train",
-    color: "#fb923c"
-  }), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#404755",
-      fontSize: 12,
-      margin: "0 0 0 13px"
-    }
-  }, fmtMid(date))), readiness > 0 && readiness <= 2 && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", justifyContent: "space-between", alignItems: "center" }
+  },
+    /*#__PURE__*/React.createElement(SectionHead, { label: backlogDate ? fmtMid(backlogDate) : "Train", color: "#fb923c" }),
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, marginRight: 4 } },
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => { setTrainView("today"); setBacklogDate(null); setWorkoutType(null); setCardioType(null); setWalkType(null); setStrengthPair(null); setSessionDone(null); },
+        style: { background: trainView === "today" ? "rgba(251,146,60,.18)" : "rgba(255,255,255,.04)", border: `1px solid ${trainView === "today" ? "rgba(251,146,60,.4)" : "rgba(255,255,255,.1)"}`, borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 700, color: trainView === "today" ? "#fb923c" : "var(--text-secondary)", cursor: "pointer" }
+      }, "TODAY"),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => { setTrainView("backlog"); setBacklogDate(null); setWorkoutType(null); setCardioType(null); setWalkType(null); setStrengthPair(null); setSessionDone(null); },
+        style: { background: trainView === "backlog" ? "rgba(251,146,60,.18)" : "rgba(255,255,255,.04)", border: `1px solid ${trainView === "backlog" ? "rgba(251,146,60,.4)" : "rgba(255,255,255,.1)"}`, borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 700, color: trainView === "backlog" ? "#fb923c" : "var(--text-secondary)", cursor: "pointer" }
+      }, "PAST 7")
+    )
+  ),
+  /*#__PURE__*/React.createElement("p", {
+    style: { color: "#404755", fontSize: 12, margin: "2px 0 0 13px" }
+  }, backlogDate ? "Logging for " + fmtMid(backlogDate) : fmtMid(todayStr))),
+
+  /* Backlog day picker */
+  trainView === "backlog" && !backlogDate && /*#__PURE__*/React.createElement("div", {
+    style: { marginBottom: 20 }
+  },
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, marginBottom: 10, fontWeight: 600 } }, "Select a day to log:"),
+    past7.map(({ date: d, label: lbl }) => {
+      const hasLog = history.some(h => h.date === d);
+      return /*#__PURE__*/React.createElement("button", {
+        key: d,
+        onClick: () => setBacklogDate(d),
+        style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, padding: "12px 16px", marginBottom: 8, cursor: "pointer", textAlign: "left" }
+      },
+        /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 500 } }, lbl),
+        hasLog
+          ? /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "#4ade80", fontWeight: 700, background: "rgba(74,222,128,.12)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 6, padding: "2px 8px" } }, "LOGGED")
+          : /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 600 } }, "tap to log \u203A")
+      );
+    })
+  ),
+
+  readiness > 0 && readiness <= 2 && trainView === "today" && /*#__PURE__*/React.createElement("div", {
     style: {
       background: "rgba(244,168,35,.07)",
       border: "1px solid rgba(244,168,35,.2)",
@@ -4123,13 +4166,19 @@ function Train({
       }
     }, "Log another session")
   ),
+  (trainView === "today" || backlogDate) && /*#__PURE__*/React.createElement("div", null,
+    backlogDate && /*#__PURE__*/React.createElement("button", {
+      onClick: () => { setBacklogDate(null); setWorkoutType(null); setCardioType(null); setWalkType(null); setStrengthPair(null); setSessionDone(null); },
+      style: { background: "transparent", border: "none", color: "var(--text-secondary)", fontSize: 12, cursor: "pointer", padding: "0 0 12px", display: "flex", alignItems: "center", gap: 4 }
+    }, "\u2190 Back to past days")
+  ),
   /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 18
     }
   },
   /* ── Step 0: choose Strength or Cardio ── */
-  !workoutType && !sessionDone && /*#__PURE__*/React.createElement("div", null,
+  (trainView === "today" || backlogDate) && !workoutType && !sessionDone && /*#__PURE__*/React.createElement("div", null,
     schedule.type !== "rest" && /*#__PURE__*/React.createElement("p", {
       style: {
         color: "var(--text-muted)",
@@ -4137,7 +4186,7 @@ function Train({
         margin: "0 0 12px",
         textAlign: "center"
       }
-    }, "Today\u2019s plan: ", /*#__PURE__*/React.createElement("span", {
+    }, backlogDate ? "Logging for " + fmtMid(backlogDate) : "Today\u2019s plan: ", backlogDate ? null : /*#__PURE__*/React.createElement("span", {
       style: {
         color: schedule.type === "strength" ? "#f4a823" : "#60a5fa",
         fontWeight: 700
@@ -4669,7 +4718,9 @@ function Evening({
   onMilestone,
   allLogs,
   reminders,
-  jointReminders
+  jointReminders,
+  mealLog,
+  macroTargets
 }) {
   const allLogsArr = allLogs || [];
   const [view, setView] = useState("log");
@@ -5065,15 +5116,47 @@ function Evening({
         fontSize: 13
       }
     }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Overall Day Rating"
-    }), /*#__PURE__*/React.createElement(Dots, {
-      val: dr,
-      set: setDr,
-      col: "#f4a823"
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
+  }), (() => {
+    // Compute macro-based day rating
+    const score = macroTargets && mealLog ? macroScore((() => {
+      const slots = ["breakfast","lunch","dinner"];
+      let cal=0,prot=0,carbs=0,fat=0;
+      slots.forEach(s => { if(mealLog[s]){cal+=mealLog[s].calories||0;prot+=mealLog[s].protein||0;carbs+=mealLog[s].carbs||0;fat+=mealLog[s].fat||0;}});
+      (mealLog.snacks||[]).forEach(s=>{cal+=s.calories||0;prot+=s.protein||0;carbs+=s.carbs||0;fat+=s.fat||0;});
+      return {calories:cal,protein:prot,carbs,fat};
+    })(), macroTargets) : null;
+    const computedRating = score !== null ? Math.max(1, Math.min(5, Math.round(score))) : null;
+    // Keep dr in sync with computed rating for autosave/history
+    if (computedRating !== null && computedRating !== dr) { setDr(computedRating); }
+    const mealCount = ["breakfast","lunch","dinner"].filter(s => mealLog?.[s]).length + (mealLog?.snacks?.length || 0);
+    const mealSummaryLines = ["breakfast","lunch","dinner"].filter(s => mealLog?.[s]).map(s => `${s.charAt(0).toUpperCase()+s.slice(1)}: ${mealLog[s].name} (${mealLog[s].calories}cal)`);
+    const ratingLabel = computedRating ? ["","Poor","Below average","On track","Good","Nailed it"][computedRating] : null;
+    return /*#__PURE__*/React.createElement(Card, {
+      ch: /*#__PURE__*/React.createElement(React.Fragment, null,
+        /*#__PURE__*/React.createElement(Lbl, { c: "Day Rating" }),
+        computedRating !== null
+          ? /*#__PURE__*/React.createElement("div", null,
+              /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: mealCount > 0 ? 10 : 0 } },
+                [1,2,3,4,5].map(n => /*#__PURE__*/React.createElement("div", {
+                  key: n,
+                  style: { width: 28, height: 28, borderRadius: "50%", background: n <= computedRating ? "#f4a823" : "rgba(255,255,255,.07)", border: `2px solid ${n <= computedRating ? "#f4a823" : "rgba(255,255,255,.1)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: n <= computedRating ? "#080b11" : "var(--text-muted)" }
+                }, n)),
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "#f4a823", fontWeight: 700 } }, ratingLabel)
+              ),
+              mealCount > 0 && /*#__PURE__*/React.createElement("div", null,
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", marginBottom: 4, letterSpacing: ".05em", fontWeight: 700 } }, mealCount + " MEAL" + (mealCount !== 1 ? "S" : "") + " LOGGED"),
+                mealSummaryLines.map((line, i) => /*#__PURE__*/React.createElement("p", { key: i, style: { fontSize: 11, color: "var(--text-secondary)", margin: "0 0 2px", lineHeight: 1.4 } }, line)),
+                mealLog?.snacks?.length > 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-secondary)", margin: 0 } }, "Snacks: " + mealLog.snacks.map(s => s.name).join(", "))
+              ),
+              !mealCount && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", marginTop: 4 } }, "Log meals in the Food tab to see your full score")
+            )
+          : /*#__PURE__*/React.createElement("div", null,
+              /*#__PURE__*/React.createElement(Dots, { val: dr, set: setDr, col: "#f4a823" }),
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", marginTop: 6 } }, "Log meals + set macro targets for auto-scoring")
+            )
+      )
+    });
+  })(), /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
       c: "Win of the Day"
     }), /*#__PURE__*/React.createElement("input", {
@@ -12489,6 +12572,224 @@ function GroceryTab({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MEAL LOG — conversational macro tracking
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Compute macro adherence score 0–5 from logged vs targets
+function macroScore(logged, targets) {
+  if (!targets || !logged) return null;
+  const calPct = targets.calories ? logged.calories / targets.calories : 1;
+  const protPct = targets.protein ? logged.protein / targets.protein : 1;
+  // Score: 5 if within 10% of cal target AND ≥90% protein, scale down from there
+  const calScore = Math.max(0, 5 - Math.abs(calPct - 1) * 10);
+  const protScore = Math.min(5, (protPct * 5));
+  return Math.round((calScore * 0.6 + protScore * 0.4) * 10) / 10;
+}
+
+// MealLogChat — conversational meal entry for one slot
+function MealLogChat({ slot, date, existing, mealLibrary, onSave, onClose, userName }) {
+  const [msgs, setMsgs] = useState(() => {
+    const greeting = existing?.name
+      ? [{ role: "assistant", content: `You logged **${existing.name}** here earlier (${existing.calories || "?"}cal · ${existing.protein || "?"}g protein). Want to update it?` }]
+      : [{ role: "assistant", content: `What did you have for ${slot}?` }];
+    return greeting;
+  });
+  const [input, setInput] = useState("");
+  const [listening, setListening] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [confirmed, setConfirmed] = useState(null); // final meal object
+  const voiceRef = useRef(null);
+  const chatEndRef = useRef(null);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
+
+  const startVoice = () => {
+    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) { alert("Voice not supported. Try Chrome."); return; }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const r = new SR();
+    r.continuous = false; r.lang = "en-CA"; r.interimResults = false;
+    r.onstart = () => setListening(true);
+    r.onresult = e => setInput(prev => (prev ? prev + " " : "") + e.results[0][0].transcript);
+    r.onend = () => setListening(false);
+    r.onerror = () => setListening(false);
+    r.start(); voiceRef.current = r;
+  };
+
+  const send = async text => {
+    if (!text.trim() || loading) return;
+    const userMsg = { role: "user", content: text };
+    const newMsgs = [...msgs, userMsg];
+    setMsgs(newMsgs);
+    setInput("");
+    if (!window.__claude_api_key) {
+      setMsgs(prev => [...prev, { role: "assistant", content: "No Claude API key set. Go to ⚙ Settings and add your key." }]);
+      return;
+    }
+    setLoading(true);
+    try {
+      // Build library context
+      const libContext = mealLibrary.length
+        ? "KNOWN MEALS (use these macros if the meal matches, no need to ask again):\n" + mealLibrary.slice(0, 30).map(m => `${m.name}: ${m.calories}cal, ${m.protein}g protein, ${m.carbs}g carbs, ${m.fat}g fat`).join("\n")
+        : "";
+
+      const systemPrompt = `You are a friendly nutritionist helping ${userName || "the user"} log what they ate for ${slot} on ${date}.
+
+${libContext}
+
+Your job is to estimate macros through natural conversation. Rules:
+- Use conversational portion language: "a medium banana", "a palm-sized piece", "a big bowl" — NOT grams unless the user mentions grams
+- If the meal is in KNOWN MEALS, use those macros directly and confirm without asking again
+- If the meal is unfamiliar, ask ONE clarifying question at a time (portion size, cooking method, key ingredients)
+- For mixed dishes (curry, stew, pasta), ask to describe what's in it briefly
+- Once you have enough info, provide your best estimate — don't over-ask
+- When ready to save, respond with ONLY valid JSON (no markdown, no extra text):
+{"action":"save","name":"Chicken Curry & Roti","calories":620,"protein":38,"carbs":72,"fat":14,"portionDesc":"2 roti, medium bowl of curry","isNew":true}
+- isNew: true if this meal isn't in KNOWN MEALS (so it gets saved to the library)
+- action "clarify": still gathering info — respond normally in plain text
+- Keep responses SHORT (1–2 sentences max when clarifying)`;
+
+      const apiMsgs = newMsgs.map(m => ({ role: m.role, content: m.content }));
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 400, system: systemPrompt, messages: apiMsgs })
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "";
+
+      // Try to parse as save action
+      let parsed = null;
+      try {
+        const jsonStr = reply.trim();
+        if (jsonStr.startsWith("{")) { parsed = JSON.parse(jsonStr); }
+      } catch {}
+
+      if (parsed?.action === "save") {
+        setConfirmed(parsed);
+        setMsgs(prev => [...prev, {
+          role: "assistant",
+          content: `Got it — **${parsed.name}** · ${parsed.calories}cal · ${parsed.protein}g protein · ${parsed.carbs}g carbs · ${parsed.fat}g fat${parsed.portionDesc ? "\n_" + parsed.portionDesc + "_" : ""}`
+        }]);
+      } else {
+        setMsgs(prev => [...prev, { role: "assistant", content: reply }]);
+      }
+    } catch(e) {
+      setMsgs(prev => [...prev, { role: "assistant", content: "Something went wrong. Try again." }]);
+    }
+    setLoading(false);
+  };
+
+  const handleConfirm = () => {
+    if (!confirmed) return;
+    onSave(confirmed);
+  };
+
+  const bubbleStyle = isUser => ({
+    maxWidth: "82%",
+    padding: "9px 13px",
+    borderRadius: isUser ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+    background: isUser ? "rgba(167,139,250,.18)" : "rgba(255,255,255,.05)",
+    border: `1px solid ${isUser ? "rgba(167,139,250,.3)" : "rgba(255,255,255,.08)"}`,
+    fontSize: 13,
+    lineHeight: 1.55,
+    color: "var(--text-primary)",
+    wordBreak: "break-word",
+    whiteSpace: "pre-wrap"
+  });
+
+  return /*#__PURE__*/React.createElement("div", {
+    style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }
+  },
+    /*#__PURE__*/React.createElement("div", {
+      style: { background: "var(--bg)", borderRadius: "20px 20px 0 0", padding: "0 0 env(safe-area-inset-bottom)", maxHeight: "85vh", display: "flex", flexDirection: "column" }
+    },
+      // Header
+      /*#__PURE__*/React.createElement("div", {
+        style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.07)" }
+      },
+        /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#fb923c", textTransform: "uppercase", letterSpacing: ".06em" } }, slot),
+        /*#__PURE__*/React.createElement("button", { onClick: onClose, style: { background: "transparent", border: "none", color: "var(--text-secondary)", fontSize: 22, cursor: "pointer", lineHeight: 1 } }, "\xD7")
+      ),
+      // Chat messages
+      /*#__PURE__*/React.createElement("div", {
+        style: { flex: 1, overflowY: "auto", padding: "16px 16px 8px", display: "flex", flexDirection: "column", gap: 10 }
+      },
+        msgs.map((m, i) => /*#__PURE__*/React.createElement("div", {
+          key: i, style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }
+        },
+          /*#__PURE__*/React.createElement("div", { style: bubbleStyle(m.role === "user") }, m.content)
+        )),
+        loading && /*#__PURE__*/React.createElement("div", { style: { display: "flex" } },
+          /*#__PURE__*/React.createElement("div", { style: { ...bubbleStyle(false), color: "var(--text-muted)" } }, "...")
+        ),
+        /*#__PURE__*/React.createElement("div", { ref: chatEndRef })
+      ),
+      // Confirm banner
+      confirmed && /*#__PURE__*/React.createElement("div", {
+        style: { margin: "0 16px 10px", padding: "12px 14px", background: "rgba(74,222,128,.1)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }
+      },
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "#4ade80", fontWeight: 600 } }, confirmed.calories + "cal \xB7 " + confirmed.protein + "g P"),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: handleConfirm,
+          style: { background: "#4ade80", border: "none", borderRadius: 8, padding: "8px 18px", color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+        }, "SAVE")
+      ),
+      // Input row
+      /*#__PURE__*/React.createElement("div", {
+        style: { display: "flex", gap: 8, padding: "10px 16px 14px", borderTop: "1px solid rgba(255,255,255,.06)" }
+      },
+        /*#__PURE__*/React.createElement("button", {
+          onClick: listening ? () => { voiceRef.current?.stop(); setListening(false); } : startVoice,
+          style: { width: 38, height: 38, borderRadius: "50%", flexShrink: 0, background: listening ? "rgba(239,68,68,.2)" : "rgba(167,139,250,.15)", border: `1px solid ${listening ? "rgba(239,68,68,.4)" : "rgba(167,139,250,.3)"}`, color: listening ? "#ef4444" : "#a78bfa", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }
+        }, listening ? "\u23F9" : "\uD83C\uDFA4"),
+        /*#__PURE__*/React.createElement("input", {
+          type: "text", value: input, onChange: e => setInput(e.target.value),
+          onKeyDown: e => e.key === "Enter" && send(input),
+          placeholder: "Describe what you ate\u2026",
+          style: { flex: 1, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", fontFamily: "'DM Sans',sans-serif" }
+        }),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => send(input), disabled: !input.trim() || loading,
+          style: { background: "#a78bfa", border: "none", borderRadius: 10, padding: "9px 14px", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", flexShrink: 0, opacity: !input.trim() || loading ? .4 : 1 }
+        }, "\u2192")
+      )
+    )
+  );
+}
+
+// MacroBar — compact calorie + macro progress bar
+function MacroBar({ logged, targets }) {
+  if (!targets) return null;
+  const pct = (val, max) => max ? Math.min(100, Math.round(val / max * 100)) : 0;
+  const calPct = pct(logged.calories || 0, targets.calories);
+  const protPct = pct(logged.protein || 0, targets.protein);
+  const carbPct = pct(logged.carbs || 0, targets.carbs);
+  const fatPct = pct(logged.fat || 0, targets.fat);
+  const over = (logged.calories || 0) > (targets.calories || 9999);
+
+  const barRow = (label, val, target, p, color) => /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 5 } },
+    /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)", width: 36, flexShrink: 0, fontWeight: 600 } }, label),
+    /*#__PURE__*/React.createElement("div", { style: { flex: 1, height: 6, background: "rgba(255,255,255,.07)", borderRadius: 3, overflow: "hidden" } },
+      /*#__PURE__*/React.createElement("div", { style: { width: p + "%", height: "100%", background: color, borderRadius: 3, transition: "width .3s" } })
+    ),
+    /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: p >= 90 ? color : "var(--text-muted)", width: 52, textAlign: "right", flexShrink: 0 } }, val + "/" + target)
+  );
+
+  return /*#__PURE__*/React.createElement("div", {
+    style: { background: over ? "rgba(239,68,68,.07)" : "rgba(255,255,255,.03)", border: `1px solid ${over ? "rgba(239,68,68,.2)" : "rgba(255,255,255,.07)"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16 }
+  },
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 } },
+      /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: over ? "#ef4444" : "#4ade80", letterSpacing: ".06em" } },
+        over ? "OVER TARGET" : calPct + "% OF DAILY GOAL"
+      ),
+      /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-primary)", fontWeight: 700 } }, (logged.calories || 0) + " / " + targets.calories + " cal")
+    ),
+    barRow("PROT", logged.protein || 0, targets.protein, protPct, "#fb923c"),
+    barRow("CARB", logged.carbs || 0, targets.carbs, carbPct, "#f4a823"),
+    barRow("FAT", logged.fat || 0, targets.fat, fatPct, "#60a5fa")
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // APP ROOT
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -12498,14 +12799,27 @@ function FoodTab({
   settings,
   pantryItemsFromApp = []
 }) {
-  const [subTab, setSubTab] = useState("plan");
+  const today = getToday();
+  const userName = settings?.name || "Ryan";
+  const partnerName = settings?.partnerName || "Sabrina";
+  const isPartner = activeUser === "partner";
+  const [subTab, setSubTab] = useState("log");
   const [pantryItems, setPantryItems] = useState(pantryItemsFromApp || []);
   const [weekPlan, setWeekPlan] = useState({});
   const [checkedItems, setCheckedItems] = useState({});
   const [customMeals, setCustomMeals] = useState([]);
   const [cookedMeals, setCookedMeals] = useState({});
   const [loadingFood, setLoadingFood] = useState(true);
+  // Meal log state
+  const [mealLog, setMealLog] = useState({}); // { breakfast: {...}, lunch: {...}, dinner: {...}, snacks: [...] }
+  const [macroTargets, setMacroTargets] = useState(null); // { calories, protein, carbs, fat }
+  const [mealLibrary, setMealLibrary] = useState([]); // [{ name, calories, protein, carbs, fat }]
+  const [openSlot, setOpenSlot] = useState(null); // slot being logged
+  const [generatingTargets, setGeneratingTargets] = useState(false);
+  const [sabrinaPrompts, setSabrinaPrompts] = useState([]);
+  const [activeSabrinaPrompt, setActiveSabrinaPrompt] = useState(null);
   const sunKey = getSundayKey();
+
   useEffect(() => {
     (async () => {
       const p = await DB.get(KEYS.pantry());
@@ -12518,31 +12832,151 @@ function FoodTab({
       setCustomMeals(cm || []);
       const ck = await DB.get(KEYS.cookedMeals(sunKey));
       setCookedMeals(ck || {});
+      const ml = await DB.get(KEYS.mealLog(today));
+      setMealLog(ml || {});
+      const mt = await DB.get(KEYS.macroTargets());
+      setMacroTargets(mt || null);
+      const lib = await DB.get(KEYS.mealLibrary());
+      setMealLibrary(Array.isArray(lib) ? lib : []);
+      // Sabrina prompts (only for partner view)
+      const sp = await DB.get(KEYS.sabinaPrompts());
+      const validPrompts = (sp || []).filter(p => {
+        const age = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+        return age <= 3 && !p.answered;
+      });
+      setSabrinaPrompts(validPrompts);
+      if (isPartner && validPrompts.length > 0) setActiveSabrinaPrompt(validPrompts[0]);
       setLoadingFood(false);
     })();
-  }, [activeUser, sunKey]);
+  }, [activeUser, sunKey, today]);
+
+  // Auto-generate macro targets when weight changes (or no targets exist)
+  const generateMacroTargets = useCallback(async (weight) => {
+    if (!window.__claude_api_key || generatingTargets) return;
+    setGeneratingTargets(true);
+    try {
+      const weightVal = weight || settings?.currentWeight || "unknown";
+      const goal = settings?.weightGoal ? `target weight ${settings.weightGoal}lbs` : settings?.primaryGoal || "general fitness";
+      const age = settings?.age || 32;
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001", max_tokens: 200,
+          messages: [{ role: "user", content: `You are a fitness nutritionist. Set daily macro targets for:\n- Age: ${age}\n- Current weight: ${weightVal}lbs\n- Goal: ${goal}\n- Activity: moderate (3-5 workouts/week)\n\nReturn ONLY valid JSON, no markdown:\n{"calories":2200,"protein":175,"carbs":220,"fat":65,"rationale":"one sentence"}\nUse evidence-based recommendations. Prioritize adequate protein for the goal.` }]
+        })
+      });
+      const data = await res.json();
+      let parsed = {};
+      try { parsed = JSON.parse(data.content?.[0]?.text || "{}"); } catch {}
+      if (parsed.calories) {
+        setMacroTargets(parsed);
+        await DB.set(KEYS.macroTargets(), parsed);
+      }
+    } catch(e) { console.warn("[FoodTab] Target gen failed:", e); }
+    setGeneratingTargets(false);
+  }, [settings, generatingTargets]);
+
+  // Auto-trigger target generation if none exist
+  useEffect(() => {
+    if (!loadingFood && !macroTargets && window.__claude_api_key) {
+      generateMacroTargets(null);
+    }
+  }, [loadingFood, macroTargets]);
+
+  const saveMealLog = async (updated) => {
+    setMealLog(updated);
+    await DB.set(KEYS.mealLog(today), updated);
+  };
+
+  const handleSlotSave = async (slot, mealData) => {
+    const updated = { ...mealLog };
+    if (slot === "snack") {
+      updated.snacks = [...(updated.snacks || []), { ...mealData, timestamp: new Date().toISOString(), id: "s_" + Date.now() }];
+    } else {
+      const planned = weekPlan[today + "_" + slot] || weekPlan[slot];
+      updated[slot] = { ...mealData, plannedMeal: planned?.name || null, loggedAt: new Date().toISOString() };
+    }
+    await saveMealLog(updated);
+
+    // Save to meal library if new
+    if (mealData.isNew && mealData.name) {
+      const libEntry = { name: mealData.name, calories: mealData.calories, protein: mealData.protein, carbs: mealData.carbs, fat: mealData.fat, portionDesc: mealData.portionDesc || "" };
+      const existingIdx = mealLibrary.findIndex(m => m.name.toLowerCase() === mealData.name.toLowerCase());
+      let newLib;
+      if (existingIdx >= 0) { newLib = mealLibrary.map((m, i) => i === existingIdx ? libEntry : m); }
+      else { newLib = [libEntry, ...mealLibrary].slice(0, 200); }
+      setMealLibrary(newLib);
+      await DB.set(KEYS.mealLibrary(), newLib);
+    }
+
+    // Queue Sabrina prompt (only if Ryan is logging, not partner)
+    if (!isPartner) {
+      const prompts = await DB.get(KEYS.sabinaPrompts()) || [];
+      const newPrompt = {
+        id: "sp_" + Date.now(),
+        slot, meal: mealData.name, calories: mealData.calories, protein: mealData.protein,
+        carbs: mealData.carbs, fat: mealData.fat, date: today,
+        createdAt: new Date().toISOString(), answered: false
+      };
+      const cleaned = prompts.filter(p => {
+        const age = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+        return age <= 3 && !p.answered;
+      });
+      await DB.set(KEYS.sabinaPrompts(), [newPrompt, ...cleaned]);
+    }
+    setOpenSlot(null);
+  };
+
+  const handleSabrinaResponse = async (prompt, same) => {
+    if (same) {
+      const updated = { ...mealLog };
+      if (prompt.slot === "snack") {
+        updated.snacks = [...(updated.snacks || []), { name: prompt.meal, calories: prompt.calories, protein: prompt.protein, carbs: prompt.carbs, fat: prompt.fat, timestamp: new Date().toISOString(), id: "s_" + Date.now() }];
+      } else {
+        updated[prompt.slot] = { name: prompt.meal, calories: prompt.calories, protein: prompt.protein, carbs: prompt.carbs, fat: prompt.fat, loggedAt: new Date().toISOString() };
+      }
+      await saveMealLog(updated);
+    }
+    // Mark prompt answered
+    const allPrompts = await DB.get(KEYS.sabinaPrompts()) || [];
+    const updatedPrompts = allPrompts.map(p => p.id === prompt.id ? { ...p, answered: true } : p);
+    await DB.set(KEYS.sabinaPrompts(), updatedPrompts);
+    const remaining = sabrinaPrompts.filter(p => p.id !== prompt.id);
+    setSabrinaPrompts(remaining);
+    setActiveSabrinaPrompt(remaining.length > 0 ? remaining[0] : null);
+  };
+
   const handleCookMeal = async (key, deductions) => {
-    const updatedCooked = {
-      ...cookedMeals,
-      [key]: true
-    };
+    const updatedCooked = { ...cookedMeals, [key]: true };
     setCookedMeals(updatedCooked);
     await DB.set(KEYS.cookedMeals(sunKey), updatedCooked);
     if (deductions.length > 0) {
       const upd = pantryItems.map(item => {
         const d = deductions.find(d => d.pantryItem.id === item.id);
-        return d ? {
-          ...item,
-          qty: d.resultQty
-        } : item;
+        return d ? { ...item, qty: d.resultQty } : item;
       });
       setPantryItems(upd);
       await DB.set(KEYS.pantry(), upd);
     }
   };
+
+  // Compute daily logged totals
+  const dailyLogged = useMemo(() => {
+    const slots = ["breakfast", "lunch", "dinner"];
+    let cal = 0, prot = 0, carbs = 0, fat = 0;
+    slots.forEach(s => { if (mealLog[s]) { cal += mealLog[s].calories || 0; prot += mealLog[s].protein || 0; carbs += mealLog[s].carbs || 0; fat += mealLog[s].fat || 0; } });
+    (mealLog.snacks || []).forEach(s => { cal += s.calories || 0; prot += s.protein || 0; carbs += s.carbs || 0; fat += s.fat || 0; });
+    return { calories: cal, protein: prot, carbs, fat };
+  }, [mealLog]);
+
   const allMeals = [...MEALS_DB, ...customMeals];
   const canMake = pantryItems.length > 0 ? allMeals.filter(m => pantryMatch(m, pantryItems).pct >= 80).length : 0;
   const subTabs = [{
+    id: "log",
+    l: "LOG",
+    c: "#fb923c"
+  }, {
     id: "plan",
     l: "WEEK",
     c: "#4ade80"
@@ -12615,7 +13049,93 @@ function FoodTab({
       letterSpacing: ".04em",
       borderBottom: `2px solid ${subTab === t.id ? t.c : "transparent"}`
     }
-  }, t.l))), subTab === "plan" && /*#__PURE__*/React.createElement(WeekPlanTab, {
+  }, t.l))),
+
+  /* ── MacroBar always visible at top ── */
+  /*#__PURE__*/React.createElement(MacroBar, { logged: dailyLogged, targets: macroTargets }),
+
+  /* ── Sabrina prompt (partner view) ── */
+  activeSabrinaPrompt && isPartner && /*#__PURE__*/React.createElement("div", {
+    style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }
+  },
+    /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 600, margin: "0 0 4px" } }, userName + " had " + activeSabrinaPrompt.meal + " for " + activeSabrinaPrompt.slot),
+    /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "0 0 12px" } }, activeSabrinaPrompt.calories + "cal \xB7 " + activeSabrinaPrompt.protein + "g protein — did you have the same?"),
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => handleSabrinaResponse(activeSabrinaPrompt, true),
+        style: { flex: 1, background: "rgba(74,222,128,.15)", border: "1px solid rgba(74,222,128,.3)", borderRadius: 8, padding: "8px 0", color: "#4ade80", fontWeight: 700, fontSize: 12, cursor: "pointer" }
+      }, "Yes, same meal"),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => handleSabrinaResponse(activeSabrinaPrompt, false),
+        style: { flex: 1, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, padding: "8px 0", color: "var(--text-secondary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }
+      }, "No, I\u2019ll log mine")
+    )
+  ),
+
+  /* ── Macro target generation ── */
+  !macroTargets && !generatingTargets && !window.__claude_api_key && /*#__PURE__*/React.createElement("div", {
+    style: { background: "rgba(244,168,35,.07)", border: "1px solid rgba(244,168,35,.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#f4a823" }
+  }, "Add your Claude API key in Settings to get personalised macro targets."),
+  generatingTargets && /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", color: "var(--text-muted)", fontSize: 12, marginBottom: 12 } }, "Calculating your macro targets\u2026"),
+  macroTargets?.rationale && subTab === "log" && /*#__PURE__*/React.createElement("p", {
+    style: { fontSize: 11, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }
+  }, "\uD83E\uDD16 ", macroTargets.rationale, " ",
+    /*#__PURE__*/React.createElement("button", {
+      onClick: () => generateMacroTargets(settings?.currentWeight),
+      style: { background: "transparent", border: "none", color: "#a78bfa", fontSize: 11, cursor: "pointer", padding: 0, textDecoration: "underline" }
+    }, "Recalculate")
+  ),
+
+  /* ── LOG sub-tab ── */
+  subTab === "log" && /*#__PURE__*/React.createElement("div", null,
+    ["breakfast", "lunch", "dinner"].map(slot => {
+      const logged = mealLog[slot];
+      const planned = weekPlan[today + "_" + slot] || weekPlan[slot];
+      return /*#__PURE__*/React.createElement("div", {
+        key: slot,
+        onClick: () => setOpenSlot(slot),
+        style: { background: "rgba(255,255,255,.04)", border: `1px solid ${logged ? "rgba(74,222,128,.25)" : "rgba(255,255,255,.08)"}`, borderRadius: 12, padding: "13px 15px", marginBottom: 10, cursor: "pointer" }
+      },
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: logged ? 6 : 0 } },
+          /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: logged ? "#4ade80" : "var(--text-secondary)", letterSpacing: ".06em", textTransform: "uppercase" } }, slot),
+          logged
+            ? /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "#4ade80", fontWeight: 700 } }, logged.calories + " cal")
+            : /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "tap to log \u203A")
+        ),
+        logged && /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 500, margin: "0 0 3px" } }, logged.name),
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "0 0 2px" } }, logged.protein + "g P \xB7 " + logged.carbs + "g C \xB7 " + logged.fat + "g F"),
+          logged.plannedMeal && logged.plannedMeal !== logged.name && /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, "Planned: ", /*#__PURE__*/React.createElement("span", { style: { textDecoration: "line-through" } }, logged.plannedMeal))
+        ),
+        !logged && planned && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0" } }, "Planned: ", planned.name || planned)
+      );
+    }),
+
+    /* Snacks section */
+    /*#__PURE__*/React.createElement("div", { style: { marginTop: 18 } },
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+        /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", letterSpacing: ".06em" } }, "SNACKS"),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => setOpenSlot("snack"),
+          style: { background: "rgba(251,146,60,.12)", border: "1px solid rgba(251,146,60,.25)", borderRadius: 8, padding: "5px 12px", fontSize: 10, color: "#fb923c", fontWeight: 700, cursor: "pointer" }
+        }, "+ Add Snack")
+      ),
+      (mealLog.snacks || []).length === 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "12px 0" } }, "No snacks logged"),
+      (mealLog.snacks || []).map((s, i) => /*#__PURE__*/React.createElement("div", {
+        key: s.id || i,
+        style: { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 10, padding: "10px 13px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }
+      },
+        /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 500 } }, s.name),
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, s.timestamp ? new Date(s.timestamp).toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit" }) : "")
+        ),
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "#fb923c", fontWeight: 700 } }, s.calories + " cal")
+      ))
+    )
+  ),
+
+  /* ── PLAN sub-tab ── */
+  subTab === "plan" && /*#__PURE__*/React.createElement(WeekPlanTab, {
     plan: weekPlan,
     setPlan: async p => {
       setWeekPlan(p);
@@ -12645,6 +13165,17 @@ function FoodTab({
       setCheckedItems(c);
       await DB.set(KEYS.groceryCheck(sunKey), c);
     }
+  }),
+
+  /* MealLogChat modal */
+  openSlot && /*#__PURE__*/React.createElement(MealLogChat, {
+    slot: openSlot,
+    date: today,
+    existing: openSlot === "snack" ? null : mealLog[openSlot],
+    mealLibrary: mealLibrary,
+    userName: isPartner ? partnerName : userName,
+    onSave: meal => handleSlotSave(openSlot, meal),
+    onClose: () => setOpenSlot(null)
   }));
 }
 
@@ -15313,6 +15844,8 @@ function App() {
   const [pantryItems, setPantryItems] = useState([]);
   const [reminders, setReminders] = useState([]);
   const [jointReminders, setJointReminders] = useState([]);
+  const [todayMealLog, setTodayMealLog] = useState({});
+  const [macroTargets, setMacroTargets] = useState(null);
   const [celebration, setCelebration] = useState(null);
   const [activeUser, setActiveUser] = useState("self"); // self | partner
   const [loading, setLoading] = useState(true);
@@ -15411,6 +15944,12 @@ function App() {
     const rj = await DB.get(KEYS.jointReminders());
     setReminders(Array.isArray(rp) ? rp : []);
     setJointReminders(Array.isArray(rj) ? rj : []);
+
+    // Load today's meal log + macro targets for Evening rating
+    const ml = await DB.get(KEYS.mealLog(getToday()));
+    setTodayMealLog(ml || {});
+    const mt = await DB.get(KEYS.macroTargets());
+    setMacroTargets(mt || null);
 
     // Calculate streak
     let s = 0;
@@ -15737,9 +16276,9 @@ function App() {
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: isActive ? section.color : "var(--text-muted)",
+        color: isActive ? section.color : "var(--text-secondary)",
         fontSize: 9,
-        fontWeight: isActive ? 800 : 500,
+        fontWeight: isActive ? 800 : 600,
         margin: 0,
         fontFamily: "'Syne',sans-serif",
         letterSpacing: ".05em",
@@ -15785,8 +16324,8 @@ function App() {
       padding: "7px 10px",
       border: "none",
       background: "transparent",
-      color: tab === t.id ? t.c : "var(--text-muted)",
-      fontWeight: tab === t.id ? 700 : 400,
+      color: tab === t.id ? t.c : "var(--text-secondary)",
+      fontWeight: tab === t.id ? 700 : 500,
       fontSize: 9,
       cursor: "pointer",
       fontFamily: "'Syne',sans-serif",
@@ -15816,12 +16355,15 @@ function App() {
     onMilestone: handleMilestone,
     allLogs: allLogs,
     reminders: reminders,
-    jointReminders: jointReminders
+    jointReminders: jointReminders,
+    mealLog: todayMealLog,
+    macroTargets: macroTargets
   }), tab === "food" && /*#__PURE__*/React.createElement(FoodTab, {
     uid: settings.uid || "ryan",
     partnerUid: settings.partnerUid || "sabrina",
     activeUser: activeUser,
-    pantryItemsFromApp: pantryItems
+    pantryItemsFromApp: pantryItems,
+    settings: settings
   }), tab === "chores" && /*#__PURE__*/React.createElement(Home, {
     tasks: tasks,
     setTasks: setTasks,
