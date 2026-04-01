@@ -3743,6 +3743,152 @@ function StrengthSession({
     }
   }, done === 0 ? "CHECK OFF EXERCISES TO FINISH" : `LOG SESSION (${done}/8) →`));
 }
+function IndoorWalk({
+  onDone
+}) {
+  const [dist, setDist] = useState("");
+  const [time, setTime] = useState("");
+  const [calories, setCalories] = useState("");
+  const [logged, setLogged] = useState(false);
+  const speed = dist && time && parseFloat(time) > 0 ? (parseFloat(dist) / parseFloat(time) * 60).toFixed(1) : null;
+  const inp = {
+    width: "100%",
+    background: "rgba(255,255,255,.05)",
+    border: "1px solid rgba(255,255,255,.1)",
+    borderRadius: 8,
+    padding: "10px 12px",
+    color: "#d1d5db",
+    fontSize: 14,
+    outline: "none",
+    boxSizing: "border-box"
+  };
+  if (logged) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(96,165,250,.08)",
+      border: "1px solid rgba(96,165,250,.25)",
+      borderRadius: 12,
+      padding: 16,
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: "#60a5fa",
+      fontFamily: "'Syne',sans-serif",
+      fontSize: 18,
+      fontWeight: 800,
+      margin: 0
+    }
+  }, "Indoor Walk logged \u2713"));
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(96,165,250,.05)",
+      border: "1px solid rgba(96,165,250,.15)",
+      borderRadius: 12,
+      padding: "14px 15px"
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: "#60a5fa",
+      fontFamily: "'Syne',sans-serif",
+      fontSize: 15,
+      fontWeight: 800,
+      margin: "0 0 14px"
+    }
+  }, "Indoor Walk"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: "#6b7280",
+      fontSize: 10,
+      fontWeight: 600,
+      textTransform: "uppercase",
+      margin: "0 0 5px",
+      letterSpacing: ".06em"
+    }
+  }, "Distance (km)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    inputMode: "decimal",
+    placeholder: "e.g. 3.5",
+    value: dist,
+    onChange: e => setDist(e.target.value),
+    style: inp
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: "#6b7280",
+      fontSize: 10,
+      fontWeight: 600,
+      textTransform: "uppercase",
+      margin: "0 0 5px",
+      letterSpacing: ".06em"
+    }
+  }, "Time (minutes)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    inputMode: "decimal",
+    placeholder: "e.g. 45",
+    value: time,
+    onChange: e => setTime(e.target.value),
+    style: inp
+  })), speed && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "center",
+      padding: "8px 12px",
+      background: "rgba(96,165,250,.08)",
+      borderRadius: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "#60a5fa",
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "Avg Speed: ", speed, " km/h")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: "#6b7280",
+      fontSize: 10,
+      fontWeight: 600,
+      textTransform: "uppercase",
+      margin: "0 0 5px",
+      letterSpacing: ".06em"
+    }
+  }, "Calories (optional)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    inputMode: "decimal",
+    placeholder: "e.g. 250",
+    value: calories,
+    onChange: e => setCalories(e.target.value),
+    style: inp
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (!dist || !time) return;
+      onDone({
+        dist: parseFloat(dist),
+        time: parseFloat(time),
+        speed: speed ? parseFloat(speed) : 0,
+        calories: parseFloat(calories) || 0
+      });
+      setLogged(true);
+    },
+    disabled: !dist || !time,
+    style: {
+      width: "100%",
+      padding: "12px 0",
+      background: dist && time ? "#60a5fa" : "rgba(255,255,255,.05)",
+      border: "none",
+      borderRadius: 9,
+      color: dist && time ? "#0a0f1a" : "#374151",
+      fontSize: 13,
+      fontWeight: 800,
+      cursor: dist && time ? "pointer" : "default",
+      fontFamily: "'Syne',sans-serif",
+      marginTop: 4
+    }
+  }, "Log Indoor Walk")));
+}
 function Train({
   todayLog,
   onSave,
@@ -3754,6 +3900,17 @@ function Train({
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const [walkDone, setWalkDone] = useState(false);
   const [history, setHistory] = useState([]);
+  const [workoutType, setWorkoutType] = useState(null);
+  const [cardioType, setCardioType] = useState(null);
+  const [walkType, setWalkType] = useState(null);
+  const [strengthPair, setStrengthPair] = useState(null);
+  const [sessionDone, setSessionDone] = useState(null); // { type, label }
+  const resetChoices = () => {
+    setWorkoutType(null);
+    setCardioType(null);
+    setWalkType(null);
+    setStrengthPair(null);
+  };
   useEffect(() => {
     (async () => {
       const h = await DB.get(KEYS.trainHistory());
@@ -3778,6 +3935,14 @@ function Train({
         [type === "strength" ? "strength" : "cardio"]: true
       }
     });
+    const label = type === "strength"
+      ? (details.pair || "Strength")
+      : details.format === "indoor_walk" ? "Indoor Walk"
+      : details.format === "outdoor_walk" ? "Outdoor Walk"
+      : details.format === "rower_intervals" ? "Rowing"
+      : "Cardio";
+    setSessionDone({ type, label });
+    resetChoices();
   };
   const wk = [0, 1, 2, 3, 4, 5, 6].map(d => {
     const diff = (d - dow + 7) % 7;
@@ -3865,87 +4030,479 @@ function Train({
         margin: 0
       }
     }, s.type === "strength" ? "STR" : s.type === "cardio" ? "CARD" : s.type === "rest" ? "REST" : "—"));
-  })), schedule.type === "rest" && /*#__PURE__*/React.createElement("div", {
+  })),
+  sessionDone && /*#__PURE__*/React.createElement("div", {
     style: {
-      textAlign: "center",
-      padding: "32px 16px",
-      background: "rgba(255,255,255,.02)",
-      border: "1px solid rgba(255,255,255,.06)",
-      borderRadius: 14
+      background: "rgba(74,222,128,.08)",
+      border: "1px solid rgba(74,222,128,.25)",
+      borderRadius: 14,
+      padding: "18px 16px",
+      marginBottom: 16,
+      textAlign: "center"
     }
-  }, /*#__PURE__*/React.createElement("p", {
+  },
+    /*#__PURE__*/React.createElement("p", {
+      style: {
+        fontSize: 28,
+        margin: "0 0 6px"
+      }
+    }, "\uD83D\uDCAA"),
+    /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "#4ade80",
+        fontFamily: "'Syne',sans-serif",
+        fontSize: 18,
+        fontWeight: 800,
+        margin: "0 0 4px"
+      }
+    }, "Great work!"),
+    /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "#6b7280",
+        fontSize: 12,
+        margin: "0 0 12px"
+      }
+    }, sessionDone.label, " logged \u2713 \u2014 evening check-in updated automatically"),
+    /*#__PURE__*/React.createElement("button", {
+      onClick: () => setSessionDone(null),
+      style: {
+        background: "rgba(74,222,128,.12)",
+        border: "1px solid rgba(74,222,128,.25)",
+        borderRadius: 8,
+        color: "#4ade80",
+        fontSize: 11,
+        fontWeight: 700,
+        padding: "7px 16px",
+        cursor: "pointer",
+        fontFamily: "'Syne',sans-serif"
+      }
+    }, "Log another session")
+  ),
+  /*#__PURE__*/React.createElement("div", {
     style: {
-      color: "#4ade80",
-      fontFamily: "'Syne',sans-serif",
-      fontSize: 22,
-      fontWeight: 800,
-      margin: "0 0 8px"
+      marginBottom: 18
     }
-  }, "Rest Day"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#555e73",
-      fontSize: 13,
-      margin: 0
-    }
-  }, "Recovery is part of the program.")), schedule.type === "strength" && /*#__PURE__*/React.createElement(StrengthSession, {
-    date: date,
-    pair: schedule.pair,
-    onDone: () => logSession("strength", {
-      pair: schedule.pair?.name
-    })
-  }), schedule.type === "cardio" && schedule.format !== "outdoor_walk" && CARDIO_SESSIONS[schedule.format] && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "rgba(96,165,250,.06)",
-      border: "1px solid rgba(96,165,250,.15)",
-      borderRadius: 12,
-      padding: "13px 15px",
-      marginBottom: 12
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#6b7280",
-      fontSize: 10,
-      letterSpacing: ".07em",
-      textTransform: "uppercase",
-      margin: "0 0 3px",
-      fontWeight: 600
-    }
-  }, "Today's Cardio"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#60a5fa",
-      fontFamily: "'Syne',sans-serif",
-      fontSize: 17,
-      fontWeight: 800,
-      margin: "0 0 2px"
-    }
-  }, CARDIO_SESSIONS[schedule.format].title), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#374151",
-      fontSize: 11,
-      margin: "0 0 3px"
-    }
-  }, CARDIO_SESSIONS[schedule.format].equipment), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#555e73",
-      fontSize: 12,
-      margin: 0
-    }
-  }, CARDIO_SESSIONS[schedule.format].summary)), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(IntervalTimer, {
-      blocks: CARDIO_SESSIONS[schedule.format].blocks,
-      onComplete: () => logSession("cardio", {
-        format: schedule.format
+  },
+  /* ── Step 0: choose Strength or Cardio ── */
+  !workoutType && !sessionDone && /*#__PURE__*/React.createElement("div", null,
+    schedule.type !== "rest" && /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "#374151",
+        fontSize: 11,
+        margin: "0 0 12px",
+        textAlign: "center"
+      }
+    }, "Today\u2019s plan: ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: schedule.type === "strength" ? "#f4a823" : "#60a5fa",
+        fontWeight: 700
+      }
+    }, schedule.type === "strength" ? (schedule.pair?.name || "Strength") : schedule.format === "outdoor_walk" ? "Outdoor Walk" : (CARDIO_SESSIONS[schedule.format]?.title || "Cardio"))),
+    schedule.type === "rest" && /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "#4ade80",
+        fontSize: 11,
+        margin: "0 0 12px",
+        textAlign: "center",
+        fontWeight: 700
+      }
+    }, "Scheduled rest day \u2014 feel free to skip or do something light"),
+    /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 10
+      }
+    },
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => setWorkoutType("strength"),
+        style: {
+          padding: "22px 10px",
+          background: "rgba(244,168,35,.08)",
+          border: "1px solid rgba(244,168,35,.25)",
+          borderRadius: 12,
+          color: "#f4a823",
+          fontSize: 14,
+          fontWeight: 800,
+          cursor: "pointer",
+          fontFamily: "'Syne',sans-serif",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 24
+        }
+      }, "\uD83C\uDFCB"), "Strength"),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => setWorkoutType("cardio"),
+        style: {
+          padding: "22px 10px",
+          background: "rgba(96,165,250,.08)",
+          border: "1px solid rgba(96,165,250,.25)",
+          borderRadius: 12,
+          color: "#60a5fa",
+          fontSize: 14,
+          fontWeight: 800,
+          cursor: "pointer",
+          fontFamily: "'Syne',sans-serif",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 24
+        }
+      }, "\uD83C\uDFC3"), "Cardio")
+    )
+  ),
+  /* ── Step 1a: Strength — pick muscle pair ── */
+  workoutType === "strength" && !strengthPair && /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("button", {
+      onClick: resetChoices,
+      style: {
+        background: "none",
+        border: "none",
+        color: "#555e73",
+        fontSize: 12,
+        cursor: "pointer",
+        padding: "0 0 12px",
+        display: "flex",
+        alignItems: "center",
+        gap: 5
+      }
+    }, "\u2190 Back"),
+    /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "#f4a823",
+        fontFamily: "'Syne',sans-serif",
+        fontSize: 14,
+        fontWeight: 800,
+        margin: "0 0 12px"
+      }
+    }, "Which muscle groups today?"),
+    /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 8
+      }
+    }, STRENGTH_PAIRS.map(p => /*#__PURE__*/React.createElement("button", {
+      key: p.id,
+      onClick: () => setStrengthPair(p),
+      style: {
+        padding: "13px 16px",
+        background: `${p.color}10`,
+        border: `1px solid ${p.color}30`,
+        borderRadius: 10,
+        color: p.color,
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: "pointer",
+        textAlign: "left",
+        fontFamily: "'DM Sans',sans-serif"
+      }
+    }, p.name)))
+  ),
+  /* ── Step 1b: Strength session ── */
+  workoutType === "strength" && strengthPair && /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("button", {
+      onClick: () => setStrengthPair(null),
+      style: {
+        background: "none",
+        border: "none",
+        color: "#555e73",
+        fontSize: 12,
+        cursor: "pointer",
+        padding: "0 0 12px",
+        display: "flex",
+        alignItems: "center",
+        gap: 5
+      }
+    }, "\u2190 Back"),
+    /*#__PURE__*/React.createElement(StrengthSession, {
+      date: date,
+      pair: strengthPair,
+      onDone: () => logSession("strength", {
+        pair: strengthPair.name
       })
     })
-  })), schedule.type === "cardio" && schedule.format === "outdoor_walk" && /*#__PURE__*/React.createElement(OutdoorWalk, {
-    onDone: data => {
-      setWalkDone(true);
-      logSession("cardio", {
-        format: "outdoor_walk",
-        ...data
-      });
-    }
-  }), /*#__PURE__*/React.createElement("div", {
+  ),
+  /* ── Step 2: Cardio — Walk or Row ── */
+  workoutType === "cardio" && !cardioType && /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("button", {
+      onClick: resetChoices,
+      style: {
+        background: "none",
+        border: "none",
+        color: "#555e73",
+        fontSize: 12,
+        cursor: "pointer",
+        padding: "0 0 12px",
+        display: "flex",
+        alignItems: "center",
+        gap: 5
+      }
+    }, "\u2190 Back"),
+    /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "#60a5fa",
+        fontFamily: "'Syne',sans-serif",
+        fontSize: 14,
+        fontWeight: 800,
+        margin: "0 0 12px"
+      }
+    }, "What type of cardio?"),
+    /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 10
+      }
+    },
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => setCardioType("walk"),
+        style: {
+          padding: "22px 10px",
+          background: "rgba(96,165,250,.08)",
+          border: "1px solid rgba(96,165,250,.2)",
+          borderRadius: 12,
+          color: "#60a5fa",
+          fontSize: 13,
+          fontWeight: 800,
+          cursor: "pointer",
+          fontFamily: "'Syne',sans-serif",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 24
+        }
+      }, "\uD83D\uDEB6"), "Walk"),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => setCardioType("row"),
+        style: {
+          padding: "22px 10px",
+          background: "rgba(96,165,250,.08)",
+          border: "1px solid rgba(96,165,250,.2)",
+          borderRadius: 12,
+          color: "#60a5fa",
+          fontSize: 13,
+          fontWeight: 800,
+          cursor: "pointer",
+          fontFamily: "'Syne',sans-serif",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 24
+        }
+      }, "\uD83D\uDEA3"), "Row")
+    )
+  ),
+  /* ── Step 3: Walk — Indoor or Outdoor ── */
+  workoutType === "cardio" && cardioType === "walk" && !walkType && /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("button", {
+      onClick: () => setCardioType(null),
+      style: {
+        background: "none",
+        border: "none",
+        color: "#555e73",
+        fontSize: 12,
+        cursor: "pointer",
+        padding: "0 0 12px",
+        display: "flex",
+        alignItems: "center",
+        gap: 5
+      }
+    }, "\u2190 Back"),
+    /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "#60a5fa",
+        fontFamily: "'Syne',sans-serif",
+        fontSize: 14,
+        fontWeight: 800,
+        margin: "0 0 12px"
+      }
+    }, "Indoor or outdoor?"),
+    /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 10
+      }
+    },
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => setWalkType("indoor"),
+        style: {
+          padding: "22px 10px",
+          background: "rgba(96,165,250,.08)",
+          border: "1px solid rgba(96,165,250,.2)",
+          borderRadius: 12,
+          color: "#60a5fa",
+          fontSize: 13,
+          fontWeight: 800,
+          cursor: "pointer",
+          fontFamily: "'Syne',sans-serif",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 24
+        }
+      }, "\uD83C\uDFE0"), "Indoor"),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => setWalkType("outdoor"),
+        style: {
+          padding: "22px 10px",
+          background: "rgba(96,165,250,.08)",
+          border: "1px solid rgba(96,165,250,.2)",
+          borderRadius: 12,
+          color: "#60a5fa",
+          fontSize: 13,
+          fontWeight: 800,
+          cursor: "pointer",
+          fontFamily: "'Syne',sans-serif",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 24
+        }
+      }, "\uD83C\uDF33"), "Outdoor")
+    )
+  ),
+  /* ── Step 4a: Indoor walk form ── */
+  workoutType === "cardio" && cardioType === "walk" && walkType === "indoor" && /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("button", {
+      onClick: () => setWalkType(null),
+      style: {
+        background: "none",
+        border: "none",
+        color: "#555e73",
+        fontSize: 12,
+        cursor: "pointer",
+        padding: "0 0 12px",
+        display: "flex",
+        alignItems: "center",
+        gap: 5
+      }
+    }, "\u2190 Back"),
+    /*#__PURE__*/React.createElement(IndoorWalk, {
+      onDone: data => {
+        setWalkDone(true);
+        logSession("cardio", {
+          format: "indoor_walk",
+          ...data
+        });
+      }
+    })
+  ),
+  /* ── Step 4b: Outdoor walk with map ── */
+  workoutType === "cardio" && cardioType === "walk" && walkType === "outdoor" && /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("button", {
+      onClick: () => setWalkType(null),
+      style: {
+        background: "none",
+        border: "none",
+        color: "#555e73",
+        fontSize: 12,
+        cursor: "pointer",
+        padding: "0 0 12px",
+        display: "flex",
+        alignItems: "center",
+        gap: 5
+      }
+    }, "\u2190 Back"),
+    /*#__PURE__*/React.createElement(OutdoorWalk, {
+      onDone: data => {
+        setWalkDone(true);
+        logSession("cardio", {
+          format: "outdoor_walk",
+          ...data
+        });
+      }
+    })
+  ),
+  /* ── Step 4c: Row session ── */
+  workoutType === "cardio" && cardioType === "row" && CARDIO_SESSIONS["rower_intervals"] && /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("button", {
+      onClick: () => setCardioType(null),
+      style: {
+        background: "none",
+        border: "none",
+        color: "#555e73",
+        fontSize: 12,
+        cursor: "pointer",
+        padding: "0 0 12px",
+        display: "flex",
+        alignItems: "center",
+        gap: 5
+      }
+    }, "\u2190 Back"),
+    /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: "rgba(96,165,250,.06)",
+        border: "1px solid rgba(96,165,250,.15)",
+        borderRadius: 12,
+        padding: "13px 15px",
+        marginBottom: 12
+      }
+    }, /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "#6b7280",
+        fontSize: 10,
+        letterSpacing: ".07em",
+        textTransform: "uppercase",
+        margin: "0 0 3px",
+        fontWeight: 600
+      }
+    }, "Today\u2019s Cardio"), /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "#60a5fa",
+        fontFamily: "'Syne',sans-serif",
+        fontSize: 17,
+        fontWeight: 800,
+        margin: "0 0 2px"
+      }
+    }, CARDIO_SESSIONS["rower_intervals"].title), /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "#374151",
+        fontSize: 11,
+        margin: "0 0 3px"
+      }
+    }, CARDIO_SESSIONS["rower_intervals"].equipment), /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "#555e73",
+        fontSize: 12,
+        margin: 0
+      }
+    }, CARDIO_SESSIONS["rower_intervals"].summary)),
+    /*#__PURE__*/React.createElement(Card, {
+      ch: /*#__PURE__*/React.createElement(IntervalTimer, {
+        blocks: CARDIO_SESSIONS["rower_intervals"].blocks,
+        onComplete: () => logSession("cardio", {
+          format: "rower_intervals"
+        })
+      })
+    })
+  )), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 22,
       paddingTop: 16,
