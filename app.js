@@ -7500,23 +7500,24 @@ function PantryEditModal({
 }
 function PantryAIChat({
   onItemsExtracted,
-  onClose
+  onItemsEdited,
+  onClose,
+  pantryItems
 }) {
   const [messages, setMessages] = useState([{
     role: "assistant",
-    content: "Hey! Tell me what you have in your pantry — just talk naturally. For example: \"I have a 2kg bag of rolled oats expiring January 2027, a can of black beans, and 500ml of olive oil.\" I'll pull out the details and add them for you."
+    content: "Hey! Tell me what you have or what you'd like to update. I can add new items or edit existing ones.\n\nExamples:\n• \"I bought a 2kg bag of rolled oats expiring Jan 2027\"\n• \"Update bananas to 6 pieces\"\n• \"I used 200g of coconut sugar\"\n• \"Change the oat milk expiry to March 2026\""
   }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [extracted, setExtracted] = useState([]);
+  const [pendingEdits, setPendingEdits] = useState([]);
   const [confirmed, setConfirmed] = useState(false);
   const voiceRef = useRef(null);
   const chatEndRef = useRef(null);
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({
-      behavior: "smooth"
-    });
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
   const startVoice = () => {
     if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
@@ -7529,9 +7530,7 @@ function PantryAIChat({
     r.lang = "en-CA";
     r.interimResults = false;
     r.onstart = () => setListening(true);
-    r.onresult = e => {
-      setInput(prev => (prev ? prev + " " : "") + e.results[0][0].transcript);
-    };
+    r.onresult = e => { setInput(prev => (prev ? prev + " " : "") + e.results[0][0].transcript); };
     r.onend = () => setListening(false);
     r.onerror = () => setListening(false);
     r.start();
@@ -7550,25 +7549,42 @@ function PantryAIChat({
     setInput("");
     setLoading(true);
     try {
-      const systemPrompt = `You are a pantry assistant. The user is telling you what food items they have.
-Extract ALL pantry items mentioned and return a JSON object with:
+      const pantryList = (pantryItems || [])
+        .filter(p => p.essential !== false)
+        .map(p => `${p.name} | ${p.qty} ${p.unit}${p.expiry ? " | exp:" + p.expiry : ""}`)
+        .join("\n");
+      const systemPrompt = `You are a pantry assistant for a household. You can ADD new items or EDIT existing ones.
+
+CURRENT PANTRY:
+${pantryList || "(empty)"}
+
+Respond with ONLY a JSON object in this format:
 {
+  "action": "add" | "edit" | "both" | "clarify",
   "items": [
-    {"name":"Rolled Oats","qty":2,"unit":"kg","expiry":"2027-01","brand":"Bob's Red Mill"},
-    ...
+    {"name":"Rolled Oats","qty":2,"unit":"kg","expiry":"2027-01","brand":""}
   ],
-  "reply": "Got it! I found X items. [brief friendly confirmation listing what you added]"
+  "edits": [
+    {"match":"exact name from pantry list","changes":{"qty":6}}
+  ],
+  "reply": "short friendly confirmation or clarifying question"
 }
 
-Rules:
-- name: the food item name (specific, not generic where possible)
-- qty: numeric quantity (default 1 if not mentioned)
-- unit: one of: g, kg, ml, l, oz, lb, cup, tbsp, tsp, piece, can, bag, box, bottle, bunch, loaf, dozen, unit
-- expiry: YYYY-MM format if mentioned, empty string if not
-- brand: brand name if mentioned, empty string if not
-- reply: short friendly confirmation (1-2 sentences max)
+RULES:
+- action "add": user is adding new items not in the pantry. Populate items[].
+- action "edit": user is updating existing items. Populate edits[]. match must be a name from the CURRENT PANTRY list.
+- action "both": user is doing both. Populate items[] AND edits[].
+- action "clarify": request is ambiguous — ask a specific follow-up question in reply. Do NOT populate items or edits.
+- For edits, "changes" can include: qty (set to this exact number), qtyDelta (positive or negative adjustment), unit, expiry (YYYY-MM), brand, name (rename), cat, notes.
+- "I used 2 bananas" → qtyDelta: -2
+- "Set bananas to 6" → qty: 6
+- "Add 3 more bananas" → qtyDelta: 3
+- "Update expiry of oat milk to March 2026" → changes: {expiry: "2026-03"}
+- If the item name is unclear or matches multiple things, use action "clarify".
+- unit must be one of: g, kg, ml, l, oz, lb, cup, tbsp, tsp, piece, can, bag, box, bottle, bunch, loaf, dozen, unit
+- expiry: YYYY-MM format or empty string
+- reply: 1-2 sentences max. Be specific about what you're changing.
 Return ONLY valid JSON. No markdown fences.`;
-      // Only send user/assistant turns to the API (strip the initial assistant greeting)
       const apiMsgs = newMsgs.filter((m, i) => !(i === 0 && m.role === "assistant"));
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -7580,7 +7596,7 @@ Return ONLY valid JSON. No markdown fences.`;
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
+          max_tokens: 1500,
           system: systemPrompt,
           messages: apiMsgs
         })
@@ -7590,16 +7606,25 @@ Return ONLY valid JSON. No markdown fences.`;
       const raw = data.content?.[0]?.text || "{}";
       const clean = raw.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
       const parsed = JSON.parse(clean);
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: parsed.reply || "Got it!"
-      }]);
-      if (parsed.items?.length) {
+      setMessages(prev => [...prev, { role: "assistant", content: parsed.reply || "Got it!" }]);
+      if ((parsed.action === "add" || parsed.action === "both") && parsed.items?.length) {
         setExtracted(prev => [...prev, ...parsed.items.map(i => ({
           ...i,
           id: "p" + Date.now() + Math.random(),
           qty: parseFloat(i.qty) || 1
         }))]);
+      }
+      if ((parsed.action === "edit" || parsed.action === "both") && parsed.edits?.length) {
+        setPendingEdits(prev => {
+          // Merge: if same match already queued, merge the changes
+          const merged = [...prev];
+          parsed.edits.forEach(e => {
+            const existing = merged.find(x => x.match.toLowerCase() === e.match.toLowerCase());
+            if (existing) { existing.changes = { ...existing.changes, ...e.changes }; }
+            else { merged.push(e); }
+          });
+          return merged;
+        });
       }
     } catch (e) {
       setMessages(prev => [...prev, {
@@ -7610,9 +7635,11 @@ Return ONLY valid JSON. No markdown fences.`;
     setLoading(false);
   };
   const confirm = () => {
-    onItemsExtracted(extracted);
+    if (extracted.length > 0) onItemsExtracted(extracted);
+    if (pendingEdits.length > 0 && onItemsEdited) onItemsEdited(pendingEdits);
     setConfirmed(true);
   };
+  const hasPending = extracted.length > 0 || pendingEdits.length > 0;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
@@ -7668,69 +7695,51 @@ Return ONLY valid JSON. No markdown fences.`;
     }
   })), /*#__PURE__*/React.createElement("style", null, `@keyframes pulse{0%,100%{opacity:.2}50%{opacity:1}}`)), /*#__PURE__*/React.createElement("div", {
     ref: chatEndRef
-  })), extracted.length > 0 && !confirmed && /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "10px 0",
-      borderTop: "1px solid rgba(255,255,255,.07)",
-      marginTop: 8
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 8
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#4ade80",
-      fontSize: 11,
-      fontWeight: 700,
-      margin: 0
-    }
-  }, "\u2713 ", extracted.length, " item", extracted.length !== 1 ? "s" : "", " ready to add"), /*#__PURE__*/React.createElement("button", {
-    onClick: confirm,
-    style: {
-      padding: "6px 14px",
-      background: "#4ade80",
-      color: "#080b11",
-      border: "none",
-      borderRadius: 8,
-      fontSize: 12,
-      fontWeight: 800,
-      cursor: "pointer",
-      fontFamily: "'Syne',sans-serif"
-    }
-  }, "ADD ALL \u2192")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      maxHeight: 120,
-      overflowY: "auto",
-      display: "flex",
-      flexDirection: "column",
-      gap: 4
-    }
-  }, extracted.map((item, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      padding: "6px 10px",
-      background: "rgba(74,222,128,.06)",
-      border: "1px solid rgba(74,222,128,.15)",
-      borderRadius: 7
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: "#d1d5db",
-      fontSize: 12
-    }
-  }, item.name), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: "#f4a823",
-      fontSize: 11,
-      fontWeight: 700
-    }
-  }, item.qty, " ", item.unit, item.expiry ? " · " + item.expiry : ""))))), confirmed && /*#__PURE__*/React.createElement("div", {
+  })), hasPending && !confirmed && /*#__PURE__*/React.createElement("div", {
+    style: { padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.07)", marginTop: 8 }
+  },
+    /*#__PURE__*/React.createElement("div", {
+      style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }
+    },
+      /*#__PURE__*/React.createElement("p", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700, margin: 0 } },
+        extracted.length > 0 ? extracted.length + " to add" : "",
+        extracted.length > 0 && pendingEdits.length > 0 ? " \xB7 " : "",
+        pendingEdits.length > 0 ? pendingEdits.length + " to update" : ""
+      ),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: confirm,
+        style: { padding: "6px 14px", background: "#4ade80", color: "#080b11", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+      }, "APPLY ALL \u2192")
+    ),
+    /*#__PURE__*/React.createElement("div", {
+      style: { maxHeight: 150, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }
+    },
+      extracted.map((item, i) => /*#__PURE__*/React.createElement("div", {
+        key: "add-" + i,
+        style: { display: "flex", justifyContent: "space-between", padding: "6px 10px", background: "rgba(74,222,128,.06)", border: "1px solid rgba(74,222,128,.15)", borderRadius: 7 }
+      },
+        /*#__PURE__*/React.createElement("span", { style: { color: "#d1d5db", fontSize: 12 } }, "\u2795 ", item.name),
+        /*#__PURE__*/React.createElement("span", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700 } }, item.qty, " ", item.unit, item.expiry ? " \xB7 " + item.expiry : "")
+      )),
+      pendingEdits.map((edit, i) => {
+        const c = edit.changes || {};
+        const parts = [];
+        if (c.qty !== undefined) parts.push("qty \u2192 " + c.qty);
+        if (c.qtyDelta !== undefined) parts.push((c.qtyDelta > 0 ? "+" : "") + c.qtyDelta);
+        if (c.unit) parts.push("unit \u2192 " + c.unit);
+        if (c.expiry !== undefined) parts.push("exp \u2192 " + (c.expiry || "cleared"));
+        if (c.brand !== undefined) parts.push("brand \u2192 " + (c.brand || "cleared"));
+        if (c.name) parts.push("rename \u2192 " + c.name);
+        return /*#__PURE__*/React.createElement("div", {
+          key: "edit-" + i,
+          style: { display: "flex", justifyContent: "space-between", padding: "6px 10px", background: "rgba(96,165,250,.06)", border: "1px solid rgba(96,165,250,.15)", borderRadius: 7, gap: 8 }
+        },
+          /*#__PURE__*/React.createElement("span", { style: { color: "#d1d5db", fontSize: 12 } }, "\u270F ", edit.match),
+          /*#__PURE__*/React.createElement("span", { style: { color: "#60a5fa", fontSize: 11, fontWeight: 700 } }, parts.join(" \xB7 ") || "update")
+        );
+      })
+    )
+  ), confirmed && /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "10px",
       background: "rgba(74,222,128,.08)",
@@ -8220,8 +8229,27 @@ function PantryTab({
     await DB.set(KEYS.pantry(), merged);
     setMode("list");
   };
-  const addOneItem = async item => {
-    await addItems([item]);
+  const addOneItem = async item => { await addItems([item]); };
+
+  const editItems = async edits => {
+    const merged = [...pantryItems];
+    edits.forEach(edit => {
+      const existing = merged.find(p => p.name.toLowerCase() === (edit.match || "").toLowerCase());
+      if (!existing) return;
+      const c = edit.changes || {};
+      if (c.qty !== undefined) existing.qty = Math.max(0, parseFloat(c.qty));
+      if (c.qtyDelta !== undefined) existing.qty = Math.max(0, parseFloat(existing.qty || 0) + parseFloat(c.qtyDelta));
+      if (c.unit) existing.unit = c.unit;
+      if (c.expiry !== undefined) existing.expiry = c.expiry;
+      if (c.brand !== undefined) existing.brand = c.brand;
+      if (c.name) existing.name = c.name;
+      if (c.cat) existing.cat = c.cat;
+      if (c.notes !== undefined) existing.notes = c.notes;
+      if (c.minQty !== undefined) existing.minQty = Math.max(0, parseFloat(c.minQty));
+    });
+    setPantryItems(merged);
+    await DB.set(KEYS.pantry(), merged);
+    setMode("list");
   };
   if (mode === "chat") return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -8257,7 +8285,9 @@ function PantryTab({
     }
   }, "\u2190 Back")), /*#__PURE__*/React.createElement(PantryAIChat, {
     onItemsExtracted: addItems,
-    onClose: () => setMode("list")
+    onItemsEdited: editItems,
+    onClose: () => setMode("list"),
+    pantryItems: pantryItems
   }));
   if (mode === "barcode") return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
