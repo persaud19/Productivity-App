@@ -16833,7 +16833,7 @@ function App() {
     settings: settings
   }), tab === "finance" && /*#__PURE__*/React.createElement(FinanceTab, {
     settings: settings
-  }),
+  }), /*#__PURE__*/React.createElement("button", {
     onClick: handleExport,
     style: {
       position: "fixed",
