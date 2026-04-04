@@ -324,7 +324,8 @@ const KEYS = {
   financeAllMonths: () => `ml:finance:months`,
   financeRollover: month => `ml:finance:rollover:${month}`,
   financeIncome: month => `ml:finance:income:${month}`,
-  merchantRules: () => `ml:finance:merchant_rules`
+  merchantRules: () => `ml:finance:merchant_rules`,
+  customSubCats: () => `ml:finance:custom_subcats`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15554,6 +15555,56 @@ function SettingsModal({ settings, onSave, onClose }) {
 // FINANCE TAB — envelope budgeting, CSV import, rollover
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Sub-category options per envelope — derived from 2 years of transaction history
+const SUBCATEGORY_OPTIONS = {
+  food_drink:     ["Coffee", "Fast Food", "Restaurant", "Grocery", "Alcohol", "Catering", "Entertaining", "Hosting", "Meal Kit", "Gift"],
+  household:      ["Costco", "Home & Garden", "TJX", "Dollarama", "Walmart", "Electronics", "Medical", "Water Softener", "Makeup", "Gift", "Tax"],
+  transportation: ["Gas", "Parking", "Go Transit", "Uber", "Car Payment", "Repair", "Licences", "Toll"],
+  subscriptions:  ["Phone Bill", "Internet", "Insurance", "Netflix", "Spotify", "Credit Card", "Google", "YouTube", "Playstation", "ChatGPT", "Meal Prep", "Learning"],
+  clothing:       ["TJX", "Shoes", "Makeup", "Dry Cleaning", "Online"],
+  amazon:         ["Household", "Clothing", "Electronics", "Medical", "Gift", "Home & Garden"],
+  entertainment:  ["Concert", "Movies", "Golf", "Electronics", "Catering", "Entertaining", "Event", "Alcohol"],
+  health:         ["Medical", "Pharmacy", "Massage", "Insurance", "Makeup"],
+  travel:         ["Hotel", "Flights", "Food & Drink", "Alcohol", "Gift", "Activities"],
+  alcohol:        ["Alcohol", "Beer", "Wine", "Spirits"],
+  weed:           ["Weed"],
+  gifts:          ["Present", "Gift Cards", "Food & Drink", "Catering"],
+  yugioh:         ["Singles", "Packs", "Tournament", "Accessories"],
+  learning:       ["Online Course", "Professional", "Books"],
+  work_expense:   ["Restaurant", "Catering", "Tolls", "Supplies"],
+  other:          ["General"]
+};
+
+// Dropdown component for sub-categories — shows list per envelope + "＋ Add new..." option
+function SubCatSelect({ envelopeId, value, onChange, extraOpts, onAdd, style }) {
+  const [adding, setAdding] = React.useState(false);
+  const [newVal, setNewVal] = React.useState("");
+
+  const baseOpts = SUBCATEGORY_OPTIONS[envelopeId] || [];
+  const custom = extraOpts || [];
+  const all = [...new Set([...baseOpts, ...custom])].sort((a, b) => a.localeCompare(b));
+
+  const inputStyle = { background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 7, padding: "8px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" };
+
+  if (adding) {
+    return /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6 } },
+      /*#__PURE__*/React.createElement("input", { autoFocus: true, value: newVal, onChange: e => setNewVal(e.target.value), placeholder: "New sub-category", onKeyDown: e => { if (e.key === "Enter" && newVal.trim()) { onAdd && onAdd(newVal.trim()); onChange(newVal.trim()); setAdding(false); setNewVal(""); } if (e.key === "Escape") { setAdding(false); setNewVal(""); } }, style: { ...inputStyle, flex: 1 } }),
+      /*#__PURE__*/React.createElement("button", { onClick: () => { if (newVal.trim()) { onAdd && onAdd(newVal.trim()); onChange(newVal.trim()); } setAdding(false); setNewVal(""); }, style: { padding: "7px 12px", background: "#a78bfa", border: "none", borderRadius: 7, color: "#080b11", fontWeight: 800, fontSize: 12, cursor: "pointer" } }, "✓"),
+      /*#__PURE__*/React.createElement("button", { onClick: () => { setAdding(false); setNewVal(""); }, style: { padding: "7px 10px", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, color: "var(--text-muted)", fontSize: 12, cursor: "pointer" } }, "✕")
+    );
+  }
+
+  return /*#__PURE__*/React.createElement("select", {
+    value: value || "",
+    onChange: e => { if (e.target.value === "__add__") { setAdding(true); } else { onChange(e.target.value); } },
+    style: { ...inputStyle, width: "100%", ...(style || {}) }
+  },
+    /*#__PURE__*/React.createElement("option", { value: "" }, "— none —"),
+    all.map(s => /*#__PURE__*/React.createElement("option", { key: s, value: s }, s)),
+    /*#__PURE__*/React.createElement("option", { value: "__add__" }, "＋ Add new...")
+  );
+}
+
 // Pre-seeded merchant rules derived from 2 years of historical spending data
 const MERCHANT_RULES_SEED = [
   { id:"mr_001", keyword:"lcbo",                  displayName:"LCBO",                   envelopeId:"alcohol",        subCat:"Alcohol" },
@@ -15747,7 +15798,7 @@ function FinanceTab({ settings }) {
   const [scanning, setScanning] = useState(false);
   const [scanResults, setScanResults] = useState(null);
   const [showAddTxn, setShowAddTxn] = useState(false);
-  const [addTxnForm, setAddTxnForm] = useState({ date: getToday(), amount: "", desc: "", card: "Amex", envelopeId: "food_drink" });
+  const [addTxnForm, setAddTxnForm] = useState({ date: getToday(), amount: "", desc: "", card: "Amex", envelopeId: "food_drink", subCat: "" });
   const [editingTxn, setEditingTxn] = useState(null);
   const [income, setIncome] = useState([]);
   const [showAddIncome, setShowAddIncome] = useState(false);
@@ -15761,6 +15812,7 @@ function FinanceTab({ settings }) {
   const [ruleForm, setRuleForm] = useState({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
   const [vaguePrompt, setVaguePrompt] = useState(null); // {txn, suggestions: [{label, envelopeId, subCat}]}
   const [editTxnForm, setEditTxnForm] = useState({ envelopeId: "other", subCat: "" });
+  const [customSubCats, setCustomSubCats] = useState({});
   const fileRef = useRef(null);
   const scanRef = useRef(null);
   const cardFileRef = useRef(null);
@@ -15779,12 +15831,14 @@ function FinanceTab({ settings }) {
     });
     const incomeData = await DB.get(KEYS.financeIncome(month));
     const rulesData = await DB.get(KEYS.merchantRules());
+    const customSubData = await DB.get(KEYS.customSubCats());
     setEnvelopes(baseEnvelopes);
     setTransactions(Array.isArray(txns) ? txns : []);
     setRolloverIn(rollover || {});
     setAllMonths(Array.isArray(months) ? months : []);
     setIncome(Array.isArray(incomeData) ? incomeData : []);
     setMerchantRules(Array.isArray(rulesData) && rulesData.length ? rulesData : MERCHANT_RULES_SEED);
+    setCustomSubCats(customSubData && typeof customSubData === "object" ? customSubData : {});
     setLoading(false);
   }, []);
 
@@ -15979,6 +16033,14 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
     setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
   };
 
+  const handleAddSubCat = async (envelopeId, newSubCat) => {
+    const existing = customSubCats[envelopeId] || [];
+    if (existing.includes(newSubCat)) return;
+    const updated = { ...customSubCats, [envelopeId]: [...existing, newSubCat] };
+    setCustomSubCats(updated);
+    await DB.set(KEYS.customSubCats(), updated);
+  };
+
   // Resolve a vague merchant: user picks one of the 3 suggestions
   const handleVaguePick = async (txn, pick) => {
     const updated = transactions.map(t => t.id === txn.id ? { ...t, envelopeId: pick.envelopeId, subCat: pick.subCat } : t);
@@ -16014,12 +16076,12 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
     const amt = parseFloat(addTxnForm.amount);
     if (!addTxnForm.desc.trim() || isNaN(amt) || amt <= 0) return;
     const month = addTxnForm.date.slice(0, 7);
-    const txn = { id: "manual_" + Date.now(), date: addTxnForm.date, month, card: addTxnForm.card, amount: amt, isRefund: false, category: "Manual", subCat: "", desc: addTxnForm.desc.trim(), highlevel: "", envelopeId: addTxnForm.envelopeId };
+    const txn = { id: "manual_" + Date.now(), date: addTxnForm.date, month, card: addTxnForm.card, amount: amt, isRefund: false, category: "Manual", subCat: addTxnForm.subCat || "", desc: addTxnForm.desc.trim(), highlevel: "", envelopeId: addTxnForm.envelopeId };
     const existing = await DB.get(KEYS.financeTransactions(month)) || [];
     await DB.set(KEYS.financeTransactions(month), [...existing, txn]);
     const months = [...new Set([...allMonths, month])].sort();
     await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
-    setShowAddTxn(false); setAddTxnForm({ date: getToday(), amount: "", desc: "", card: "Amex", envelopeId: "food_drink" });
+    setShowAddTxn(false); setAddTxnForm({ date: getToday(), amount: "", desc: "", card: "Amex", envelopeId: "food_drink", subCat: "" });
     await loadMonth(currentMonth);
   };
 
@@ -16425,10 +16487,14 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
             ),
             /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
               /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CATEGORY"),
-              /*#__PURE__*/React.createElement("select", { value: addTxnForm.envelopeId, onChange: e => setAddTxnForm(f => ({ ...f, envelopeId: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
+              /*#__PURE__*/React.createElement("select", { value: addTxnForm.envelopeId, onChange: e => setAddTxnForm(f => ({ ...f, envelopeId: e.target.value, subCat: "" })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
                 FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
               )
             )
+          ),
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SUB-CATEGORY"),
+            /*#__PURE__*/React.createElement(SubCatSelect, { envelopeId: addTxnForm.envelopeId, value: addTxnForm.subCat, onChange: v => setAddTxnForm(f => ({ ...f, subCat: v })), extraOpts: customSubCats[addTxnForm.envelopeId] || [], onAdd: sub => handleAddSubCat(addTxnForm.envelopeId, sub) })
           )
         ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
@@ -16467,7 +16533,7 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
           ),
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SUB-CATEGORY"),
-            /*#__PURE__*/React.createElement("input", { placeholder: "e.g. Coffee, Gas, Fast Food", value: editTxnForm.subCat, onChange: e => setEditTxnForm(f => ({ ...f, subCat: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } })
+            /*#__PURE__*/React.createElement(SubCatSelect, { envelopeId: editTxnForm.envelopeId, value: editTxnForm.subCat, onChange: v => setEditTxnForm(f => ({ ...f, subCat: v })), extraOpts: customSubCats[editTxnForm.envelopeId] || [], onAdd: sub => handleAddSubCat(editTxnForm.envelopeId, sub) })
           )
         ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
@@ -16537,7 +16603,7 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
             ),
             /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
               /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SUB-CAT"),
-              /*#__PURE__*/React.createElement("input", { placeholder: "e.g. Coffee", value: ruleForm.subCat, onChange: e => setRuleForm(f => ({ ...f, subCat: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none" } })
+              /*#__PURE__*/React.createElement(SubCatSelect, { envelopeId: ruleForm.envelopeId, value: ruleForm.subCat, onChange: v => setRuleForm(f => ({ ...f, subCat: v })), extraOpts: customSubCats[ruleForm.envelopeId] || [], onAdd: sub => handleAddSubCat(ruleForm.envelopeId, sub) })
             )
           )
         ),
@@ -16569,7 +16635,9 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
             /*#__PURE__*/React.createElement("select", { value: ruleForm.envelopeId, onChange: e => setRuleForm(f => ({ ...f, envelopeId: e.target.value })), style: { flex: "1 1 110px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 6px", color: "var(--text-primary)", fontSize: 11, outline: "none" } },
               FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
             ),
-            /*#__PURE__*/React.createElement("input", { placeholder: "sub-cat", value: ruleForm.subCat, onChange: e => setRuleForm(f => ({ ...f, subCat: e.target.value })), style: { flex: "1 1 80px", minWidth: 60, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 9px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+            /*#__PURE__*/React.createElement("div", { style: { flex: "1 1 100px", minWidth: 80 } },
+              /*#__PURE__*/React.createElement(SubCatSelect, { envelopeId: ruleForm.envelopeId, value: ruleForm.subCat, onChange: v => setRuleForm(f => ({ ...f, subCat: v })), extraOpts: customSubCats[ruleForm.envelopeId] || [], onAdd: sub => handleAddSubCat(ruleForm.envelopeId, sub) })
+            ),
             /*#__PURE__*/React.createElement("button", { onClick: handleAddRule, style: { padding: "7px 14px", background: "#a78bfa", border: "none", borderRadius: 7, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
           )
         ),
