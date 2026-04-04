@@ -323,7 +323,8 @@ const KEYS = {
   financeTransactions: month => `ml:finance:txns:${month}`,
   financeAllMonths: () => `ml:finance:months`,
   financeRollover: month => `ml:finance:rollover:${month}`,
-  financeIncome: month => `ml:finance:income:${month}`
+  financeIncome: month => `ml:finance:income:${month}`,
+  merchantRules: () => `ml:finance:merchant_rules`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15553,6 +15554,87 @@ function SettingsModal({ settings, onSave, onClose }) {
 // FINANCE TAB — envelope budgeting, CSV import, rollover
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Pre-seeded merchant rules derived from 2 years of historical spending data
+const MERCHANT_RULES_SEED = [
+  { id:"mr_001", keyword:"lcbo",                  displayName:"LCBO",                   envelopeId:"alcohol",        subCat:"Alcohol" },
+  { id:"mr_002", keyword:"the beer store",         displayName:"The Beer Store",         envelopeId:"alcohol",        subCat:"Alcohol" },
+  { id:"mr_003", keyword:"tim hortons",            displayName:"Tim Hortons",            envelopeId:"food_drink",     subCat:"Coffee" },
+  { id:"mr_004", keyword:"starbucks",              displayName:"Starbucks",              envelopeId:"food_drink",     subCat:"Coffee" },
+  { id:"mr_005", keyword:"costco wholesale",       displayName:"Costco Wholesale",       envelopeId:"household",      subCat:"Costco" },
+  { id:"mr_006", keyword:"costco gas",             displayName:"Costco Gas",             envelopeId:"transportation", subCat:"Gas" },
+  { id:"mr_007", keyword:"winners",                displayName:"Winners",                envelopeId:"clothing",       subCat:"TJX" },
+  { id:"mr_008", keyword:"marshalls",              displayName:"Marshalls",              envelopeId:"clothing",       subCat:"TJX" },
+  { id:"mr_009", keyword:"homesense",              displayName:"HomeSense",              envelopeId:"household",      subCat:"TJX" },
+  { id:"mr_010", keyword:"spotify",                displayName:"Spotify",                envelopeId:"subscriptions",  subCat:"Spotify" },
+  { id:"mr_011", keyword:"netflix",                displayName:"Netflix",                envelopeId:"subscriptions",  subCat:"Netflix" },
+  { id:"mr_012", keyword:"fido mobile",            displayName:"Fido Mobile",            envelopeId:"subscriptions",  subCat:"Phone Bill" },
+  { id:"mr_013", keyword:"bell canada",            displayName:"Bell Canada",            envelopeId:"subscriptions",  subCat:"Internet" },
+  { id:"mr_014", keyword:"wendy",                  displayName:"Wendy's",                envelopeId:"food_drink",     subCat:"Fast Food" },
+  { id:"mr_015", keyword:"uber eats",              displayName:"Uber Eats",              envelopeId:"food_drink",     subCat:"Fast Food" },
+  { id:"mr_016", keyword:"doordash",               displayName:"DoorDash",               envelopeId:"food_drink",     subCat:"Fast Food" },
+  { id:"mr_017", keyword:"skip the dishes",        displayName:"SkipTheDishes",          envelopeId:"food_drink",     subCat:"Fast Food" },
+  { id:"mr_018", keyword:"mcdonald",               displayName:"McDonald's",             envelopeId:"food_drink",     subCat:"Fast Food" },
+  { id:"mr_019", keyword:"subway",                 displayName:"Subway",                 envelopeId:"food_drink",     subCat:"Fast Food" },
+  { id:"mr_020", keyword:"domino",                 displayName:"Domino's Pizza",         envelopeId:"food_drink",     subCat:"Fast Food" },
+  { id:"mr_021", keyword:"harvey",                 displayName:"Harvey's",               envelopeId:"food_drink",     subCat:"Fast Food" },
+  { id:"mr_022", keyword:"esso circle k",          displayName:"Esso Circle K",          envelopeId:"transportation", subCat:"Gas" },
+  { id:"mr_023", keyword:"canadian tire gas",      displayName:"Canadian Tire Gas Bar",  envelopeId:"transportation", subCat:"Gas" },
+  { id:"mr_024", keyword:"petro-canada",           displayName:"Petro-Canada",           envelopeId:"transportation", subCat:"Gas" },
+  { id:"mr_025", keyword:"shell",                  displayName:"Shell Gas",              envelopeId:"transportation", subCat:"Gas" },
+  { id:"mr_026", keyword:"presto",                 displayName:"Presto",                 envelopeId:"transportation", subCat:"Go Transit" },
+  { id:"mr_027", keyword:"uber",                   displayName:"Uber",                   envelopeId:"transportation", subCat:"Uber" },
+  { id:"mr_028", keyword:"shoppers drug mart",     displayName:"Shoppers Drug Mart",     envelopeId:"health",         subCat:"Pharmacy" },
+  { id:"mr_029", keyword:"shein",                  displayName:"Shein",                  envelopeId:"clothing",       subCat:"Online" },
+  { id:"mr_030", keyword:"foodland",               displayName:"Foodland",               envelopeId:"food_drink",     subCat:"Grocery" },
+  { id:"mr_031", keyword:"wal-mart",               displayName:"Walmart",                envelopeId:"food_drink",     subCat:"Groceries" },
+  { id:"mr_032", keyword:"walmart",                displayName:"Walmart",                envelopeId:"food_drink",     subCat:"Groceries" },
+  { id:"mr_033", keyword:"chefs plate",            displayName:"Chef's Plate",           envelopeId:"food_drink",     subCat:"Meal Kit" },
+  { id:"mr_034", keyword:"hello fresh",            displayName:"HelloFresh",             envelopeId:"food_drink",     subCat:"Meal Kit" },
+  { id:"mr_035", keyword:"dragon world",           displayName:"Dragon World Card Games",envelopeId:"yugioh",         subCat:"" },
+  { id:"mr_036", keyword:"security national",      displayName:"Security National Insurance", envelopeId:"subscriptions", subCat:"Insurance" },
+  { id:"mr_037", keyword:"google *youtube",        displayName:"YouTube Premium",        envelopeId:"subscriptions",  subCat:"YouTube" },
+  { id:"mr_038", keyword:"google *google",         displayName:"Google One",             envelopeId:"subscriptions",  subCat:"Google" },
+  { id:"mr_039", keyword:"apple.com/bill",         displayName:"Apple Subscription",     envelopeId:"subscriptions",  subCat:"Apple" },
+  { id:"mr_040", keyword:"membership fee installmen", displayName:"Credit Card Membership Fee", envelopeId:"subscriptions", subCat:"Credit Card" },
+  { id:"mr_041", keyword:"dollarama",              displayName:"Dollarama",              envelopeId:"household",      subCat:"Home & Garden" },
+  { id:"mr_042", keyword:"no frills",              displayName:"No Frills",              envelopeId:"food_drink",     subCat:"Grocery" },
+  { id:"mr_043", keyword:"metro",                  displayName:"Metro",                  envelopeId:"food_drink",     subCat:"Grocery" },
+  { id:"mr_044", keyword:"sobeys",                 displayName:"Sobeys",                 envelopeId:"food_drink",     subCat:"Grocery" },
+  { id:"mr_045", keyword:"loblaws",                displayName:"Loblaws",                envelopeId:"food_drink",     subCat:"Grocery" },
+  { id:"mr_046", keyword:"real canadian",          displayName:"Real Canadian Superstore",envelopeId:"food_drink",    subCat:"Grocery" },
+  { id:"mr_047", keyword:"circle k",               displayName:"Circle K",               envelopeId:"transportation", subCat:"Gas" },
+];
+
+// Returns { isVague: bool } — true if description looks like a numbered company (no real name)
+function isVagueMerchant(desc) {
+  const d = desc.toUpperCase();
+  return /^\d{4,}/.test(d.trim()) || /\b(INC|LTD|CORP|CO\.?)\b/.test(d) || /^[A-Z]{2,4}\s*\d{5,}/.test(d.trim());
+}
+
+// Extracts a clean display name from a raw statement description
+function extractMerchantName(raw) {
+  return raw
+    .replace(/\s+\d{3,}.*$/, "")           // strip trailing numbers and everything after
+    .replace(/\s+(ON|CA|QC|BC|AB)\s*$/, "")// strip province codes
+    .replace(/\s*#\d+.*$/, "")              // strip store numbers
+    .replace(/\*[A-Z0-9]+$/, "")           // strip transaction codes
+    .replace(/\s{2,}/g, " ")               // collapse spaces
+    .trim()
+    .split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+}
+
+// Apply merchant rules to a list of transactions, returns augmented list
+function applyMerchantRules(transactions, rules) {
+  return transactions.map(t => {
+    const descLower = (t.desc || "").toLowerCase();
+    const match = rules.find(r => r.keyword && descLower.includes(r.keyword.toLowerCase()));
+    if (match) {
+      return { ...t, envelopeId: match.envelopeId, subCat: match.subCat || t.subCat || "", _ruleApplied: match.id };
+    }
+    return t;
+  });
+}
+
 // Default envelope categories derived from actual spending data
 const FINANCE_ENVELOPES_DEFAULT = [
   { id: "food_drink",      name: "Food & Drink",      color: "#fb923c", icon: "🍽", highlevel: "Food"          },
@@ -15673,6 +15755,12 @@ function FinanceTab({ settings }) {
   const [selectedCard, setSelectedCard] = useState("Amex");
   const [cardParsing, setCardParsing] = useState(false);
   const [cardResults, setCardResults] = useState(null);
+  const [merchantRules, setMerchantRules] = useState(MERCHANT_RULES_SEED);
+  const [showRulesTable, setShowRulesTable] = useState(false);
+  const [rulePrompt, setRulePrompt] = useState(null); // {txn, suggestedName, envelopeId, subCat}
+  const [ruleForm, setRuleForm] = useState({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
+  const [vaguePrompt, setVaguePrompt] = useState(null); // {txn, suggestions: [{label, envelopeId, subCat}]}
+  const [editTxnForm, setEditTxnForm] = useState({ envelopeId: "other", subCat: "" });
   const fileRef = useRef(null);
   const scanRef = useRef(null);
   const cardFileRef = useRef(null);
@@ -15690,11 +15778,13 @@ function FinanceTab({ settings }) {
       return { ...def, allocated: s?.allocated ?? 0 };
     });
     const incomeData = await DB.get(KEYS.financeIncome(month));
+    const rulesData = await DB.get(KEYS.merchantRules());
     setEnvelopes(baseEnvelopes);
     setTransactions(Array.isArray(txns) ? txns : []);
     setRolloverIn(rollover || {});
     setAllMonths(Array.isArray(months) ? months : []);
     setIncome(Array.isArray(incomeData) ? incomeData : []);
+    setMerchantRules(Array.isArray(rulesData) && rulesData.length ? rulesData : MERCHANT_RULES_SEED);
     setLoading(false);
   }, []);
 
@@ -15833,8 +15923,10 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
 
   const confirmCardResults = async () => {
     if (!cardResults?.length) return;
+    // Apply merchant rules before saving
+    const ruled = applyMerchantRules(cardResults, merchantRules);
     const byMonth = {};
-    cardResults.forEach(t => { if (!byMonth[t.month]) byMonth[t.month] = []; byMonth[t.month].push(t); });
+    ruled.forEach(t => { if (!byMonth[t.month]) byMonth[t.month] = []; byMonth[t.month].push(t); });
     for (const m of Object.keys(byMonth)) {
       const existing = await DB.get(KEYS.financeTransactions(m)) || [];
       const ids = new Set(existing.map(t => t.id));
@@ -15843,14 +15935,61 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
     const months = [...new Set([...allMonths, ...Object.keys(byMonth)])].sort();
     await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
     setCardResults(null); await loadMonth(currentMonth);
-    setImportMsg(`Imported ${cardResults.length} transactions from ${selectedCard}.`); setView("transactions");
+    const ruleCount = ruled.filter(t => t._ruleApplied).length;
+    setImportMsg(`Imported ${ruled.length} transactions from ${selectedCard}. ${ruleCount > 0 ? ruleCount + " matched merchant rules." : ""}`); setView("transactions");
   };
 
-  const handleEditTxn = async (txn, newEnvelopeId) => {
-    const updated = transactions.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId } : t);
+  const handleEditTxn = async (txn, newEnvelopeId, newSubCat) => {
+    const subCatVal = newSubCat !== undefined ? newSubCat : (txn.subCat || "");
+    const updated = transactions.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId, subCat: subCatVal } : t);
     setTransactions(updated);
     await DB.set(KEYS.financeTransactions(currentMonth), updated);
     setEditingTxn(null);
+    // Offer rule creation if envelope changed
+    if (newEnvelopeId !== txn.envelopeId) {
+      const suggestedName = extractMerchantName(txn.desc || "");
+      const suggestedKeyword = suggestedName.toLowerCase();
+      const alreadyHasRule = merchantRules.some(r => suggestedKeyword.includes(r.keyword.toLowerCase()) || r.keyword.toLowerCase().includes(suggestedKeyword));
+      setRuleForm({ keyword: suggestedKeyword, displayName: suggestedName, envelopeId: newEnvelopeId, subCat: subCatVal });
+      setRulePrompt({ txn, alreadyHasRule });
+    }
+  };
+
+  const handleSaveRule = async () => {
+    if (!ruleForm.keyword.trim()) return;
+    const newRule = { id: "mr_u" + Date.now(), keyword: ruleForm.keyword.trim().toLowerCase(), displayName: ruleForm.displayName.trim() || ruleForm.keyword.trim(), envelopeId: ruleForm.envelopeId, subCat: ruleForm.subCat.trim() };
+    const updated = [...merchantRules.filter(r => r.keyword !== newRule.keyword), newRule];
+    setMerchantRules(updated);
+    await DB.set(KEYS.merchantRules(), updated);
+    setRulePrompt(null);
+  };
+
+  const handleDeleteRule = async (id) => {
+    const updated = merchantRules.filter(r => r.id !== id);
+    setMerchantRules(updated);
+    await DB.set(KEYS.merchantRules(), updated);
+  };
+
+  const handleAddRule = async () => {
+    if (!ruleForm.keyword.trim()) return;
+    const newRule = { id: "mr_u" + Date.now(), keyword: ruleForm.keyword.trim().toLowerCase(), displayName: ruleForm.displayName.trim() || ruleForm.keyword.trim(), envelopeId: ruleForm.envelopeId, subCat: ruleForm.subCat.trim() };
+    const updated = [...merchantRules.filter(r => r.keyword !== newRule.keyword), newRule];
+    setMerchantRules(updated);
+    await DB.set(KEYS.merchantRules(), updated);
+    setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
+  };
+
+  // Resolve a vague merchant: user picks one of the 3 suggestions
+  const handleVaguePick = async (txn, pick) => {
+    const updated = transactions.map(t => t.id === txn.id ? { ...t, envelopeId: pick.envelopeId, subCat: pick.subCat } : t);
+    setTransactions(updated);
+    await DB.set(KEYS.financeTransactions(currentMonth), updated);
+    // Also save as a rule
+    const newRule = { id: "mr_u" + Date.now(), keyword: pick.keyword.toLowerCase(), displayName: pick.label, envelopeId: pick.envelopeId, subCat: pick.subCat };
+    const updatedRules = [...merchantRules.filter(r => r.keyword !== newRule.keyword), newRule];
+    setMerchantRules(updatedRules);
+    await DB.set(KEYS.merchantRules(), updatedRules);
+    setVaguePrompt(null);
   };
 
   const handleAddIncome = async () => {
@@ -15956,7 +16095,11 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
       tabBtn("transactions", "TRANSACTIONS", "#60a5fa"),
       tabBtn("income",       "INCOME",       "#4ade80"),
       tabBtn("summary",      "SUMMARY",      "#f4a823"),
-      tabBtn("import",       "IMPORT",       "#a78bfa")
+      tabBtn("import",       "IMPORT",       "#a78bfa"),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => { setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" }); setShowRulesTable(true); },
+        style: { padding: "10px 12px", background: "transparent", border: "none", borderBottom: "2px solid transparent", color: "#a78bfa", fontSize: 10, fontWeight: 700, letterSpacing: ".06em", cursor: "pointer", opacity: 0.7 }
+      }, "⚡ RULES")
     ),
 
     // ── ENVELOPES VIEW ──────────────────────────────────────────────────
@@ -16071,7 +16214,7 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
                 ),
                 /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 } },
                   /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)" } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount))),
-                  /*#__PURE__*/React.createElement("button", { onClick: () => setEditingTxn(t), style: { fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" } }, "edit")
+                  /*#__PURE__*/React.createElement("button", { onClick: () => { setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }, style: { fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" } }, "edit")
                 )
               );
             })
@@ -16301,7 +16444,7 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
         /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#34d399", margin: "0 0 4px" } }, "EDIT TRANSACTION"),
         /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, editingTxn.desc),
-        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 12 } },
           /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "DATE"),
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)" } }, editingTxn.date)
@@ -16311,22 +16454,25 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: editingTxn.isRefund ? "#4ade80" : "var(--text-primary)" } }, (editingTxn.isRefund ? "+" : "-") + "$" + (editingTxn.amount || 0).toFixed(2))
           )
         ),
-        /*#__PURE__*/React.createElement("div", null,
-          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CATEGORY"),
-          /*#__PURE__*/React.createElement("select", {
-            id: "_editTxnEnv",
-            defaultValue: editingTxn.envelopeId,
-            style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 13, outline: "none" }
-          },
-            FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CATEGORY"),
+            /*#__PURE__*/React.createElement("select", {
+              value: editTxnForm.envelopeId,
+              onChange: e => setEditTxnForm(f => ({ ...f, envelopeId: e.target.value })),
+              style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 13, outline: "none" }
+            },
+              FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+            )
+          ),
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SUB-CATEGORY"),
+            /*#__PURE__*/React.createElement("input", { placeholder: "e.g. Coffee, Gas, Fast Food", value: editTxnForm.subCat, onChange: e => setEditTxnForm(f => ({ ...f, subCat: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } })
           )
         ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
           /*#__PURE__*/React.createElement("button", {
-            onClick: () => {
-              const sel = document.getElementById("_editTxnEnv");
-              if (sel) handleEditTxn(editingTxn, sel.value);
-            },
+            onClick: () => handleEditTxn(editingTxn, editTxnForm.envelopeId, editTxnForm.subCat),
             style: { flex: 1, padding: "12px 0", background: "#34d399", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
           }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setEditingTxn(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
@@ -16362,6 +16508,87 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
           /*#__PURE__*/React.createElement("button", { onClick: handleAddIncome, style: { flex: 1, padding: "12px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setShowAddIncome(false), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
+        )
+      )
+    ),
+
+    // ── Create Rule Prompt (after editing a transaction) ────────────────────
+    rulePrompt && /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.75)", zIndex: 210 }, onClick: () => setRulePrompt(null) }),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 420, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 211 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 13, color: "#a78bfa", margin: "0 0 4px" } }, "CREATE MERCHANT RULE?"),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" } }, "Save this mapping so future imports are auto-categorized."),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "MATCH KEYWORD"),
+            /*#__PURE__*/React.createElement("input", { placeholder: "e.g. tim hortons", value: ruleForm.keyword, onChange: e => setRuleForm(f => ({ ...f, keyword: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } }),
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", marginTop: 3 } }, "Any transaction description containing this keyword will be auto-assigned.")
+          ),
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "DISPLAY NAME"),
+            /*#__PURE__*/React.createElement("input", { placeholder: "e.g. Tim Hortons", value: ruleForm.displayName, onChange: e => setRuleForm(f => ({ ...f, displayName: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } })
+          ),
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+            /*#__PURE__*/React.createElement("div", { style: { flex: 2 } },
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CATEGORY"),
+              /*#__PURE__*/React.createElement("select", { value: ruleForm.envelopeId, onChange: e => setRuleForm(f => ({ ...f, envelopeId: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
+                FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+              )
+            ),
+            /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SUB-CAT"),
+              /*#__PURE__*/React.createElement("input", { placeholder: "e.g. Coffee", value: ruleForm.subCat, onChange: e => setRuleForm(f => ({ ...f, subCat: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none" } })
+            )
+          )
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
+          /*#__PURE__*/React.createElement("button", { onClick: handleSaveRule, style: { flex: 1, padding: "12px 0", background: "#a78bfa", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE RULE"),
+          /*#__PURE__*/React.createElement("button", { onClick: () => setRulePrompt(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Skip")
+        )
+      )
+    ),
+
+    // ── Merchant Rules Table ────────────────────────────────────────────────
+    showRulesTable && /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 220 }, onClick: () => setShowRulesTable(false) }),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "#080b11", zIndex: 221, display: "flex", flexDirection: "column" } },
+        // Header
+        /*#__PURE__*/React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "space-between" } },
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#a78bfa", margin: 0 } }, "MERCHANT RULES"),
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0" } }, merchantRules.length + " rules — applied automatically on CSV import")
+          ),
+          /*#__PURE__*/React.createElement("button", { onClick: () => setShowRulesTable(false), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 20, cursor: "pointer", lineHeight: 1 } }, "\xD7")
+        ),
+        // Add new rule row
+        /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", background: "rgba(167,139,250,.05)" } },
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#a78bfa", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "ADD NEW RULE"),
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
+            /*#__PURE__*/React.createElement("input", { placeholder: "keyword", value: ruleForm.keyword, onChange: e => setRuleForm(f => ({ ...f, keyword: e.target.value })), style: { flex: "1 1 100px", minWidth: 80, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 9px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+            /*#__PURE__*/React.createElement("input", { placeholder: "display name", value: ruleForm.displayName, onChange: e => setRuleForm(f => ({ ...f, displayName: e.target.value })), style: { flex: "1 1 100px", minWidth: 80, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 9px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+            /*#__PURE__*/React.createElement("select", { value: ruleForm.envelopeId, onChange: e => setRuleForm(f => ({ ...f, envelopeId: e.target.value })), style: { flex: "1 1 110px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 6px", color: "var(--text-primary)", fontSize: 11, outline: "none" } },
+              FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+            ),
+            /*#__PURE__*/React.createElement("input", { placeholder: "sub-cat", value: ruleForm.subCat, onChange: e => setRuleForm(f => ({ ...f, subCat: e.target.value })), style: { flex: "1 1 80px", minWidth: 60, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 9px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+            /*#__PURE__*/React.createElement("button", { onClick: handleAddRule, style: { padding: "7px 14px", background: "#a78bfa", border: "none", borderRadius: 7, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
+          )
+        ),
+        // Rules list
+        /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "0 0 40px" } },
+          merchantRules.map(rule => {
+            const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === rule.envelopeId);
+            return /*#__PURE__*/React.createElement("div", { key: rule.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+              /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: 0, fontWeight: 500 } }, rule.displayName || rule.keyword),
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "2px 0 0" } }, "keyword: " + rule.keyword)
+              ),
+              /*#__PURE__*/React.createElement("div", { style: { textAlign: "right", flexShrink: 0 } },
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: env?.color || "var(--text-muted)", margin: 0, fontWeight: 700 } }, (env?.icon || "") + " " + (env?.name || rule.envelopeId)),
+                rule.subCat && /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "2px 0 0" } }, rule.subCat)
+              ),
+              /*#__PURE__*/React.createElement("button", { onClick: () => handleDeleteRule(rule.id), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", padding: "0 4px", flexShrink: 0 } }, "\xD7")
+            );
+          })
         )
       )
     )
