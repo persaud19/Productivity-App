@@ -287,7 +287,7 @@ const DB = (() => {
 // ─────────────────────────────────────────────────────────────────────────────
 // KEYS
 // ─────────────────────────────────────────────────────────────────────────────
-const getToday = () => new Date().toISOString().split("T")[0];
+const getToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
 const getSundayKey = () => {
   const d = new Date(),
     s = new Date(d);
@@ -7497,7 +7497,8 @@ function PantryEditModal({
     qty: item.qty || 1,
     unit: item.unit || "unit",
     expiry: item.expiry || "",
-    brand: item.brand || ""
+    brand: item.brand || "",
+    location: item.location || item.notes || ""
   });
   const s = (k, v) => setForm(p => ({
     ...p,
@@ -7610,7 +7611,13 @@ function PantryEditModal({
       ...inp,
       fontSize: 13
     }
-  }))), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
+    c: "Storage Location"
+  }), /*#__PURE__*/React.createElement("select", {
+    value: form.location,
+    onChange: e => s("location", e.target.value),
+    style: { ...inp, fontSize: 13, padding: "10px 8px" }
+  }, ["", "Kitchen", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Bedroom", "Office", "Basement", "Car", "Other"].map(loc => /*#__PURE__*/React.createElement("option", { key: loc, value: loc }, loc || "\u2014 Select location \u2014"))))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
@@ -7622,6 +7629,7 @@ function PantryEditModal({
         ...item,
         ...form,
         qty: parseFloat(form.qty) || 1,
+        location: form.location,
         id: item.id || "p" + Date.now()
       });
     },
@@ -8946,13 +8954,10 @@ function PantryItemRow({
       borderRadius: 4,
       padding: "1px 6px"
     }
-  }, expLabel)), item.brand && /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-muted)",
-      fontSize: 10,
-      margin: 0
-    }
-  }, item.brand)), /*#__PURE__*/React.createElement("div", {
+  }, expLabel)), (item.brand || item.location) && /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+    item.brand && /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, item.brand),
+    item.location && /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, "\uD83D\uDCCD " + item.location)
+  )), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
@@ -12652,19 +12657,25 @@ Your job is to estimate macros through natural conversation. Rules:
 - Keep responses SHORT (1–2 sentences max when clarifying)`;
 
       const apiMsgs = newMsgs.map(m => ({ role: m.role, content: m.content }));
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 400, system: systemPrompt, messages: apiMsgs })
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 400, system: systemPrompt, messages: apiMsgs }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
       const reply = data.content?.[0]?.text || "";
 
-      // Try to parse as save action
+      // Try to parse as save action — handle raw JSON or markdown-wrapped ```json ... ```
       let parsed = null;
       try {
-        const jsonStr = reply.trim();
-        if (jsonStr.startsWith("{")) { parsed = JSON.parse(jsonStr); }
+        let jsonStr = reply.trim();
+        const wrapped = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (wrapped) jsonStr = wrapped[1].trim();
+        if (jsonStr.startsWith("{")) parsed = JSON.parse(jsonStr);
       } catch {}
 
       if (parsed?.action === "save") {
@@ -12677,7 +12688,7 @@ Your job is to estimate macros through natural conversation. Rules:
         setMsgs(prev => [...prev, { role: "assistant", content: reply }]);
       }
     } catch(e) {
-      setMsgs(prev => [...prev, { role: "assistant", content: "Something went wrong. Try again." }]);
+      setMsgs(prev => [...prev, { role: "assistant", content: e.name === "AbortError" ? "Request timed out — check your connection and try again." : "Something went wrong. Try again." }]);
     }
     setLoading(false);
   };
@@ -15650,7 +15661,12 @@ function FinanceTab({ settings }) {
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState("");
   const [editingEnvelope, setEditingEnvelope] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanResults, setScanResults] = useState(null);
+  const [showAddTxn, setShowAddTxn] = useState(false);
+  const [addTxnForm, setAddTxnForm] = useState({ date: getToday(), amount: "", desc: "", card: "Amex", envelopeId: "food_drink" });
   const fileRef = useRef(null);
+  const scanRef = useRef(null);
 
   const loadMonth = useCallback(async (month) => {
     setLoading(true);
@@ -15713,6 +15729,64 @@ function FinanceTab({ settings }) {
     }
     setImporting(false);
     setTimeout(() => setImportMsg(""), 6000);
+  };
+
+  const handleScanStatement = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !window.__claude_api_key) { if (!window.__claude_api_key) setImportMsg("No Claude API key — add it in ⚙ Settings."); return; }
+    setScanning(true); setScanResults(null); setImportMsg("");
+    try {
+      const base64 = await new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result.split(",")[1]); r.readAsDataURL(file); });
+      const mediaType = file.type || "image/jpeg";
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 45000);
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", signal: controller.signal,
+        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 2000, messages: [{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+          { type: "text", text: "Extract all purchase transactions from this credit card statement. Ignore payment/balance rows.\nReturn ONLY a JSON array, no markdown:\n[{\"date\":\"YYYY-MM-DD\",\"amount\":45.99,\"desc\":\"MERCHANT\",\"card\":\"Amex\"}]\namount: positive number. card: Amex, TD Visa, CIBC, PC Financial, or Unknown." }
+        ]}] })
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "";
+      const match = reply.match(/\[[\s\S]*\]/);
+      if (!match) { setImportMsg("No transactions found — try a clearer screenshot."); setScanning(false); return; }
+      const txns = JSON.parse(match[0]);
+      setScanResults(txns.map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: "scan_" + t.date + "_" + Math.random().toString(36).slice(2, 7), isRefund: false, category: "Scanned", subCat: "", highlevel: "", envelopeId: CSS_CATEGORY_MAP[t.desc?.toLowerCase()] || "other" })));
+    } catch(err) {
+      setImportMsg(err.name === "AbortError" ? "Scan timed out — try a smaller/clearer image." : "Scan failed: " + err.message);
+    }
+    setScanning(false);
+    if (scanRef.current) scanRef.current.value = "";
+  };
+
+  const confirmScan = async () => {
+    if (!scanResults?.length) return;
+    const byMonth = {};
+    scanResults.forEach(t => { if (!byMonth[t.month]) byMonth[t.month] = []; byMonth[t.month].push(t); });
+    for (const m of Object.keys(byMonth)) {
+      const existing = await DB.get(KEYS.financeTransactions(m)) || [];
+      const ids = new Set(existing.map(t => t.id));
+      await DB.set(KEYS.financeTransactions(m), [...existing, ...byMonth[m].filter(t => !ids.has(t.id))]);
+    }
+    const months = [...new Set([...allMonths, ...Object.keys(byMonth)])].sort();
+    await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
+    setScanResults(null); await loadMonth(currentMonth);
+    setImportMsg(`Added ${scanResults.length} transactions from screenshot.`); setView("transactions");
+  };
+
+  const handleAddTxn = async () => {
+    const amt = parseFloat(addTxnForm.amount);
+    if (!addTxnForm.desc.trim() || isNaN(amt) || amt <= 0) return;
+    const month = addTxnForm.date.slice(0, 7);
+    const txn = { id: "manual_" + Date.now(), date: addTxnForm.date, month, card: addTxnForm.card, amount: amt, isRefund: false, category: "Manual", subCat: "", desc: addTxnForm.desc.trim(), highlevel: "", envelopeId: addTxnForm.envelopeId };
+    const existing = await DB.get(KEYS.financeTransactions(month)) || [];
+    await DB.set(KEYS.financeTransactions(month), [...existing, txn]);
+    const months = [...new Set([...allMonths, month])].sort();
+    await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
+    setShowAddTxn(false); setAddTxnForm({ date: getToday(), amount: "", desc: "", card: "Amex", envelopeId: "food_drink" });
+    await loadMonth(currentMonth);
   };
 
   // Compute spent per envelope for current month
@@ -15789,6 +15863,12 @@ function FinanceTab({ settings }) {
 
     // ── ENVELOPES VIEW ──────────────────────────────────────────────────
     view === "envelopes" && /*#__PURE__*/React.createElement("div", null,
+
+      // Quick add expense button
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => setShowAddTxn(true),
+        style: { width: "100%", marginBottom: 12, padding: "10px 0", background: "rgba(52,211,153,.1)", border: "1px solid rgba(52,211,153,.25)", borderRadius: 10, color: "#34d399", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+      }, "+ ADD EXPENSE"),
 
       // Budget health bar
       /*#__PURE__*/React.createElement("div", {
@@ -15967,9 +16047,82 @@ function FinanceTab({ settings }) {
           style: { background: "#a78bfa", border: "none", borderRadius: 10, padding: "12px 24px", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: importing ? .6 : 1 }
         }, importing ? "Importing\u2026" : "Choose CSV File")
       ),
+
+      // Screenshot scan
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(96,165,250,.07)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 14, padding: "20px 18px", marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#60a5fa", letterSpacing: ".06em", margin: "0 0 8px" } }, "SCAN STATEMENT"),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, margin: "0 0 14px" } }, "Screenshot your credit card statement and Claude will extract the transactions automatically."),
+        /*#__PURE__*/React.createElement("input", { ref: scanRef, type: "file", accept: "image/*", style: { display: "none" }, onChange: handleScanStatement }),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => scanRef.current?.click(), disabled: scanning,
+          style: { background: "#60a5fa", border: "none", borderRadius: 10, padding: "12px 24px", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: scanning ? .6 : 1 }
+        }, scanning ? "Scanning\u2026" : "\uD83D\uDCF8 Upload Screenshot")
+      ),
+
+      // Scan results preview
+      scanResults && /*#__PURE__*/React.createElement("div", { style: { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 14, padding: "16px", marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: "#4ade80", margin: "0 0 12px" } }, "FOUND " + scanResults.length + " TRANSACTIONS — REVIEW & CONFIRM"),
+        /*#__PURE__*/React.createElement("div", { style: { maxHeight: 300, overflowY: "auto", marginBottom: 12 } },
+          scanResults.map((t, i) => {
+            const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
+            return /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,.05)" } },
+              /*#__PURE__*/React.createElement("div", null,
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-primary)", margin: 0, fontWeight: 500 } }, t.desc),
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + (env?.icon || "") + " " + (env?.name || "Other"))
+              ),
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-primary)" } }, "-$" + (t.amount || 0).toFixed(2))
+            );
+          })
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+          /*#__PURE__*/React.createElement("button", { onClick: confirmScan, style: { flex: 1, padding: "10px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Confirm & Save"),
+          /*#__PURE__*/React.createElement("button", { onClick: () => setScanResults(null), style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
+        )
+      ),
+
       importMsg && /*#__PURE__*/React.createElement("div", {
-        style: { background: "rgba(74,222,128,.1)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 10, padding: "12px 14px", fontSize: 13, color: "#4ade80", fontWeight: 600 }
+        style: { background: importMsg.includes("fail") || importMsg.includes("Error") ? "rgba(239,68,68,.1)" : "rgba(74,222,128,.1)", border: `1px solid ${importMsg.includes("fail") || importMsg.includes("Error") ? "rgba(239,68,68,.25)" : "rgba(74,222,128,.25)"}`, borderRadius: 10, padding: "12px 14px", fontSize: 13, color: importMsg.includes("fail") || importMsg.includes("Error") ? "#ef4444" : "#4ade80", fontWeight: 600 }
       }, importMsg)
+    ),
+
+    // ── ADD EXPENSE MODAL ───────────────────────────────────────────────
+    showAddTxn && /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setShowAddTxn(false) }),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#34d399", margin: "0 0 16px" } }, "ADD EXPENSE"),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "DATE"),
+            /*#__PURE__*/React.createElement("input", { type: "date", value: addTxnForm.date, onChange: e => setAddTxnForm(f => ({ ...f, date: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", colorScheme: "dark" } })
+          ),
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "AMOUNT ($)"),
+            /*#__PURE__*/React.createElement("input", { type: "number", min: "0", step: "0.01", placeholder: "0.00", value: addTxnForm.amount, onChange: e => setAddTxnForm(f => ({ ...f, amount: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } })
+          ),
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "DESCRIPTION"),
+            /*#__PURE__*/React.createElement("input", { placeholder: "e.g. Costco groceries", value: addTxnForm.desc, onChange: e => setAddTxnForm(f => ({ ...f, desc: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } })
+          ),
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+            /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CARD"),
+              /*#__PURE__*/React.createElement("select", { value: addTxnForm.card, onChange: e => setAddTxnForm(f => ({ ...f, card: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
+                ["Amex", "TD Visa", "CIBC", "PC Financial", "Cash", "Other"].map(c => /*#__PURE__*/React.createElement("option", { key: c, value: c }, c))
+              )
+            ),
+            /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CATEGORY"),
+              /*#__PURE__*/React.createElement("select", { value: addTxnForm.envelopeId, onChange: e => setAddTxnForm(f => ({ ...f, envelopeId: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
+                FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+              )
+            )
+          )
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
+          /*#__PURE__*/React.createElement("button", { onClick: handleAddTxn, style: { flex: 1, padding: "12px 0", background: "#34d399", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
+          /*#__PURE__*/React.createElement("button", { onClick: () => setShowAddTxn(false), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
+        )
+      )
     )
   );
 }
