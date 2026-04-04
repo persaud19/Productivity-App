@@ -16869,9 +16869,9 @@ function App() {
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: isActive ? section.color : "var(--text-secondary)",
+        color: isActive ? section.color : "#c8d0dc",
         fontSize: 9,
-        fontWeight: isActive ? 800 : 600,
+        fontWeight: isActive ? 800 : 700,
         margin: 0,
         fontFamily: "'Syne',sans-serif",
         letterSpacing: ".05em",
@@ -16917,8 +16917,8 @@ function App() {
       padding: "7px 10px",
       border: "none",
       background: "transparent",
-      color: tab === t.id ? t.c : "var(--text-secondary)",
-      fontWeight: tab === t.id ? 700 : 500,
+      color: tab === t.id ? t.c : "#c8d0dc",
+      fontWeight: tab === t.id ? 700 : 600,
       fontSize: 9,
       cursor: "pointer",
       fontFamily: "'Syne',sans-serif",
