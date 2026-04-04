@@ -16064,7 +16064,7 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
   // ── Render ──────────────────────────────────────────────────────────────
   const tabBtn = (id, label, col) => /*#__PURE__*/React.createElement("button", {
     onClick: () => setView(id),
-    style: { flex: 1, padding: "8px 0", border: "none", background: "transparent", cursor: "pointer", fontSize: 10, fontWeight: view === id ? 800 : 500, fontFamily: "'Syne',sans-serif", letterSpacing: ".05em", color: view === id ? col : "var(--text-secondary)", borderBottom: `2px solid ${view === id ? col : "transparent"}` }
+    style: { flexShrink: 0, padding: "10px 14px", border: "none", background: "transparent", cursor: "pointer", fontSize: 10, fontWeight: view === id ? 800 : 500, fontFamily: "'Syne',sans-serif", letterSpacing: ".06em", color: view === id ? col : "#c8d0dc", borderBottom: `2px solid ${view === id ? col : "transparent"}`, whiteSpace: "nowrap" }
   }, label);
 
   if (loading) return /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: 13 } }, "Loading...");
@@ -16090,7 +16090,7 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
     ),
 
     // Sub-tabs
-    /*#__PURE__*/React.createElement("div", { style: { display: "flex", borderBottom: "1px solid rgba(255,255,255,.06)", marginBottom: 16 } },
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", overflowX: "auto", borderBottom: "1px solid rgba(255,255,255,.06)", marginBottom: 16, scrollbarWidth: "none" } },
       tabBtn("envelopes",    "ENVELOPES",    "#34d399"),
       tabBtn("transactions", "TRANSACTIONS", "#60a5fa"),
       tabBtn("income",       "INCOME",       "#4ade80"),
@@ -16098,7 +16098,7 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
       tabBtn("import",       "IMPORT",       "#a78bfa"),
       /*#__PURE__*/React.createElement("button", {
         onClick: () => { setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" }); setShowRulesTable(true); },
-        style: { padding: "10px 12px", background: "transparent", border: "none", borderBottom: "2px solid transparent", color: "#a78bfa", fontSize: 10, fontWeight: 700, letterSpacing: ".06em", cursor: "pointer", opacity: 0.7 }
+        style: { flexShrink: 0, padding: "10px 14px", background: "transparent", border: "none", borderBottom: "2px solid transparent", color: "#a78bfa", fontSize: 10, fontWeight: 700, letterSpacing: ".06em", cursor: "pointer", whiteSpace: "nowrap" }
       }, "⚡ RULES")
     ),
 
