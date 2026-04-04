@@ -15803,7 +15803,7 @@ function FinanceTab({ settings }) {
   const [income, setIncome] = useState([]);
   const [showAddIncome, setShowAddIncome] = useState(false);
   const [addIncomeForm, setAddIncomeForm] = useState({ date: getToday(), amount: "", source: "Salary", type: "salary" });
-  const [selectedCard, setSelectedCard] = useState("Amex");
+  const [importMode, setImportMode] = useState("credit_card"); // "credit_card" | "bank_statement"
   const [cardParsing, setCardParsing] = useState(false);
   const [cardResults, setCardResults] = useState(null);
   const [merchantRules, setMerchantRules] = useState(MERCHANT_RULES_SEED);
@@ -15934,20 +15934,38 @@ function FinanceTab({ settings }) {
   const handleCardCSV = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!window.__claude_api_key) { setImportMsg("No Claude API key — add it in ⚙ Settings."); return; }
+    if (!window.__claude_api_key) { setImportMsg("No Claude API key — add it in \u2699 Settings."); return; }
     setCardParsing(true); setCardResults(null); setImportMsg("");
     try {
       const text = await file.text();
-      // Limit to first 120 rows to keep tokens manageable
-      const rows = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 120).join("\n");
-      const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(e => `  ${e.id}: ${e.name}`).join("\n");
+      const rows = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 150).join("\n");
+      const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(env => `  ${env.id}: ${env.name}`).join("\n");
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 60000);
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", signal: controller.signal,
-        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 4096,
-          messages: [{ role: "user", content: `Parse this ${selectedCard} credit card CSV statement. Extract all purchase transactions. Skip balance payments, transfers between accounts, and credit card payment rows.
+
+      let prompt;
+      if (importMode === "bank_statement") {
+        prompt = `Parse this bank statement CSV. Classify every row as INCOME, EXPENSE, or SKIP.
+
+INCOME: deposits, direct deposits, payroll, e-transfers received, interest, government payments, refunds deposited.
+EXPENSE: withdrawals/debits that are NOT credit card payments. This includes: utilities (hydro, water, gas bill), property tax, mortgage/rent, insurance paid from bank, subscriptions billed directly to bank account.
+SKIP: any row that is a payment to a credit card (Amex, TD Visa, CIBC, PC Financial, Mastercard, Visa Payment, Credit Card Payment, etc.) — these are already captured in CC imports.
+
+CSV content:
+${rows}
+
+Return ONLY this JSON object — no markdown, no explanation:
+{
+  "income": [{"date":"YYYY-MM-DD","amount":1234.56,"desc":"RAW DESCRIPTION","source":"inferred source name e.g. Ryan Persaud Payroll"}],
+  "expenses": [{"date":"YYYY-MM-DD","amount":45.99,"desc":"RAW DESCRIPTION","envelopeId":"best_match","subCat":""}]
+}
+
+Envelope categories for expenses:
+${envelopeList}
+
+Rules: amount is always positive. Property tax → household. Hydro/water/gas bill → subscriptions/Utilities. Mortgage → subscriptions. Insurance → subscriptions.`;
+      } else {
+        prompt = `Parse this credit card CSV statement. Extract all purchase transactions. Skip any balance payments, transfers between accounts, or credit card payment rows.
 
 CSV content:
 ${rows}
@@ -15956,18 +15974,41 @@ Return ALL transactions as a JSON array. No markdown, no explanation — only th
 Envelope categories to assign (pick best match):
 ${envelopeList}
 
-Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":false,"envelopeId":"food_drink"}]
+Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":false,"envelopeId":"food_drink","subCat":""}]
 - date: ISO format
 - amount: positive number in CAD dollars
 - isRefund: true only if this is a credit/refund back to the account
-- envelopeId: one of the IDs listed above` }] })
+- envelopeId: one of the IDs listed above
+- subCat: best guess sub-category (e.g. Coffee, Gas, Fast Food, Grocery) or empty string`;
+      }
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", signal: controller.signal,
+        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 4096, messages: [{ role: "user", content: prompt }] })
       });
       const data = await res.json();
       const reply = data.content?.[0]?.text || "";
-      const match = reply.match(/\[[\s\S]*\]/);
-      if (!match) { setImportMsg("Could not parse CSV — try again or use Master CSV format."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
-      const parsed = JSON.parse(match[0]);
-      setCardResults(parsed.map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: `${selectedCard.replace(/ /g,"_")}_${t.date}_${Math.random().toString(36).slice(2,7)}`, card: selectedCard, category: selectedCard, subCat: "", highlevel: "" })));
+
+      if (importMode === "bank_statement") {
+        // Extract JSON object
+        let jsonStr = reply.trim();
+        const fenced = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (fenced) jsonStr = fenced[1].trim();
+        const objMatch = jsonStr.match(/\{[\s\S]*\}/);
+        if (!objMatch) { setImportMsg("Could not parse bank statement — try again."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+        const parsed = JSON.parse(objMatch[0]);
+        const srcLabel = file.name.replace(/\.csv$/i, "");
+        const expenses = (parsed.expenses || []).map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: `bank_exp_${t.date}_${Math.random().toString(36).slice(2,7)}`, card: "Bank", isRefund: false, category: "Bank", highlevel: "" }));
+        const incItems = (parsed.income || []).map(t => ({ id: "bank_inc_" + Date.now() + "_" + Math.random().toString(36).slice(2,5), date: t.date, month: (t.date || "").slice(0, 7), amount: t.amount, source: t.source || t.desc || "Bank Deposit", type: "other", desc: t.desc }));
+        setCardResults({ mode: "bank_statement", expenses, income: incItems, label: srcLabel });
+      } else {
+        const arrMatch = reply.match(/\[[\s\S]*\]/);
+        if (!arrMatch) { setImportMsg("Could not parse CSV — try again or use Master CSV format."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+        const parsed = JSON.parse(arrMatch[0]);
+        const srcLabel = file.name.replace(/\.csv$/i, "");
+        setCardResults({ mode: "credit_card", expenses: parsed.map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: `cc_${t.date}_${Math.random().toString(36).slice(2,7)}`, card: srcLabel, category: srcLabel, subCat: t.subCat || "", highlevel: "" })), income: [], label: srcLabel });
+      }
     } catch(err) {
       setImportMsg(err.name === "AbortError" ? "Timed out — try a smaller CSV (one month at a time)." : "Parse failed: " + err.message);
     }
@@ -15976,21 +16017,41 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
   };
 
   const confirmCardResults = async () => {
-    if (!cardResults?.length) return;
-    // Apply merchant rules before saving
-    const ruled = applyMerchantRules(cardResults, merchantRules);
-    const byMonth = {};
-    ruled.forEach(t => { if (!byMonth[t.month]) byMonth[t.month] = []; byMonth[t.month].push(t); });
-    for (const m of Object.keys(byMonth)) {
-      const existing = await DB.get(KEYS.financeTransactions(m)) || [];
-      const ids = new Set(existing.map(t => t.id));
-      await DB.set(KEYS.financeTransactions(m), [...existing, ...byMonth[m].filter(t => !ids.has(t.id))]);
+    if (!cardResults) return;
+    const { expenses = [], income: incItems = [], label = "" } = cardResults;
+
+    // Save expenses (with merchant rules applied)
+    if (expenses.length) {
+      const ruled = applyMerchantRules(expenses, merchantRules);
+      const byMonth = {};
+      ruled.forEach(t => { if (!byMonth[t.month]) byMonth[t.month] = []; byMonth[t.month].push(t); });
+      for (const m of Object.keys(byMonth)) {
+        const existing = await DB.get(KEYS.financeTransactions(m)) || [];
+        const ids = new Set(existing.map(t => t.id));
+        await DB.set(KEYS.financeTransactions(m), [...existing, ...byMonth[m].filter(t => !ids.has(t.id))]);
+      }
+      const months = [...new Set([...allMonths, ...Object.keys(byMonth)])].sort();
+      await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
+      const ruleCount = ruled.filter(t => t._ruleApplied).length;
+      const msg = `Saved ${ruled.length} expense${ruled.length !== 1 ? "s" : ""}${ruleCount ? " (" + ruleCount + " matched rules)" : ""}`;
+      setImportMsg(incItems.length ? msg + " + " + incItems.length + " income entries from " + label + "." : msg + " from " + label + ".");
     }
-    const months = [...new Set([...allMonths, ...Object.keys(byMonth)])].sort();
-    await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
-    setCardResults(null); await loadMonth(currentMonth);
-    const ruleCount = ruled.filter(t => t._ruleApplied).length;
-    setImportMsg(`Imported ${ruled.length} transactions from ${selectedCard}. ${ruleCount > 0 ? ruleCount + " matched merchant rules." : ""}`); setView("transactions");
+
+    // Save income entries
+    if (incItems.length) {
+      for (const inc of incItems) {
+        const m = inc.month;
+        if (!m) continue;
+        const existing = await DB.get(KEYS.financeIncome(m)) || [];
+        const ids = new Set(existing.map(i => i.id));
+        if (!ids.has(inc.id)) await DB.set(KEYS.financeIncome(m), [...existing, inc]);
+      }
+      if (!expenses.length) setImportMsg(`Saved ${incItems.length} income entries from ${label}.`);
+    }
+
+    setCardResults(null);
+    await loadMonth(currentMonth);
+    setView(incItems.length && !expenses.length ? "income" : "transactions");
   };
 
   const handleEditTxn = async (txn, newEnvelopeId, newSubCat) => {
@@ -16368,75 +16429,128 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
     // ── IMPORT VIEW ─────────────────────────────────────────────────────
     view === "import" && /*#__PURE__*/React.createElement("div", null,
 
-      // ── PER-CARD CLAUDE IMPORT ──
-      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(96,165,250,.07)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 14, padding: "20px 18px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#60a5fa", letterSpacing: ".06em", margin: "0 0 10px" } }, "IMPORT BY CARD"),
-        /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.5 } }, "Select your card, upload the CSV from your bank — Claude reads the format automatically and maps to your envelopes."),
-        // Card selector
-        /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 } },
-          ["Amex", "TD Visa", "CIBC", "PC Financial", "Other"].map(card => /*#__PURE__*/React.createElement("button", {
-            key: card, onClick: () => setSelectedCard(card),
-            style: { padding: "6px 14px", borderRadius: 8, border: `1px solid ${selectedCard === card ? "#60a5fa" : "rgba(255,255,255,.1)"}`, background: selectedCard === card ? "rgba(96,165,250,.18)" : "transparent", color: selectedCard === card ? "#60a5fa" : "var(--text-secondary)", fontSize: 11, fontWeight: selectedCard === card ? 700 : 400, cursor: "pointer" }
-          }, card))
-        ),
-        /*#__PURE__*/React.createElement("input", { ref: cardFileRef, type: "file", accept: ".csv,.txt", style: { display: "none" }, onChange: handleCardCSV }),
-        /*#__PURE__*/React.createElement("button", { onClick: () => cardFileRef.current?.click(), disabled: cardParsing,
-          style: { background: "#60a5fa", border: "none", borderRadius: 10, padding: "12px 24px", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: cardParsing ? .6 : 1 }
-        }, cardParsing ? "Parsing with Claude\u2026" : "Upload " + selectedCard + " CSV")
+      // ── Filename callout ──
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(244,168,35,.07)", border: "1px solid rgba(244,168,35,.25)", borderRadius: 12, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 10, alignItems: "flex-start" } },
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 18, lineHeight: 1, marginTop: 1 } }, "\uD83D\uDCC2"),
+        /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, fontWeight: 800, color: "#f4a823", margin: "0 0 4px", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" } }, "NAME YOUR FILE BEFORE UPLOADING"),
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-secondary)", margin: 0, lineHeight: 1.6 } },
+            "Include card type + date range so you know what\u2019s been imported:",
+            /*#__PURE__*/React.createElement("br", null),
+            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "#f4a823", fontSize: 11 } }, "Amex_2026-01.csv"),
+            /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)" } }, " \xB7 "),
+            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "#60a5fa", fontSize: 11 } }, "TD_Chequing_2026-01.csv"),
+            /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)" } }, " \xB7 "),
+            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "#4ade80", fontSize: 11 } }, "CIBC_2025-Q4.csv")
+          )
+        )
       ),
 
-      // Card results preview
+      // ── Import type selector ──
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 16 } },
+        ["credit_card", "bank_statement"].map(mode => {
+          const active = importMode === mode;
+          const label = mode === "credit_card" ? "💳 Credit Card" : "🏦 Bank Statement";
+          const desc = mode === "credit_card" ? "All rows = spending" : "Splits income + direct expenses";
+          const col = mode === "credit_card" ? "#60a5fa" : "#4ade80";
+          return /*#__PURE__*/React.createElement("button", {
+            key: mode, onClick: () => { setImportMode(mode); setCardResults(null); },
+            style: { flex: 1, padding: "14px 12px", borderRadius: 12, border: `2px solid ${active ? col : "rgba(255,255,255,.08)"}`, background: active ? `rgba(${mode === "credit_card" ? "96,165,250" : "74,222,128"},.1)` : "rgba(255,255,255,.02)", cursor: "pointer", textAlign: "left" }
+          },
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, fontWeight: 800, color: active ? col : "var(--text-secondary)", margin: "0 0 3px", fontFamily: "'Syne',sans-serif" } }, label),
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, desc)
+          );
+        })
+      ),
+
+      // ── Mode description ──
+      importMode === "bank_statement" && /*#__PURE__*/React.createElement("div", { style: { background: "rgba(74,222,128,.06)", border: "1px solid rgba(74,222,128,.15)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6 } },
+        /*#__PURE__*/React.createElement("span", { style: { color: "#4ade80", fontWeight: 700 } }, "INCOME: "),
+        "deposits, payroll, e-transfers in, refunds",
+        /*#__PURE__*/React.createElement("br", null),
+        /*#__PURE__*/React.createElement("span", { style: { color: "#fb923c", fontWeight: 700 } }, "EXPENSES: "),
+        "utilities, property tax, mortgage, insurance billed from bank",
+        /*#__PURE__*/React.createElement("br", null),
+        /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontWeight: 700 } }, "SKIPPED: "),
+        "credit card payments (already captured in CC import)"
+      ),
+
+      // ── Upload button ──
+      !cardResults && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("input", { ref: cardFileRef, type: "file", accept: ".csv,.txt", style: { display: "none" }, onChange: handleCardCSV }),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => { setImportMsg(""); cardFileRef.current?.click(); },
+          disabled: cardParsing,
+          style: { width: "100%", padding: "14px 0", background: importMode === "credit_card" ? "#60a5fa" : "#4ade80", border: "none", borderRadius: 12, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: cardParsing ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", opacity: cardParsing ? .6 : 1 }
+        }, cardParsing ? "Parsing with Claude\u2026" : (importMode === "credit_card" ? "\uD83D\uDCC4 Upload Credit Card CSV" : "\uD83C\uDFE6 Upload Bank Statement CSV"))
+      ),
+
+      // ── Results preview ──
       cardResults && /*#__PURE__*/React.createElement("div", { style: { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 14, padding: "16px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: "#4ade80", margin: "0 0 12px" } }, "FOUND " + cardResults.length + " TRANSACTIONS — REVIEW & CONFIRM"),
-        /*#__PURE__*/React.createElement("div", { style: { maxHeight: 280, overflowY: "auto", marginBottom: 12 } },
-          cardResults.slice(0, 50).map((t, i) => {
-            const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
-            return /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
-              /*#__PURE__*/React.createElement("div", null,
-                /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-primary)", margin: 0 } }, t.desc),
-                /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + (env?.icon || "") + " " + (env?.name || "Other"))
-              ),
-              /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)", flexShrink: 0 } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount || 0)))
-            );
-          })
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#4ade80", margin: "0 0 12px", letterSpacing: ".05em" } },
+          "REVIEW: " + cardResults.label + " — " +
+          (cardResults.expenses.length ? cardResults.expenses.length + " expense" + (cardResults.expenses.length !== 1 ? "s" : "") : "") +
+          (cardResults.income.length && cardResults.expenses.length ? " + " : "") +
+          (cardResults.income.length ? cardResults.income.length + " income" : "")
         ),
-        cardResults.length > 50 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", marginBottom: 8 } }, "Showing first 50 of " + cardResults.length),
-        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+
+        // Expenses section
+        cardResults.expenses.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginBottom: cardResults.income.length ? 12 : 0 } },
+          cardResults.income.length > 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#fb923c", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "EXPENSES"),
+          /*#__PURE__*/React.createElement("div", { style: { maxHeight: 200, overflowY: "auto" } },
+            cardResults.expenses.slice(0, 50).map((t, i) => {
+              const env = FINANCE_ENVELOPES_DEFAULT.find(ev => ev.id === t.envelopeId);
+              return /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+                /*#__PURE__*/React.createElement("div", { style: { minWidth: 0, flex: 1, paddingRight: 8 } },
+                  /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc),
+                  /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + (env?.icon || "") + " " + (env?.name || "Other") + (t.subCat ? " / " + t.subCat : ""))
+                ),
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)", flexShrink: 0 } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount || 0)))
+              );
+            })
+          ),
+          cardResults.expenses.length > 50 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "4px 0 0" } }, "Showing 50 of " + cardResults.expenses.length)
+        ),
+
+        // Income section
+        cardResults.income.length > 0 && /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#4ade80", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "INCOME"),
+          /*#__PURE__*/React.createElement("div", { style: { maxHeight: 150, overflowY: "auto" } },
+            cardResults.income.map((t, i) => /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+              /*#__PURE__*/React.createElement("div", null,
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-primary)", margin: 0 } }, t.source || t.desc),
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date)
+              ),
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "#4ade80", flexShrink: 0 } }, "+" + fmt(t.amount || 0))
+            ))
+          )
+        ),
+
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 14 } },
           /*#__PURE__*/React.createElement("button", { onClick: confirmCardResults, style: { flex: 1, padding: "10px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Confirm & Save"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setCardResults(null), style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
         )
       ),
 
-      // ── MASTER CSV (existing merged format) ──
-      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(167,139,250,.07)", border: "1px solid rgba(167,139,250,.2)", borderRadius: 14, padding: "20px 18px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#a78bfa", letterSpacing: ".06em", margin: "0 0 8px" } }, "MASTER CSV"),
-        /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "0 0 16px", lineHeight: 1.5 } },
-          "Format: Date, Credit Card, Amount, Category, Sub Category, Description, Highlevel"
-        ),
-        /*#__PURE__*/React.createElement("input", {
-          ref: fileRef, type: "file", accept: ".csv", style: { display: "none" },
-          onChange: handleImportCSV
-        }),
-        /*#__PURE__*/React.createElement("button", {
-          onClick: () => fileRef.current?.click(), disabled: importing,
-          style: { background: "#a78bfa", border: "none", borderRadius: 10, padding: "12px 24px", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: importing ? .6 : 1 }
-        }, importing ? "Importing\u2026" : "Choose CSV File")
+      // ── Master CSV (legacy) ──
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(167,139,250,.05)", border: "1px solid rgba(167,139,250,.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#a78bfa", letterSpacing: ".06em", margin: "0 0 4px" } }, "MASTER CSV"),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 10px" } }, "Legacy: Date, Credit Card, Amount, Category, Sub Category, Description, Highlevel"),
+        /*#__PURE__*/React.createElement("input", { ref: fileRef, type: "file", accept: ".csv", style: { display: "none" }, onChange: handleImportCSV }),
+        /*#__PURE__*/React.createElement("button", { onClick: () => fileRef.current?.click(), disabled: importing, style: { padding: "9px 18px", background: "#a78bfa", border: "none", borderRadius: 9, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: importing ? .6 : 1 } }, importing ? "Importing\u2026" : "Choose CSV File")
       ),
 
-      // Screenshot scan
-      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(96,165,250,.07)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 14, padding: "20px 18px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#60a5fa", letterSpacing: ".06em", margin: "0 0 8px" } }, "SCAN STATEMENT"),
-        /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, margin: "0 0 14px" } }, "Screenshot your credit card statement and Claude will extract the transactions automatically."),
+      // ── Screenshot scan ──
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(96,165,250,.05)", border: "1px solid rgba(96,165,250,.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#60a5fa", letterSpacing: ".06em", margin: "0 0 4px" } }, "SCAN STATEMENT"),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 10px" } }, "Upload a screenshot — Claude extracts transactions automatically."),
         /*#__PURE__*/React.createElement("input", { ref: scanRef, type: "file", accept: "image/*", style: { display: "none" }, onChange: handleScanStatement }),
-        /*#__PURE__*/React.createElement("button", {
-          onClick: () => scanRef.current?.click(), disabled: scanning,
-          style: { background: "#60a5fa", border: "none", borderRadius: 10, padding: "12px 24px", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: scanning ? .6 : 1 }
-        }, scanning ? "Scanning\u2026" : "\uD83D\uDCF8 Upload Screenshot")
+        /*#__PURE__*/React.createElement("button", { onClick: () => scanRef.current?.click(), disabled: scanning, style: { padding: "9px 18px", background: "#60a5fa", border: "none", borderRadius: 9, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: scanning ? .6 : 1 } }, scanning ? "Scanning\u2026" : "\uD83D\uDCF8 Upload Screenshot")
       ),
 
-      // Scan results preview
+      // Scan results
       scanResults && /*#__PURE__*/React.createElement("div", { style: { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 14, padding: "16px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: "#4ade80", margin: "0 0 12px" } }, "FOUND " + scanResults.length + " TRANSACTIONS — REVIEW & CONFIRM"),
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: "#4ade80", margin: "0 0 12px" } }, "FOUND " + scanResults.length + " TRANSACTIONS"),
         /*#__PURE__*/React.createElement("div", { style: { maxHeight: 300, overflowY: "auto", marginBottom: 12 } },
           scanResults.map((t, i) => {
             const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
