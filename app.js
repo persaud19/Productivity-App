@@ -180,7 +180,7 @@ const useUser = () => React.useContext(UserContext);
 const DB = (() => {
   // Firebase path helpers — convert key like "ml:log:2026-03-22" to "users/<uid>/ml/log/2026-03-22"
   // Shared household keys (food + chores) are routed to "households/<id>/..." when a household is active
-  const SHARED_KEY_PREFIXES = ["ml/food/", "ml/chores", "ml/reminders/joint"];
+  const SHARED_KEY_PREFIXES = ["ml/food/", "ml/chores", "ml/reminders/joint", "ml/finance/"];
   const toPath = k => {
     const uid = window.__current_uid;
     const base = k.replace(/:/g, "/");
@@ -322,7 +322,8 @@ const KEYS = {
   financeEnvelopes: month => `ml:finance:envelopes:${month}`,
   financeTransactions: month => `ml:finance:txns:${month}`,
   financeAllMonths: () => `ml:finance:months`,
-  financeRollover: month => `ml:finance:rollover:${month}`
+  financeRollover: month => `ml:finance:rollover:${month}`,
+  financeIncome: month => `ml:finance:income:${month}`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15665,8 +15666,16 @@ function FinanceTab({ settings }) {
   const [scanResults, setScanResults] = useState(null);
   const [showAddTxn, setShowAddTxn] = useState(false);
   const [addTxnForm, setAddTxnForm] = useState({ date: getToday(), amount: "", desc: "", card: "Amex", envelopeId: "food_drink" });
+  const [editingTxn, setEditingTxn] = useState(null);
+  const [income, setIncome] = useState([]);
+  const [showAddIncome, setShowAddIncome] = useState(false);
+  const [addIncomeForm, setAddIncomeForm] = useState({ date: getToday(), amount: "", source: "Salary", type: "salary" });
+  const [selectedCard, setSelectedCard] = useState("Amex");
+  const [cardParsing, setCardParsing] = useState(false);
+  const [cardResults, setCardResults] = useState(null);
   const fileRef = useRef(null);
   const scanRef = useRef(null);
+  const cardFileRef = useRef(null);
 
   const loadMonth = useCallback(async (month) => {
     setLoading(true);
@@ -15680,10 +15689,12 @@ function FinanceTab({ settings }) {
       const s = saved?.find(e => e.id === def.id);
       return { ...def, allocated: s?.allocated ?? 0 };
     });
+    const incomeData = await DB.get(KEYS.financeIncome(month));
     setEnvelopes(baseEnvelopes);
     setTransactions(Array.isArray(txns) ? txns : []);
     setRolloverIn(rollover || {});
     setAllMonths(Array.isArray(months) ? months : []);
+    setIncome(Array.isArray(incomeData) ? incomeData : []);
     setLoading(false);
   }, []);
 
@@ -15776,6 +15787,90 @@ function FinanceTab({ settings }) {
     setImportMsg(`Added ${scanResults.length} transactions from screenshot.`); setView("transactions");
   };
 
+  const handleCardCSV = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!window.__claude_api_key) { setImportMsg("No Claude API key — add it in ⚙ Settings."); return; }
+    setCardParsing(true); setCardResults(null); setImportMsg("");
+    try {
+      const text = await file.text();
+      // Limit to first 120 rows to keep tokens manageable
+      const rows = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 120).join("\n");
+      const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(e => `  ${e.id}: ${e.name}`).join("\n");
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 60000);
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", signal: controller.signal,
+        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 4096,
+          messages: [{ role: "user", content: `Parse this ${selectedCard} credit card CSV statement. Extract all purchase transactions. Skip balance payments, transfers between accounts, and credit card payment rows.
+
+CSV content:
+${rows}
+
+Return ALL transactions as a JSON array. No markdown, no explanation — only the array.
+Envelope categories to assign (pick best match):
+${envelopeList}
+
+Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":false,"envelopeId":"food_drink"}]
+- date: ISO format
+- amount: positive number in CAD dollars
+- isRefund: true only if this is a credit/refund back to the account
+- envelopeId: one of the IDs listed above` }] })
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "";
+      const match = reply.match(/\[[\s\S]*\]/);
+      if (!match) { setImportMsg("Could not parse CSV — try again or use Master CSV format."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+      const parsed = JSON.parse(match[0]);
+      setCardResults(parsed.map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: `${selectedCard.replace(/ /g,"_")}_${t.date}_${Math.random().toString(36).slice(2,7)}`, card: selectedCard, category: selectedCard, subCat: "", highlevel: "" })));
+    } catch(err) {
+      setImportMsg(err.name === "AbortError" ? "Timed out — try a smaller CSV (one month at a time)." : "Parse failed: " + err.message);
+    }
+    setCardParsing(false);
+    if (cardFileRef.current) cardFileRef.current.value = "";
+  };
+
+  const confirmCardResults = async () => {
+    if (!cardResults?.length) return;
+    const byMonth = {};
+    cardResults.forEach(t => { if (!byMonth[t.month]) byMonth[t.month] = []; byMonth[t.month].push(t); });
+    for (const m of Object.keys(byMonth)) {
+      const existing = await DB.get(KEYS.financeTransactions(m)) || [];
+      const ids = new Set(existing.map(t => t.id));
+      await DB.set(KEYS.financeTransactions(m), [...existing, ...byMonth[m].filter(t => !ids.has(t.id))]);
+    }
+    const months = [...new Set([...allMonths, ...Object.keys(byMonth)])].sort();
+    await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
+    setCardResults(null); await loadMonth(currentMonth);
+    setImportMsg(`Imported ${cardResults.length} transactions from ${selectedCard}.`); setView("transactions");
+  };
+
+  const handleEditTxn = async (txn, newEnvelopeId) => {
+    const updated = transactions.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId } : t);
+    setTransactions(updated);
+    await DB.set(KEYS.financeTransactions(currentMonth), updated);
+    setEditingTxn(null);
+  };
+
+  const handleAddIncome = async () => {
+    const amt = parseFloat(addIncomeForm.amount);
+    if (!addIncomeForm.source.trim() || isNaN(amt) || amt <= 0) return;
+    const month = addIncomeForm.date.slice(0, 7);
+    const entry = { id: "inc_" + Date.now(), date: addIncomeForm.date, month, amount: amt, source: addIncomeForm.source.trim(), type: addIncomeForm.type };
+    const updated = [...income, entry];
+    setIncome(updated);
+    await DB.set(KEYS.financeIncome(month), updated);
+    setShowAddIncome(false);
+    setAddIncomeForm({ date: getToday(), amount: "", source: "Salary", type: "salary" });
+  };
+
+  const handleDeleteIncome = async (id) => {
+    const updated = income.filter(i => i.id !== id);
+    setIncome(updated);
+    await DB.set(KEYS.financeIncome(currentMonth), updated);
+  };
+
   const handleAddTxn = async () => {
     const amt = parseFloat(addTxnForm.amount);
     if (!addTxnForm.desc.trim() || isNaN(amt) || amt <= 0) return;
@@ -15803,6 +15898,8 @@ function FinanceTab({ settings }) {
   const totalSpent = Object.values(spentByEnvelope).reduce((a, v) => a + v, 0);
   const totalRefunds = transactions.filter(t => t.isRefund).reduce((a, t) => a + Math.abs(t.amount), 0);
   const netSpent = totalSpent - totalRefunds;
+  const totalIncome = income.reduce((a, i) => a + (i.amount || 0), 0);
+  const netCashFlow = totalIncome - netSpent;
 
   // Compute rollover: previous month's unspent → this month
   const computeRollover = async () => {
@@ -15857,6 +15954,7 @@ function FinanceTab({ settings }) {
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", borderBottom: "1px solid rgba(255,255,255,.06)", marginBottom: 16 } },
       tabBtn("envelopes",    "ENVELOPES",    "#34d399"),
       tabBtn("transactions", "TRANSACTIONS", "#60a5fa"),
+      tabBtn("income",       "INCOME",       "#4ade80"),
       tabBtn("summary",      "SUMMARY",      "#f4a823"),
       tabBtn("import",       "IMPORT",       "#a78bfa")
     ),
@@ -15971,7 +16069,10 @@ function FinanceTab({ settings }) {
                   /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc || t.category),
                   /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + t.card + " \xB7 " + (env?.name || t.category))
                 ),
-                /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)", flexShrink: 0 } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount)))
+                /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 } },
+                  /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)" } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount))),
+                  /*#__PURE__*/React.createElement("button", { onClick: () => setEditingTxn(t), style: { fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" } }, "edit")
+                )
               );
             })
           )
@@ -15984,11 +16085,12 @@ function FinanceTab({ settings }) {
       /*#__PURE__*/React.createElement("div", { style: { background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: "16px", marginBottom: 16 } },
         /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#34d399", letterSpacing: ".07em", margin: "0 0 14px" } }, monthLabel(currentMonth).toUpperCase()),
         [
-          ["Total Allocated", fmt(totalAllocated), "#34d399"],
+          ["Income",          totalIncome > 0 ? fmt(totalIncome) : "—",  "#4ade80"],
           ["Total Spent",     fmt(netSpent),        netSpent > totalAllocated ? "#ef4444" : "var(--text-primary)"],
           ["Refunds",         "+" + fmt(totalRefunds), "#4ade80"],
-          ["Remaining",       fmt(Math.max(0, totalAllocated - netSpent)), "#60a5fa"],
-          ["Transactions",    transactions.length.toString(), "var(--text-secondary)"]
+          ["Budgeted",        fmt(totalAllocated), "#34d399"],
+          ["Net Cash Flow",   totalIncome > 0 ? (netCashFlow >= 0 ? "+" : "") + fmt(netCashFlow) : "—", netCashFlow >= 0 ? "#4ade80" : "#ef4444"],
+          ["Transactions",    transactions.length.toString(), "var(--text-muted)"]
         ].map(([label, val, col]) => /*#__PURE__*/React.createElement("div", {
           key: label, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,.05)" }
         },
@@ -16028,15 +16130,83 @@ function FinanceTab({ settings }) {
       )
     ),
 
+    // ── INCOME VIEW ─────────────────────────────────────────────────────
+    view === "income" && /*#__PURE__*/React.createElement("div", null,
+      // Income header
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(74,222,128,.07)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 14, padding: "14px 16px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" } },
+        /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#4ade80", letterSpacing: ".07em", margin: "0 0 2px" } }, "TOTAL INCOME"),
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 22, fontWeight: 800, color: "#4ade80", margin: 0, fontFamily: "'Syne',sans-serif" } }, fmt(totalIncome))
+        ),
+        /*#__PURE__*/React.createElement("button", { onClick: () => setShowAddIncome(true), style: { background: "#4ade80", border: "none", borderRadius: 10, padding: "10px 16px", color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
+      ),
+      // Income entries list
+      income.length === 0
+        ? /*#__PURE__*/React.createElement("p", { style: { textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: "30px 0" } }, "No income logged for " + monthLabel(currentMonth) + ". Tap + ADD.")
+        : income.map(inc => /*#__PURE__*/React.createElement("div", { key: inc.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "rgba(74,222,128,.04)", border: "1px solid rgba(74,222,128,.12)", borderRadius: 10, marginBottom: 8 } },
+            /*#__PURE__*/React.createElement("div", null,
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 600 } }, inc.source),
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, inc.date + " \xB7 " + inc.type)
+            ),
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "#4ade80" } }, "+" + fmt(inc.amount)),
+              /*#__PURE__*/React.createElement("button", { onClick: () => handleDeleteIncome(inc.id), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", lineHeight: 1 } }, "\xD7")
+            )
+          )),
+      // Net cash flow callout
+      totalIncome > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 16, padding: "12px 16px", background: netCashFlow >= 0 ? "rgba(74,222,128,.08)" : "rgba(239,68,68,.08)", border: `1px solid ${netCashFlow >= 0 ? "rgba(74,222,128,.2)" : "rgba(239,68,68,.2)"}`, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" } },
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-secondary)", fontWeight: 700 } }, "NET CASH FLOW"),
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 16, fontWeight: 800, color: netCashFlow >= 0 ? "#4ade80" : "#ef4444", fontFamily: "'Syne',sans-serif" } }, (netCashFlow >= 0 ? "+" : "") + fmt(netCashFlow))
+      )
+    ),
+
     // ── IMPORT VIEW ─────────────────────────────────────────────────────
     view === "import" && /*#__PURE__*/React.createElement("div", null,
-      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(167,139,250,.07)", border: "1px solid rgba(167,139,250,.2)", borderRadius: 14, padding: "20px 18px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#a78bfa", letterSpacing: ".06em", margin: "0 0 8px" } }, "IMPORT CSV"),
-        /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, margin: "0 0 16px" } },
-          "Upload your Total_Spending.csv. Transactions are stored per month — re-importing is safe (deduplicates)."
+
+      // ── PER-CARD CLAUDE IMPORT ──
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(96,165,250,.07)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 14, padding: "20px 18px", marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#60a5fa", letterSpacing: ".06em", margin: "0 0 10px" } }, "IMPORT BY CARD"),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.5 } }, "Select your card, upload the CSV from your bank — Claude reads the format automatically and maps to your envelopes."),
+        // Card selector
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 } },
+          ["Amex", "TD Visa", "CIBC", "PC Financial", "Other"].map(card => /*#__PURE__*/React.createElement("button", {
+            key: card, onClick: () => setSelectedCard(card),
+            style: { padding: "6px 14px", borderRadius: 8, border: `1px solid ${selectedCard === card ? "#60a5fa" : "rgba(255,255,255,.1)"}`, background: selectedCard === card ? "rgba(96,165,250,.18)" : "transparent", color: selectedCard === card ? "#60a5fa" : "var(--text-secondary)", fontSize: 11, fontWeight: selectedCard === card ? 700 : 400, cursor: "pointer" }
+          }, card))
         ),
+        /*#__PURE__*/React.createElement("input", { ref: cardFileRef, type: "file", accept: ".csv,.txt", style: { display: "none" }, onChange: handleCardCSV }),
+        /*#__PURE__*/React.createElement("button", { onClick: () => cardFileRef.current?.click(), disabled: cardParsing,
+          style: { background: "#60a5fa", border: "none", borderRadius: 10, padding: "12px 24px", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: cardParsing ? .6 : 1 }
+        }, cardParsing ? "Parsing with Claude\u2026" : "Upload " + selectedCard + " CSV")
+      ),
+
+      // Card results preview
+      cardResults && /*#__PURE__*/React.createElement("div", { style: { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 14, padding: "16px", marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: "#4ade80", margin: "0 0 12px" } }, "FOUND " + cardResults.length + " TRANSACTIONS — REVIEW & CONFIRM"),
+        /*#__PURE__*/React.createElement("div", { style: { maxHeight: 280, overflowY: "auto", marginBottom: 12 } },
+          cardResults.slice(0, 50).map((t, i) => {
+            const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
+            return /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+              /*#__PURE__*/React.createElement("div", null,
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-primary)", margin: 0 } }, t.desc),
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + (env?.icon || "") + " " + (env?.name || "Other"))
+              ),
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)", flexShrink: 0 } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount || 0)))
+            );
+          })
+        ),
+        cardResults.length > 50 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", marginBottom: 8 } }, "Showing first 50 of " + cardResults.length),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+          /*#__PURE__*/React.createElement("button", { onClick: confirmCardResults, style: { flex: 1, padding: "10px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Confirm & Save"),
+          /*#__PURE__*/React.createElement("button", { onClick: () => setCardResults(null), style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
+        )
+      ),
+
+      // ── MASTER CSV (existing merged format) ──
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(167,139,250,.07)", border: "1px solid rgba(167,139,250,.2)", borderRadius: 14, padding: "20px 18px", marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#a78bfa", letterSpacing: ".06em", margin: "0 0 8px" } }, "MASTER CSV"),
         /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "0 0 16px", lineHeight: 1.5 } },
-          "Expected format: Date, Credit Card, Amount, Category, Sub Category, Description, Highlevel"
+          "Format: Date, Credit Card, Amount, Category, Sub Category, Description, Highlevel"
         ),
         /*#__PURE__*/React.createElement("input", {
           ref: fileRef, type: "file", accept: ".csv", style: { display: "none" },
@@ -16121,6 +16291,77 @@ function FinanceTab({ settings }) {
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
           /*#__PURE__*/React.createElement("button", { onClick: handleAddTxn, style: { flex: 1, padding: "12px 0", background: "#34d399", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setShowAddTxn(false), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
+        )
+      )
+    ),
+
+    // ── Edit Transaction Modal ──────────────────────────────────────────────
+    editingTxn && /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setEditingTxn(null) }),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#34d399", margin: "0 0 4px" } }, "EDIT TRANSACTION"),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, editingTxn.desc),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 16 } },
+          /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "DATE"),
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)" } }, editingTxn.date)
+          ),
+          /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "AMOUNT"),
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: editingTxn.isRefund ? "#4ade80" : "var(--text-primary)" } }, (editingTxn.isRefund ? "+" : "-") + "$" + (editingTxn.amount || 0).toFixed(2))
+          )
+        ),
+        /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CATEGORY"),
+          /*#__PURE__*/React.createElement("select", {
+            id: "_editTxnEnv",
+            defaultValue: editingTxn.envelopeId,
+            style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 13, outline: "none" }
+          },
+            FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+          )
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
+          /*#__PURE__*/React.createElement("button", {
+            onClick: () => {
+              const sel = document.getElementById("_editTxnEnv");
+              if (sel) handleEditTxn(editingTxn, sel.value);
+            },
+            style: { flex: 1, padding: "12px 0", background: "#34d399", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+          }, "SAVE"),
+          /*#__PURE__*/React.createElement("button", { onClick: () => setEditingTxn(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
+        )
+      )
+    ),
+
+    // ── Add Income Modal ────────────────────────────────────────────────────
+    showAddIncome && /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setShowAddIncome(false) }),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#4ade80", margin: "0 0 16px" } }, "ADD INCOME"),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "DATE"),
+            /*#__PURE__*/React.createElement("input", { type: "date", value: addIncomeForm.date, onChange: e => setAddIncomeForm(f => ({ ...f, date: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", colorScheme: "dark" } })
+          ),
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "AMOUNT ($)"),
+            /*#__PURE__*/React.createElement("input", { type: "number", min: "0", step: "0.01", placeholder: "0.00", value: addIncomeForm.amount, onChange: e => setAddIncomeForm(f => ({ ...f, amount: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } })
+          ),
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SOURCE"),
+            /*#__PURE__*/React.createElement("input", { placeholder: "e.g. Ryan Salary, Freelance", value: addIncomeForm.source, onChange: e => setAddIncomeForm(f => ({ ...f, source: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } })
+          ),
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "TYPE"),
+            /*#__PURE__*/React.createElement("select", { value: addIncomeForm.type, onChange: e => setAddIncomeForm(f => ({ ...f, type: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 13, outline: "none" } },
+              [["salary","💼 Salary"],["freelance","🧑‍💻 Freelance"],["business","🏢 Business"],["investment","📈 Investment"],["government","🏛️ Government / Benefits"],["other","📦 Other"]].map(([v,l]) => /*#__PURE__*/React.createElement("option", { key: v, value: v }, l))
+            )
+          )
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
+          /*#__PURE__*/React.createElement("button", { onClick: handleAddIncome, style: { flex: 1, padding: "12px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
+          /*#__PURE__*/React.createElement("button", { onClick: () => setShowAddIncome(false), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
         )
       )
     )
