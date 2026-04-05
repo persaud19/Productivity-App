@@ -16253,6 +16253,44 @@ function FinanceTab({ settings }) {
     }).join(",")).join("\n");
   };
 
+  // Detect CIBC CSV format: no header row, cols = [Date YYYY-MM-DD, Desc, Debit, Credit, CardNum]
+  const isCibcFormat = (text) => {
+    const firstLine = text.split(/\r?\n/).find(l => l.trim());
+    if (!firstLine) return false;
+    // First cell must be a YYYY-MM-DD date and last cell must contain * (masked card number)
+    return /^\d{4}-\d{2}-\d{2},/.test(firstLine.trim()) && /\*/.test(firstLine);
+  };
+
+  // Normalise CIBC CSV to standard Date,Description,Amount CSV for Claude
+  const parseCibcCsv = (text) => {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    const csvRows = [["Date", "Description", "Amount"]];
+    for (const line of lines) {
+      // Manual CSV parse to handle quoted description fields
+      const cols = [];
+      let cur = "", inQ = false;
+      for (const ch of line) {
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { cols.push(cur); cur = ""; }
+        else { cur += ch; }
+      }
+      cols.push(cur);
+      if (cols.length < 3) continue;
+      const date = cols[0].trim();
+      const desc = cols[1].trim().replace(/^"|"$/g, "");
+      const debit  = parseFloat(cols[2]) || 0;
+      const credit = parseFloat(cols[3] || "") || 0;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+      if (/payment thank you|paiemen/i.test(desc)) continue;
+      if (debit > 0)  csvRows.push([date, desc, debit]);
+      else if (credit > 0) csvRows.push([date, "REFUND: " + desc, credit]); // prefix so Claude sets isRefund:true
+    }
+    return csvRows.map(r => r.map(c => {
+      const s = String(c).replace(/"/g, '""');
+      return String(c).includes(",") ? `"${s}"` : s;
+    }).join(",")).join("\n");
+  };
+
   const handleCardCSV = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -16270,6 +16308,16 @@ function FinanceTab({ settings }) {
         }
       } else {
         text = await file.text();
+        // Auto-detect and normalise CIBC format before sending to Claude
+        if (isCibcFormat(text)) {
+          text = parseCibcCsv(text);
+          if (!text || text.split("\n").length < 2) {
+            setImportMsg("Could not extract transactions from CIBC file — check the format.");
+            setCardParsing(false);
+            if (cardFileRef.current) cardFileRef.current.value = "";
+            return;
+          }
+        }
       }
       const rows = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 300).join("\n");
       const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(env => `  ${env.id}: ${env.name}`).join("\n");
