@@ -16159,7 +16159,7 @@ function FinanceTab({ settings }) {
 
   const handleScanStatement = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !window.__claude_api_key) { if (!window.__claude_api_key) setImportMsg("No Claude API key — add it in ⚙ Settings."); return; }
+    if (!file) return;
     setScanning(true); setScanResults(null); setImportMsg("");
     try {
       const base64 = await new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result.split(",")[1]); r.readAsDataURL(file); });
@@ -16201,13 +16201,75 @@ function FinanceTab({ settings }) {
     setImportMsg(`Added ${scanResults.length} transactions from screenshot.`); setView("transactions");
   };
 
+  // Parse a month string like "02 Apr. 2026" → "2026-04-02"
+  const parseAmexDate = raw => {
+    if (!raw) return "";
+    const MONTHS = { "jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,"jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12 };
+    const parts = String(raw).trim().split(/\s+/);
+    if (parts.length < 3) return "";
+    const day = parts[0].padStart(2, "0");
+    const mon = String(MONTHS[parts[1].toLowerCase().replace(/\./g, "")] || 0).padStart(2, "0");
+    const yr = parts[2];
+    return mon && yr ? `${yr}-${mon}-${day}` : "";
+  };
+
+  // Convert an XLSX file to CSV text Claude can read, detecting the header row automatically
+  const xlsxToCsvText = async (file) => {
+    if (!window.XLSX) throw new Error("XLSX library not loaded — refresh the page.");
+    const buffer = await file.arrayBuffer();
+    const wb = window.XLSX.read(new Uint8Array(buffer), { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+    // Find header row: first row where any cell equals "Date" or "Description"
+    let headerIdx = rows.findIndex(r => r.some(c => /^date$/i.test(String(c).trim())));
+    if (headerIdx < 0) headerIdx = 11; // Amex default fallback
+
+    const headerRow = rows[headerIdx];
+    const dateCol   = headerRow.findIndex(c => /^date$/i.test(String(c).trim()));
+    const descCol   = headerRow.findIndex(c => /desc|description|merchant/i.test(String(c).trim()));
+    const amtCol    = headerRow.findIndex(c => /^amount$/i.test(String(c).trim()));
+
+    const csvRows = [
+      ["Date","Description","Amount"],
+      ...rows.slice(headerIdx + 1)
+        .filter(r => r[dateCol] && r[amtCol]) // skip blank/summary rows
+        .map(r => {
+          const rawDate = String(r[dateCol] || "").trim();
+          // Handle both "02 Apr. 2026" (Amex) and standard date objects/strings
+          const date = /[a-zA-Z]/.test(rawDate) ? parseAmexDate(rawDate) : rawDate;
+          const rawAmt = String(r[amtCol] || "").replace(/[$,]/g, "");
+          const amount = parseFloat(rawAmt) || 0;
+          const desc = String(r[descCol] || "").trim();
+          return [date, desc, amount];
+        })
+        .filter(r => r[0] && r[2] > 0) // must have a valid date and positive amount
+    ];
+
+    return csvRows.map(r => r.map(c => {
+      const s = String(c).replace(/"/g, '""');
+      return String(c).includes(",") ? `"${s}"` : s;
+    }).join(",")).join("\n");
+  };
+
   const handleCardCSV = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!window.__claude_api_key) { setImportMsg("No Claude API key — add it in \u2699 Settings."); return; }
     setCardParsing(true); setCardResults(null); setImportMsg("");
     try {
-      const text = await file.text();
+      let text;
+      const isXlsx = /\.xlsx?$/i.test(file.name);
+      if (isXlsx) {
+        text = await xlsxToCsvText(file);
+        if (!text || text.split("\n").length < 2) {
+          setImportMsg("Could not extract transactions from XLSX — check the file format.");
+          setCardParsing(false);
+          if (cardFileRef.current) cardFileRef.current.value = "";
+          return;
+        }
+      } else {
+        text = await file.text();
+      }
       const rows = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 150).join("\n");
       const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(env => `  ${env.id}: ${env.name}`).join("\n");
       const controller = new AbortController();
@@ -16963,11 +17025,13 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-secondary)", margin: 0, lineHeight: 1.6 } },
             "Include card type + date range so you know what\u2019s been imported:",
             /*#__PURE__*/React.createElement("br", null),
-            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "#f4a823", fontSize: 11 } }, "Amex_2026-01.csv"),
+            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "#f4a823", fontSize: 11 } }, "Amex_2026-01.xlsx"),
             /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)" } }, " \xB7 "),
             /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "#60a5fa", fontSize: 11 } }, "TD_Chequing_2026-01.csv"),
             /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)" } }, " \xB7 "),
-            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "#4ade80", fontSize: 11 } }, "CIBC_2025-Q4.csv")
+            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "#4ade80", fontSize: 11 } }, "CIBC_2025-Q4.csv"),
+            /*#__PURE__*/React.createElement("br", null),
+            /*#__PURE__*/React.createElement("span", { style: { color: "#555e73", fontSize: 10 } }, "Amex .xlsx exports are supported directly \u2014 no CSV conversion needed.")
           )
         )
       ),
@@ -17003,12 +17067,12 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
 
       // ── Upload button ──
       !cardResults && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("input", { ref: cardFileRef, type: "file", accept: ".csv,.txt", style: { display: "none" }, onChange: handleCardCSV }),
+        /*#__PURE__*/React.createElement("input", { ref: cardFileRef, type: "file", accept: ".csv,.txt,.xlsx,.xls", style: { display: "none" }, onChange: handleCardCSV }),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => { setImportMsg(""); cardFileRef.current?.click(); },
           disabled: cardParsing,
           style: { width: "100%", padding: "14px 0", background: importMode === "credit_card" ? "#60a5fa" : "#4ade80", border: "none", borderRadius: 12, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: cardParsing ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", opacity: cardParsing ? .6 : 1 }
-        }, cardParsing ? "Parsing with Claude\u2026" : (importMode === "credit_card" ? "\uD83D\uDCC4 Upload Credit Card CSV" : "\uD83C\uDFE6 Upload Bank Statement CSV"))
+        }, cardParsing ? "Parsing with Claude\u2026" : (importMode === "credit_card" ? "\uD83D\uDCC4 Upload CC File (.csv or .xlsx)" : "\uD83C\uDFE6 Upload Bank Statement (.csv or .xlsx)"))
       ),
 
       // ── Results preview ──
