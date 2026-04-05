@@ -16331,6 +16331,45 @@ function FinanceTab({ settings }) {
     }).join(",")).join("\n");
   };
 
+  // Detect CIBC bank statement: starts with YYYY-MM-DD, 4 cols, no masked card * (unlike CIBC CC)
+  const isCibcBankFormat = (text) => {
+    const firstLine = text.split(/\r?\n/).find(l => l.trim());
+    if (!firstLine) return false;
+    return /^\d{4}-\d{2}-\d{2},/.test(firstLine.trim()) && !/\*/.test(firstLine);
+  };
+
+  // Normalise CIBC bank statement CSV: add header, strip ref numbers, pre-filter CC payments
+  const parseCibcBankCsv = (text) => {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    const csvRows = [["Date", "Description", "Debit", "Credit"]];
+    for (const line of lines) {
+      const cols = [];
+      let cur = "", inQ = false;
+      for (const ch of line) {
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { cols.push(cur); cur = ""; }
+        else { cur += ch; }
+      }
+      cols.push(cur);
+      if (cols.length < 3) continue;
+      const date  = cols[0].trim();
+      const desc  = cols[1].trim().replace(/^"|"$/g, "");
+      const debit  = parseFloat(cols[2]) || 0;
+      const credit = parseFloat(cols[3] || "") || 0;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+      if (!debit && !credit) continue;
+      // Pre-filter CC bill payments — already captured in CC imports
+      if (/INTERNET BILL PAY.*(VISA|AMERICAN EXPRESS|AMEX|MASTERCARD)/i.test(desc)) continue;
+      // Clean description: strip 10+ digit transaction reference numbers
+      const cleanDesc = desc.replace(/\s+\d{10,}\s*/g, " ").replace(/\s{2,}/g, " ").trim();
+      csvRows.push([date, cleanDesc, debit || "", credit || ""]);
+    }
+    return csvRows.map(r => r.map(c => {
+      const s = String(c).replace(/"/g, '""');
+      return String(c).includes(",") ? `"${s}"` : s;
+    }).join(",")).join("\n");
+  };
+
   const handleCardCSV = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -16361,6 +16400,14 @@ function FinanceTab({ settings }) {
           text = parseTdCsv(text);
           if (!text || text.split("\n").length < 2) {
             setImportMsg("Could not extract transactions from TD file — check the format.");
+            setCardParsing(false);
+            if (cardFileRef.current) cardFileRef.current.value = "";
+            return;
+          }
+        } else if (isCibcBankFormat(text)) {
+          text = parseCibcBankCsv(text);
+          if (!text || text.split("\n").length < 2) {
+            setImportMsg("Could not extract transactions from bank statement — check the format.");
             setCardParsing(false);
             if (cardFileRef.current) cardFileRef.current.value = "";
             return;
