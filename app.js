@@ -16071,6 +16071,7 @@ function FinanceTab({ settings }) {
   const [importMode, setImportMode] = useState("credit_card"); // "credit_card" | "bank_statement"
   const [cardParsing, setCardParsing] = useState(false);
   const [cardResults, setCardResults] = useState(null);
+  const [deduping, setDeduping] = useState(false);
   const [merchantRules, setMerchantRules] = useState(MERCHANT_RULES_SEED);
   const [showRulesTable, setShowRulesTable] = useState(false);
   const [rulePrompt, setRulePrompt] = useState(null); // {txn, suggestedName, envelopeId, subCat}
@@ -16558,6 +16559,44 @@ Return exactly ${rawRows.length} objects. No markdown.`;
     }
     setCardParsing(false);
     if (cardFileRef.current) cardFileRef.current.value = "";
+  };
+
+  const dedupeAllMonths = async () => {
+    setDeduping(true);
+    setImportMsg("");
+    try {
+      const months = await DB.get(KEYS.financeAllMonths()) || [];
+      let totalRemoved = 0;
+      for (const m of months) {
+        // Dedupe transactions
+        const txns = await DB.get(KEYS.financeTransactions(m)) || [];
+        const seenIds = new Set();
+        const clean = txns.filter(t => {
+          if (!t.id || seenIds.has(t.id)) return false;
+          seenIds.add(t.id); return true;
+        });
+        if (clean.length < txns.length) {
+          totalRemoved += txns.length - clean.length;
+          await DB.set(KEYS.financeTransactions(m), clean);
+        }
+        // Dedupe income
+        const inc = await DB.get(KEYS.financeIncome(m)) || [];
+        const seenInc = new Set();
+        const cleanInc = inc.filter(i => {
+          if (!i.id || seenInc.has(i.id)) return false;
+          seenInc.add(i.id); return true;
+        });
+        if (cleanInc.length < inc.length) {
+          totalRemoved += inc.length - cleanInc.length;
+          await DB.set(KEYS.financeIncome(m), cleanInc);
+        }
+      }
+      setImportMsg(totalRemoved > 0 ? `Removed ${totalRemoved} duplicate${totalRemoved !== 1 ? "s" : ""} across ${months.length} months.` : `No duplicates found across ${months.length} months — all clean.`);
+      await loadMonth(currentMonth);
+    } catch(err) {
+      setImportMsg("Dedup failed: " + err.message);
+    }
+    setDeduping(false);
   };
 
   const confirmCardResults = async () => {
@@ -17373,6 +17412,16 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           /*#__PURE__*/React.createElement("button", { onClick: confirmScan, style: { flex: 1, padding: "10px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Confirm & Save"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setScanResults(null), style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
         )
+      ),
+
+      // ── Dedup tool ──
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(239,68,68,.05)", border: "1px solid rgba(239,68,68,.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#ef4444", letterSpacing: ".06em", margin: "0 0 4px" } }, "REMOVE DUPLICATES"),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 10px", lineHeight: 1.5 } }, "Scans every month in Firebase and removes any duplicate transaction or income entries."),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: dedupeAllMonths, disabled: deduping,
+          style: { padding: "9px 18px", background: deduping ? "rgba(239,68,68,.3)" : "#ef4444", border: "none", borderRadius: 9, color: "#fff", fontSize: 12, fontWeight: 800, cursor: deduping ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", opacity: deduping ? .7 : 1 }
+        }, deduping ? "Scanning\u2026" : "\uD83E\uDDF9 Deduplicate All Months")
       ),
 
       importMsg && /*#__PURE__*/React.createElement("div", {
