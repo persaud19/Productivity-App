@@ -16100,68 +16100,118 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
     setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
   };
 
-  // Build a concise financial context string to pass to Claude
-  const buildFinanceContext = async () => {
-    // Load current + last 2 months of data
+  // Build financial context string for Claude.
+  // full=false → last 3 months only (for monthly report)
+  // full=true  → all available months + all-time summary (for chatbot)
+  const buildFinanceContext = async (full = false) => {
     const now = new Date();
-    const months = [0, 1, 2].map(offset => {
+    const recentMonths = [0, 1, 2].map(offset => {
       const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
       return d.toISOString().slice(0, 7);
     });
 
-    const monthData = await Promise.all(months.map(async m => {
+    let monthsToLoad = recentMonths;
+    if (full) {
+      const saved = await DB.get(KEYS.financeAllMonths()) || [];
+      monthsToLoad = [...new Set([...saved, ...recentMonths])].sort().reverse(); // newest first
+    }
+
+    const monthData = await Promise.all(monthsToLoad.map(async m => {
       const txns = await DB.get(KEYS.financeTransactions(m)) || [];
-      const inc = await DB.get(KEYS.financeIncome(m)) || [];
-      const envs = await DB.get(KEYS.financeEnvelopes(m)) || [];
+      const inc  = await DB.get(KEYS.financeIncome(m))       || [];
+      const envs = await DB.get(KEYS.financeEnvelopes(m))    || [];
       return { month: m, txns, inc, envs };
     }));
 
-    let ctx = "FINANCIAL DATA SUMMARY\n";
-    ctx += `Generated: ${getToday()}\n\n`;
+    let ctx = `FINANCIAL DATA — Ryan & Sabrina Persaud\nGenerated: ${getToday()}\n`;
+    ctx += `Data range: ${monthsToLoad[monthsToLoad.length - 1]} to ${monthsToLoad[0]} (${monthsToLoad.length} month${monthsToLoad.length !== 1 ? "s" : ""})\n\n`;
 
+    // ── All-time summary (full mode only) ──────────────────────────────
+    if (full && monthData.length > 1) {
+      const allSpending  = monthData.flatMap(d => d.txns.filter(t => !t.isRefund));
+      const allRefunds   = monthData.flatMap(d => d.txns.filter(t => t.isRefund));
+      const allIncome    = monthData.flatMap(d => d.inc);
+      const grandSpent   = allSpending.reduce((a, t) => a + (t.amount || 0), 0);
+      const grandRefunds = allRefunds.reduce((a, t)  => a + (t.amount || 0), 0);
+      const grandIncome  = allIncome.reduce((a, i)   => a + (i.amount || 0), 0);
+      const grandNet     = grandIncome - (grandSpent - grandRefunds);
+
+      ctx += `=== ALL-TIME SUMMARY (${monthsToLoad.length} months) ===\n`;
+      ctx += `Total income: $${grandIncome.toFixed(2)} | Total spent: $${grandSpent.toFixed(2)} | Total refunds: $${grandRefunds.toFixed(2)} | Net: ${grandNet >= 0 ? "+" : ""}$${grandNet.toFixed(2)}\n`;
+      ctx += `Monthly averages: income $${(grandIncome / monthsToLoad.length).toFixed(0)} | spent $${(grandSpent / monthsToLoad.length).toFixed(0)}\n`;
+
+      // All-time by envelope
+      const allByEnv = {};
+      allSpending.forEach(t => { allByEnv[t.envelopeId] = (allByEnv[t.envelopeId] || 0) + (t.amount || 0); });
+      const topEnvs = FINANCE_ENVELOPES_DEFAULT.filter(e => allByEnv[e.id]).sort((a, b) => (allByEnv[b.id] || 0) - (allByEnv[a.id] || 0));
+      ctx += `All-time by category: ${topEnvs.map(e => e.name + " $" + allByEnv[e.id].toFixed(0)).join(", ")}\n`;
+
+      // All-time top 10 merchants
+      const allByMerchant = {};
+      allSpending.forEach(t => {
+        const key = extractMerchantName(t.desc || t.card || "Unknown");
+        allByMerchant[key] = (allByMerchant[key] || 0) + (t.amount || 0);
+      });
+      const top10 = Object.entries(allByMerchant).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      ctx += `All-time top merchants: ${top10.map(([k, v]) => k + " $" + v.toFixed(0)).join(", ")}\n`;
+
+      // Best / worst months by net
+      const monthNets = monthData.map(d => {
+        const s = d.txns.filter(t => !t.isRefund).reduce((a, t) => a + (t.amount || 0), 0);
+        const r = d.txns.filter(t => t.isRefund).reduce((a, t) => a + (t.amount || 0), 0);
+        const i = d.inc.reduce((a, x) => a + (x.amount || 0), 0);
+        return { month: d.month, net: i - (s - r), spent: s };
+      }).filter(x => x.spent > 0);
+      if (monthNets.length) {
+        const best  = monthNets.reduce((a, b) => b.net > a.net ? b : a);
+        const worst = monthNets.reduce((a, b) => b.net < a.net ? b : a);
+        ctx += `Best month: ${best.month} (net ${best.net >= 0 ? "+" : ""}$${best.net.toFixed(0)}) | Highest spend month: ${monthNets.reduce((a,b) => b.spent > a.spent ? b : a).month} ($${monthNets.reduce((a,b) => b.spent > a.spent ? b : a).spent.toFixed(0)})\n`;
+      }
+      ctx += "\n";
+    }
+
+    // ── Per-month breakdown ────────────────────────────────────────────
+    ctx += "=== MONTHLY BREAKDOWN ===\n";
     for (const { month, txns, inc, envs } of monthData) {
       const spending = txns.filter(t => !t.isRefund);
-      const refunds = txns.filter(t => t.isRefund);
-      const totalSpent = spending.reduce((a, t) => a + (t.amount || 0), 0);
-      const totalRefunds = refunds.reduce((a, t) => a + (t.amount || 0), 0);
-      const totalInc = inc.reduce((a, i) => a + (i.amount || 0), 0);
-      const net = totalInc - (totalSpent - totalRefunds);
+      const refunds  = txns.filter(t => t.isRefund);
+      const totalSpent   = spending.reduce((a, t) => a + (t.amount || 0), 0);
+      const totalRefunds = refunds.reduce((a, t)  => a + (t.amount || 0), 0);
+      const totalInc     = inc.reduce((a, i)       => a + (i.amount || 0), 0);
+      const net          = totalInc - (totalSpent - totalRefunds);
 
-      ctx += `=== ${month} ===\n`;
-      ctx += `Income: $${totalInc.toFixed(2)} | Spent: $${totalSpent.toFixed(2)} | Refunds: $${totalRefunds.toFixed(2)} | Net: ${net >= 0 ? "+" : ""}$${net.toFixed(2)}\n`;
+      ctx += `\n[${month}] Income: $${totalInc.toFixed(0)} | Spent: $${totalSpent.toFixed(0)} | Refunds: $${totalRefunds.toFixed(0)} | Net: ${net >= 0 ? "+" : ""}$${net.toFixed(0)}\n`;
 
-      if (inc.length) {
-        ctx += `Income sources: ${inc.map(i => i.source + " $" + (i.amount || 0).toFixed(2)).join(", ")}\n`;
-      }
+      if (inc.length) ctx += `  Income: ${inc.map(i => i.source + " $" + (i.amount || 0).toFixed(0)).join(", ")}\n`;
 
-      // Spending by envelope
+      // By envelope (skip zeros)
       const byEnv = {};
       spending.forEach(t => { byEnv[t.envelopeId] = (byEnv[t.envelopeId] || 0) + (t.amount || 0); });
-      ctx += "By category:\n";
-      FINANCE_ENVELOPES_DEFAULT.forEach(e => {
-        if (!byEnv[e.id]) return;
+      const envLines = FINANCE_ENVELOPES_DEFAULT.filter(e => byEnv[e.id]).map(e => {
         const budget = envs.find(ev => ev.id === e.id)?.allocated || 0;
-        const pct = budget > 0 ? Math.round((byEnv[e.id] / budget) * 100) + "% of budget" : "no budget set";
-        ctx += `  ${e.icon} ${e.name}: $${byEnv[e.id].toFixed(2)}${budget > 0 ? " / $" + budget.toFixed(0) + " (" + pct + ")" : ""}\n`;
+        return `${e.name} $${byEnv[e.id].toFixed(0)}${budget > 0 ? "/" + budget.toFixed(0) : ""}`;
       });
+      if (envLines.length) ctx += `  Categories: ${envLines.join(", ")}\n`;
 
-      // Sub-category breakdown for food (most granular)
-      const foodTxns = spending.filter(t => t.envelopeId === "food_drink" && t.subCat);
-      if (foodTxns.length) {
+      // Sub-cat breakdown for all categories that have it
+      const subBreakdowns = [];
+      FINANCE_ENVELOPES_DEFAULT.forEach(e => {
+        const subs = spending.filter(t => t.envelopeId === e.id && t.subCat);
+        if (!subs.length) return;
         const bySub = {};
-        foodTxns.forEach(t => { bySub[t.subCat] = (bySub[t.subCat] || 0) + (t.amount || 0); });
-        ctx += `  Food breakdown: ${Object.entries(bySub).sort((a,b) => b[1]-a[1]).map(([k,v]) => k + " $" + v.toFixed(0)).join(", ")}\n`;
-      }
+        subs.forEach(t => { bySub[t.subCat] = (bySub[t.subCat] || 0) + (t.amount || 0); });
+        subBreakdowns.push(`${e.name}: ${Object.entries(bySub).sort((a,b) => b[1]-a[1]).map(([k,v]) => k + " $" + v.toFixed(0)).join(", ")}`);
+      });
+      if (subBreakdowns.length) ctx += `  Sub-cats: ${subBreakdowns.join(" | ")}\n`;
 
-      // Top 5 merchants
+      // Top 5 merchants this month
       const byMerchant = {};
       spending.forEach(t => {
         const key = extractMerchantName(t.desc || t.card || "Unknown");
         byMerchant[key] = (byMerchant[key] || 0) + (t.amount || 0);
       });
-      const top5 = Object.entries(byMerchant).sort((a,b) => b[1]-a[1]).slice(0, 5);
-      if (top5.length) ctx += `Top merchants: ${top5.map(([k,v]) => k + " $" + v.toFixed(0)).join(", ")}\n`;
-      ctx += "\n";
+      const top5 = Object.entries(byMerchant).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      if (top5.length) ctx += `  Top merchants: ${top5.map(([k, v]) => k + " $" + v.toFixed(0)).join(", ")}\n`;
     }
 
     return ctx;
@@ -16207,16 +16257,16 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
     setChatMessages(newMessages); setChatInput(""); setChatLoading(true);
     setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     try {
-      const ctx = await buildFinanceContext();
+      const ctx = await buildFinanceContext(true); // loads ALL months
       const controller = new AbortController();
-      setTimeout(() => controller.abort(), 30000);
+      setTimeout(() => controller.abort(), 45000);
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", signal: controller.signal,
         headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001", max_tokens: 512,
-          system: `You are a financial coach for Ryan and Sabrina Persaud. Answer questions about their finances using ONLY the data below. Be specific with numbers, direct, and helpful. No generic advice — only what their data supports.\n\n${ctx}`,
-          messages: newMessages.slice(-8).map(m => ({ role: m.role, content: m.content }))
+          model: "claude-haiku-4-5-20251001", max_tokens: 768,
+          system: `You are a personal financial coach for Ryan and Sabrina Persaud (Canadian couple). You have their COMPLETE financial history below — every month of data available. Answer questions using ONLY this data. Always cite specific months and dollar amounts. Be direct, specific, and actionable. Never give generic advice — every answer must reference their actual numbers.\n\n${ctx}`,
+          messages: newMessages.slice(-10).map(m => ({ role: m.role, content: m.content }))
         })
       });
       const data = await res.json();
