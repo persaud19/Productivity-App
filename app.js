@@ -326,6 +326,8 @@ const KEYS = {
   financeIncome: month => `ml:finance:income:${month}`,
   merchantRules: () => `ml:finance:merchant_rules`,
   customSubCats: () => `ml:finance:custom_subcats`,
+  goalHabitLog: id => `ml:goals:habit:${id}`,
+  goalProgressLog: id => `ml:goals:progress:${id}`,
   mobilityPool: () => `ml:mobility:pool`,
   mobilityWeek: monday => `ml:mobility:week:${monday}`
 };
@@ -5465,6 +5467,155 @@ function Arc({
     fontSize: 9
   }, "complete"));
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// GOALS v2 — user-defined, multi-category goal system
+// ─────────────────────────────────────────────────────────────────────────────
+const GOAL_CATEGORY_META = {
+  weight:         { label: "Weight",         color: "#f4a823", desc: "Track body weight progress" },
+  fitness_streak: { label: "Fitness Streak", color: "#fb923c", desc: "Build consecutive workout days" },
+  habit:          { label: "Habit",          color: "#a78bfa", desc: "Build a daily habit" },
+  savings:        { label: "Savings",        color: "#34d399", desc: "Hit a savings target" },
+  debt:           { label: "Debt Payoff",    color: "#4ade80", desc: "Pay down a balance" },
+  custom:         { label: "Custom",         color: "#60a5fa", desc: "Any measurable goal" },
+};
+const GOAL_TEMPLATES = {
+  weight: [
+    { id: "lose_weight", label: "Lose Weight",     fields: { label: "Lose Weight",     direction: "lose" } },
+    { id: "gain_weight", label: "Gain Weight",     fields: { label: "Gain Weight",     direction: "gain" } },
+    { id: "maintain",    label: "Maintain Weight", fields: { label: "Maintain Weight", direction: "maintain" } },
+  ],
+  fitness_streak: [
+    { id: "workout_streak", label: "Build a Workout Streak", fields: { label: "Workout Streak", targetDays: 30 } },
+    { id: "stay_active",    label: "Stay Active",             fields: { label: "Stay Active",    targetDays: 90 } },
+    { id: "custom_streak",  label: "Custom Streak Goal",      fields: { label: "",               targetDays: 30 } },
+  ],
+  habit: [
+    { id: "meditate",     label: "Meditate Daily", fields: { label: "Meditate Daily",  habitName: "Meditate",     targetDays: 30 } },
+    { id: "read",         label: "Read Daily",     fields: { label: "Read Daily",      habitName: "Read",         targetDays: 30 } },
+    { id: "no_junk",      label: "No Junk Food",   fields: { label: "No Junk Food",    habitName: "No junk food", targetDays: 30 } },
+    { id: "early_rise",   label: "Wake Up Early",  fields: { label: "Wake Up Early",   habitName: "Wake up early",targetDays: 30 } },
+    { id: "custom_habit", label: "Custom Habit",   fields: { label: "",                habitName: "",             targetDays: 30 } },
+  ],
+  savings: [
+    { id: "emergency",   label: "Emergency Fund",     fields: { label: "Emergency Fund",    targetAmount: 10000 } },
+    { id: "vacation",    label: "Vacation Fund",       fields: { label: "Vacation Fund",      targetAmount: 3000 } },
+    { id: "down_pay",    label: "House Down Payment",  fields: { label: "House Down Payment", targetAmount: 50000 } },
+    { id: "custom_save", label: "Custom Savings Goal", fields: { label: "",                   targetAmount: 0 } },
+  ],
+  debt: [
+    { id: "credit_card",  label: "Pay Off Credit Card", fields: { label: "Credit Card Debt", startBalance: 0 } },
+    { id: "car_loan",     label: "Pay Off Car Loan",    fields: { label: "Car Loan",         startBalance: 0 } },
+    { id: "student_loan", label: "Student Loan",        fields: { label: "Student Loan",     startBalance: 0 } },
+    { id: "custom_debt",  label: "Custom Debt",         fields: { label: "",                 startBalance: 0 } },
+  ],
+  custom: [
+    { id: "number_goal", label: "Hit a Number",       fields: { label: "", unit: "",           startValue: 0, targetValue: 100 } },
+    { id: "completion",  label: "Complete a Project", fields: { label: "", unit: "% complete",  startValue: 0, targetValue: 100 } },
+  ],
+};
+
+function GoalWizard({ onSave, onClose }) {
+  const [step, setStep] = useState(1);
+  const [cat, setCat] = useState(null);
+  const [form, setForm] = useState({});
+  const sf = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const col = cat ? GOAL_CATEGORY_META[cat].color : "#34d399";
+
+  const selectTemplate = tpl => { setForm({ ...tpl.fields }); setStep(3); };
+  const handleSave = () => {
+    const goal = { id: `goal_${Date.now()}`, type: cat, startDate: form.startDate || getToday(), createdAt: new Date().toISOString(), completedAt: null, ...form };
+    onSave(goal);
+  };
+
+  return React.createElement(React.Fragment, null,
+    React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.75)", zIndex: 200 }, onClick: onClose }),
+    React.createElement("div", {
+      style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 420, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: "20px", zIndex: 201, maxHeight: "85vh", overflowY: "auto" }
+    },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 } },
+        React.createElement("p", { style: { color: col, fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, margin: 0 } },
+          step === 1 ? "CHOOSE A CATEGORY" : step === 2 ? "PICK A TEMPLATE" : "SET YOUR GOAL"),
+        React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", color: "#6b7280", fontSize: 20, cursor: "pointer", lineHeight: 1 } }, "\xD7")
+      ),
+      step > 1 && React.createElement("button", {
+        onClick: () => setStep(s => s - 1),
+        style: { background: "none", border: "none", color: "#6b7280", fontSize: 12, cursor: "pointer", padding: "0 0 14px 0" }
+      }, "\u2190 Back"),
+
+      step === 1 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } },
+        ...Object.entries(GOAL_CATEGORY_META).map(([id, meta]) =>
+          React.createElement("button", { key: id, onClick: () => { setCat(id); setStep(2); },
+            style: { padding: "14px 12px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, cursor: "pointer", textAlign: "left" } },
+            React.createElement("p", { style: { color: meta.color, fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 11, margin: "0 0 4px", letterSpacing: ".06em" } }, meta.label.toUpperCase()),
+            React.createElement("p", { style: { color: "#6b7280", fontSize: 11, margin: 0 } }, meta.desc)
+          )
+        )
+      ),
+
+      step === 2 && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+        ...(GOAL_TEMPLATES[cat] || []).map(tpl =>
+          React.createElement("button", { key: tpl.id, onClick: () => selectTemplate(tpl),
+            style: { padding: "13px 14px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, cursor: "pointer", textAlign: "left", color: "#d1d5db", fontSize: 13, fontWeight: 500 } },
+            tpl.label, " \u2192")
+        )
+      ),
+
+      step === 3 && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
+        cat !== "habit" && React.createElement("div", null,
+          React.createElement(Lbl, { c: "Goal name" }),
+          React.createElement("input", { type: "text", value: form.label || "", placeholder: "Name this goal", onChange: e => sf("label", e.target.value), style: { ...inp, fontSize: 13 } })
+        ),
+        cat === "weight" && React.createElement(React.Fragment, null,
+          React.createElement("div", null, React.createElement(Lbl, { c: "Starting weight (lbs)" }),
+            React.createElement("input", { type: "number", value: form.startWeight || "", placeholder: "e.g. 210", onChange: e => sf("startWeight", parseFloat(e.target.value)), style: { ...inp, fontSize: 13 } })),
+          React.createElement("div", null, React.createElement(Lbl, { c: "Target weight (lbs)" }),
+            React.createElement("input", { type: "number", value: form.targetWeight || "", placeholder: "e.g. 185", onChange: e => sf("targetWeight", parseFloat(e.target.value)), style: { ...inp, fontSize: 13 } })),
+          React.createElement("div", null, React.createElement(Lbl, { c: "Deadline" }),
+            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "dark" } }))
+        ),
+        cat === "fitness_streak" && React.createElement("div", null,
+          React.createElement(Lbl, { c: "Streak target (days)" }),
+          React.createElement("input", { type: "number", value: form.targetDays || "", placeholder: "e.g. 30", onChange: e => sf("targetDays", parseInt(e.target.value)), style: { ...inp, fontSize: 13 } })
+        ),
+        cat === "habit" && React.createElement(React.Fragment, null,
+          React.createElement("div", null, React.createElement(Lbl, { c: "Habit name" }),
+            React.createElement("input", { type: "text", value: form.habitName || "", placeholder: "e.g. Meditate", onChange: e => { sf("habitName", e.target.value); sf("label", e.target.value); }, style: { ...inp, fontSize: 13 } })),
+          React.createElement("div", null, React.createElement(Lbl, { c: "Target days in a row" }),
+            React.createElement("input", { type: "number", value: form.targetDays || "", placeholder: "e.g. 30", onChange: e => sf("targetDays", parseInt(e.target.value)), style: { ...inp, fontSize: 13 } }))
+        ),
+        cat === "savings" && React.createElement(React.Fragment, null,
+          React.createElement("div", null, React.createElement(Lbl, { c: "Savings target ($)" }),
+            React.createElement("input", { type: "number", value: form.targetAmount || "", placeholder: "e.g. 10000", onChange: e => sf("targetAmount", parseFloat(e.target.value)), style: { ...inp, fontSize: 13 } })),
+          React.createElement("div", null, React.createElement(Lbl, { c: "Target date (optional)" }),
+            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "dark" } })),
+          React.createElement("p", { style: { color: "#555e73", fontSize: 11, margin: "2px 0 0" } }, "Progress auto-calculated from Finance tab (income \u2212 spending from goal start date).")
+        ),
+        cat === "debt" && React.createElement(React.Fragment, null,
+          React.createElement("div", null, React.createElement(Lbl, { c: "Starting balance ($)" }),
+            React.createElement("input", { type: "number", value: form.startBalance || "", placeholder: "e.g. 15000", onChange: e => sf("startBalance", parseFloat(e.target.value)), style: { ...inp, fontSize: 13 } })),
+          React.createElement("div", null, React.createElement(Lbl, { c: "Payoff deadline (optional)" }),
+            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "dark" } }))
+        ),
+        cat === "custom" && React.createElement(React.Fragment, null,
+          React.createElement("div", null, React.createElement(Lbl, { c: "Unit (e.g. books, km, reps)" }),
+            React.createElement("input", { type: "text", value: form.unit || "", placeholder: "books", onChange: e => sf("unit", e.target.value), style: { ...inp, fontSize: 13 } })),
+          React.createElement("div", null, React.createElement(Lbl, { c: "Starting value" }),
+            React.createElement("input", { type: "number", value: form.startValue ?? "", placeholder: "0", onChange: e => sf("startValue", parseFloat(e.target.value)), style: { ...inp, fontSize: 13 } })),
+          React.createElement("div", null, React.createElement(Lbl, { c: "Target value" }),
+            React.createElement("input", { type: "number", value: form.targetValue || "", placeholder: "e.g. 12", onChange: e => sf("targetValue", parseFloat(e.target.value)), style: { ...inp, fontSize: 13 } })),
+          React.createElement("div", null, React.createElement(Lbl, { c: "Deadline (optional)" }),
+            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "dark" } }))
+        ),
+        React.createElement("button", {
+          onClick: handleSave,
+          style: { marginTop: 4, width: "100%", padding: "12px 0", background: col, color: "#080b11", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+        }, "ADD GOAL \u2192")
+      )
+    )
+  );
+}
+
+// ─── Legacy GoalEditor stub (unused — kept to avoid reference errors) ─────────
 function GoalEditor({
   goals,
   onSave,
@@ -5564,519 +5715,448 @@ function GoalEditor({
   }, "Cancel")));
 }
 function Goals({
-  goals,
+  goals: goalsData,
   onSaveGoals,
   allLogs,
   settings,
   onMilestone
 }) {
+  const [goalsList, setGoalsList] = useState([]);
   const [completedGoals, setCompletedGoals] = useState([]);
   const [confirmGoal, setConfirmGoal] = useState(null);
   const [confirmNote, setConfirmNote] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [wins, setWins] = useState([]);
   const [winsFilter, setWinsFilter] = useState(30);
   const [weightRange, setWeightRange] = useState(30);
+  const [showWizard, setShowWizard] = useState(false);
+  const [trainHistory, setTrainHistory] = useState([]);
+  const [financeMonthsData, setFinanceMonthsData] = useState({});
+  const [habitLogs, setHabitLogs] = useState({});
+  const [progressLogs, setProgressLogs] = useState({});
+  const [balInputs, setBalInputs] = useState({});
+  const [valInputs, setValInputs] = useState({});
+
   useEffect(() => {
     (async () => {
       const cg = await DB.get(KEYS.completedGoals());
       setCompletedGoals(cg || []);
       const wa = await DB.get(KEYS.winsArchive());
       setWins(wa || []);
+      const th = await DB.get(KEYS.trainHistory());
+      setTrainHistory(th || []);
+      // Load goals — migrate old flat-object format if needed
+      let arr = [];
+      if (Array.isArray(goalsData)) {
+        arr = goalsData;
+      } else if (goalsData && typeof goalsData === "object" && (goalsData.weightGoal || goalsData.weightStart)) {
+        arr = [{ id: "migrated_weight", type: "weight", label: "Weight Goal",
+          startWeight: goalsData.weightStart || 0, targetWeight: goalsData.weightGoal || 0,
+          direction: "lose", deadline: goalsData.weightDeadline || "",
+          startDate: getToday(), createdAt: new Date().toISOString(), completedAt: null }];
+      }
+      setGoalsList(arr);
+      // Finance data for savings goals
+      const months = await DB.get(KEYS.financeAllMonths());
+      if (months && months.length > 0) {
+        const mObj = {};
+        await Promise.all(months.map(async m => {
+          const txns = await DB.get(KEYS.financeTransactions(m)) || [];
+          const inc  = await DB.get(KEYS.financeIncome(m)) || [];
+          mObj[m] = { txns, inc };
+        }));
+        setFinanceMonthsData(mObj);
+      }
+      // Per-goal habit + progress logs
+      const hl = {}, pl = {};
+      for (const g of arr) {
+        if (g.type === "habit") hl[g.id] = await DB.get(KEYS.goalHabitLog(g.id)) || {};
+        if (g.type === "debt" || g.type === "custom") pl[g.id] = await DB.get(KEYS.goalProgressLog(g.id)) || [];
+      }
+      setHabitLogs(hl);
+      setProgressLogs(pl);
     })();
   }, []);
+  const saveGoals = async arr => { setGoalsList(arr); onSaveGoals(arr); };
+
+  const addGoal = async goal => {
+    const updated = [...goalsList, goal];
+    await saveGoals(updated);
+    setShowWizard(false);
+    if (goal.type === "habit") { await DB.set(KEYS.goalHabitLog(goal.id), {}); setHabitLogs(p => ({ ...p, [goal.id]: {} })); }
+    if (goal.type === "debt" || goal.type === "custom") { await DB.set(KEYS.goalProgressLog(goal.id), []); setProgressLogs(p => ({ ...p, [goal.id]: [] })); }
+  };
+  const deleteGoal = async id => { await saveGoals(goalsList.filter(g => g.id !== id)); setDeleteConfirm(null); };
   const completeGoal = async () => {
     if (!confirmGoal) return;
-    const entry = {
-      ...confirmGoal,
-      note: confirmNote,
-      completedAt: new Date().toISOString()
-    };
+    const entry = { ...confirmGoal, note: confirmNote, completedAt: new Date().toISOString() };
     const updated = [entry, ...completedGoals];
     setCompletedGoals(updated);
     await DB.set(KEYS.completedGoals(), updated);
-    setConfirmGoal(null);
-    setConfirmNote("");
+    await saveGoals(goalsList.filter(g => g.id !== confirmGoal.id));
+    setConfirmGoal(null); setConfirmNote("");
     onMilestone && onMilestone(`${confirmGoal.label} — COMPLETE! 🎉`);
   };
-
-  // Weight data
-  const wtLogs = allLogs.filter(l => l.morning?.weight).sort((a, b) => a.date.localeCompare(b.date));
-  const wtData = wtLogs.map(l => ({
-    d: fmtDate(l.date),
-    wt: l.morning.weight,
-    date: l.date
-  }));
-  const wtFiltered = wtData.filter(d => daysBetween(d.date, getToday()) <= weightRange);
-  const ws = goals.weightStart || 210,
-    wg = goals.weightGoal || 180;
-  const cWt = wtLogs.length > 0 ? wtLogs[wtLogs.length - 1].morning.weight : ws;
-  const wLost = Math.max(0, ws - cWt),
-    wRemain = Math.max(0, cWt - wg);
-  const wPct = Math.min(100, Math.round(wLost / (ws - wg) * 100));
-  const dl = new Date(goals.weightDeadline || "2026-12-31");
-  const daysLeft = Math.max(0, Math.ceil((dl - new Date()) / 86400000));
-
-  // Pace & projection
-  let projDate = null,
-    projLabel = null,
-    paceLabel = null,
-    projStatus = "neutral";
-  if (wtLogs.length >= 2) {
-    const first = wtLogs[0],
-      last = wtLogs[wtLogs.length - 1];
-    const daysDiff = Math.max(1, daysBetween(first.date, last.date));
-    const lostPerDay = (first.morning.weight - last.morning.weight) / daysDiff;
-    if (lostPerDay > 0) {
-      const daysToGoal = Math.round(wRemain / lostPerDay);
-      const proj = new Date();
-      proj.setDate(proj.getDate() + daysToGoal);
-      projDate = proj.toISOString().split("T")[0];
-      projLabel = fmtDateFull(projDate);
-      paceLabel = `${(lostPerDay * 7).toFixed(2)} lbs/week current pace`;
-      projStatus = proj <= dl ? "ahead" : "behind";
-    }
-  }
-  const recentWins = wins.filter(w => daysBetween(w.date, getToday()) <= winsFilter);
-  const ttStyle = {
-    background: "#111520",
-    border: "1px solid rgba(255,255,255,.1)",
-    borderRadius: 8,
-    fontSize: 12
+  const toggleHabit = async (goalId, date) => {
+    const cur = habitLogs[goalId] || {};
+    const updated = { ...cur, [date]: !cur[date] };
+    setHabitLogs(p => ({ ...p, [goalId]: updated }));
+    await DB.set(KEYS.goalHabitLog(goalId), updated);
   };
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 20
+  const addProgress = async (goalId, value) => {
+    const cur = progressLogs[goalId] || [];
+    const updated = [...cur, { date: getToday(), value: parseFloat(value) }];
+    setProgressLogs(p => ({ ...p, [goalId]: updated }));
+    await DB.set(KEYS.goalProgressLog(goalId), updated);
+  };
+  const computeStreak = startDate => {
+    const trainDates = new Set(trainHistory.map(h => h.date));
+    const today = getToday();
+    let cur = 0;
+    let d = new Date(today);
+    while (true) { const ds = d.toISOString().split("T")[0]; if (ds < startDate || !trainDates.has(ds)) break; cur++; d.setDate(d.getDate() - 1); }
+    let run = 0, longest = 0;
+    d = new Date(startDate);
+    while (d <= new Date(today)) { const ds = d.toISOString().split("T")[0]; trainDates.has(ds) ? (run++, longest = Math.max(longest, run)) : (run = 0); d.setDate(d.getDate() + 1); }
+    const last30 = [];
+    for (let i = 29; i >= 0; i--) { const dd = new Date(today); dd.setDate(dd.getDate() - i); const ds = dd.toISOString().split("T")[0]; last30.push({ d: fmtDate(ds), v: trainDates.has(ds) ? 1 : 0 }); }
+    return { cur, longest, last30 };
+  };
+  const computeSavings = startDate => {
+    let totalIncome = 0, totalSpent = 0; const monthly = [];
+    const startYM = startDate.substring(0, 7);
+    Object.entries(financeMonthsData).sort().forEach(([m, data]) => {
+      if (m < startYM) return;
+      const inc = (data.inc || []).reduce((s, i) => s + (i.amount || 0), 0);
+      const exp = (data.txns || []).reduce((s, t) => s + (t.amount || 0), 0);
+      totalIncome += inc; totalSpent += exp;
+      monthly.push({ month: m.substring(5), net: Math.round(inc - exp) });
+    });
+    return { netSaved: totalIncome - totalSpent, monthly };
+  };
+  const computeHabitStreak = (goalId, startDate) => {
+    const log = habitLogs[goalId] || {}, today = getToday();
+    let cur = 0; let d = new Date(today);
+    while (true) { const ds = d.toISOString().split("T")[0]; if (ds < startDate || !log[ds]) break; cur++; d.setDate(d.getDate() - 1); }
+    let total = 0; d = new Date(startDate);
+    while (d <= new Date(today)) { const ds = d.toISOString().split("T")[0]; if (log[ds]) total++; d.setDate(d.getDate() + 1); }
+    const last30 = [];
+    for (let i = 29; i >= 0; i--) { const dd = new Date(today); dd.setDate(dd.getDate() - i); const ds = dd.toISOString().split("T")[0]; last30.push({ d: fmtDate(ds), v: log[ds] ? 1 : 0 }); }
+    return { cur, total, last30 };
+  };
+
+  const today = getToday();
+  const recentWins = wins.filter(w => daysBetween(w.date, today) <= winsFilter);
+  const wtLogs = allLogs.filter(l => l.morning?.weight).sort((a, b) => a.date.localeCompare(b.date));
+  const ttStyle = { background: "#111520", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, fontSize: 12 };
+  const cardStyle = { background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 14, padding: "16px", marginBottom: 14 };
+
+  const renderGoalCard = goal => {
+    const meta = GOAL_CATEGORY_META[goal.type] || GOAL_CATEGORY_META.custom;
+    const col = meta.color;
+    const cardHeader = React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 } },
+      React.createElement("div", null,
+        React.createElement("span", { style: { display: "inline-block", padding: "2px 8px", background: `${col}22`, border: `1px solid ${col}44`, borderRadius: 5, color: col, fontSize: 9, fontWeight: 800, letterSpacing: ".07em", marginBottom: 6, fontFamily: "'Syne',sans-serif" } }, meta.label.toUpperCase()),
+        React.createElement("p", { style: { color: "#d1d5db", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 16, margin: 0 } }, goal.label)
+      ),
+      React.createElement("div", { style: { display: "flex", gap: 6 } },
+        React.createElement("button", { onClick: () => setConfirmGoal(goal), style: { padding: "5px 10px", background: `${col}22`, border: `1px solid ${col}44`, borderRadius: 7, color: col, fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "\u2713 Done"),
+        React.createElement("button", { onClick: () => setDeleteConfirm(goal.id), style: { padding: "5px 8px", background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.15)", borderRadius: 7, color: "#ef4444", fontSize: 12, cursor: "pointer" } }, "\xD7")
+      )
+    );
+
+    if (goal.type === "weight") {
+      const ws = goal.startWeight || 0, wg = goal.targetWeight || 0;
+      const wtFiltered = wtLogs.filter(l => daysBetween(l.date, today) <= weightRange);
+      const wtData = wtFiltered.map(l => ({ d: fmtDate(l.date), wt: l.morning.weight }));
+      const cWt = wtLogs.length > 0 ? wtLogs[wtLogs.length - 1].morning.weight : ws;
+      const totalDelta = Math.abs(ws - wg);
+      const achieved = goal.direction === "gain" ? Math.max(0, cWt - ws) : Math.max(0, ws - cWt);
+      const remaining = goal.direction === "gain" ? Math.max(0, wg - cWt) : Math.max(0, cWt - wg);
+      const pct = totalDelta > 0 ? Math.min(100, Math.round(achieved / totalDelta * 100)) : 0;
+      const dl = goal.deadline ? new Date(goal.deadline) : null;
+      const daysLeft = dl ? Math.max(0, Math.ceil((dl - new Date()) / 86400000)) : null;
+      let projLabel = null;
+      if (wtLogs.length >= 2) {
+        const first = wtLogs[0], last = wtLogs[wtLogs.length - 1];
+        const daysDiff = Math.max(1, daysBetween(first.date, last.date));
+        const lostPerDay = (first.morning.weight - last.morning.weight) / daysDiff;
+        if ((goal.direction !== "gain" && lostPerDay > 0) || (goal.direction === "gain" && lostPerDay < 0)) {
+          const proj = new Date(); proj.setDate(proj.getDate() + Math.round(remaining / Math.abs(lostPerDay)));
+          projLabel = fmtDateFull(proj.toISOString().split("T")[0]);
+        }
+      }
+      return React.createElement("div", { key: goal.id, style: { ...cardStyle, borderLeft: `3px solid ${col}` } },
+        cardHeader,
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+          React.createElement("p", { style: { color: col, fontFamily: "'Syne',sans-serif", fontSize: 28, fontWeight: 800, margin: 0, lineHeight: 1 } }, cWt, React.createElement("span", { style: { fontSize: 13, color: "#6b7280", fontWeight: 400 } }, " lbs")),
+          React.createElement(Arc, { pct, col })
+        ),
+        React.createElement(ProgBar, { pct, col, h: 5 }),
+        React.createElement("div", { style: { display: "flex", gap: 0, marginTop: 10 } },
+          React.createElement(StatCell, { lbl: goal.direction === "gain" ? "Still to Gain" : "Still to Lose", val: `${remaining.toFixed(1)} lbs`, c: col }),
+          React.createElement(StatCell, { lbl: "Achieved", val: `${achieved.toFixed(1)} lbs`, c: "#4ade80" }),
+          daysLeft !== null && React.createElement(StatCell, { lbl: "Days Left", val: daysLeft, c: "#60a5fa" })
+        ),
+        projLabel && React.createElement("p", { style: { color: "#6b7280", fontSize: 11, margin: "8px 0 10px" } }, "Current pace \u2192 reach goal by ", React.createElement("span", { style: { color: "#4ade80", fontWeight: 700 } }, projLabel)),
+        wtData.length >= 2 && React.createElement("div", null,
+          React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+            React.createElement(Lbl, { c: "Weight Trend" }),
+            React.createElement("div", { style: { display: "flex", gap: 4 } },
+              [30, 90, 365].map(r => React.createElement("button", { key: r, onClick: () => setWeightRange(r),
+                style: { padding: "2px 7px", borderRadius: 5, fontSize: 10, cursor: "pointer", border: `1px solid ${weightRange === r ? col + "66" : "rgba(255,255,255,.07)"}`, background: weightRange === r ? col + "22" : "transparent", color: weightRange === r ? col : "#6b7280", fontWeight: weightRange === r ? 700 : 400 } }, r, "d"))
+            )
+          ),
+          React.createElement("div", { style: { height: 120 } },
+            React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
+              React.createElement(LineChart, { data: wtData },
+                React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false }),
+                React.createElement(YAxis, { domain: ["auto", "auto"], tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false, width: 32 }),
+                React.createElement(ReferenceLine, { y: wg, stroke: "#4ade80", strokeDasharray: "3 3" }),
+                React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" }, itemStyle: { color: col } }),
+                React.createElement(Line, { type: "monotone", dataKey: "wt", stroke: col, strokeWidth: 2, dot: { fill: col, r: 2 }, name: "Weight" })
+              )
+            )
+          )
+        )
+      );
     }
-  }, /*#__PURE__*/React.createElement(SectionHead, {
-    label: "Goal Runway",
-    color: "#34d399"
-  }), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#404755",
-      fontSize: 12,
-      margin: "0 0 0 13px"
+
+    if (goal.type === "fitness_streak") {
+      const { cur, longest, last30 } = computeStreak(goal.startDate || today);
+      const target = goal.targetDays || 30;
+      const pct = Math.min(100, Math.round(cur / target * 100));
+      return React.createElement("div", { key: goal.id, style: { ...cardStyle, borderLeft: `3px solid ${col}` } },
+        cardHeader,
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+          React.createElement("div", null,
+            React.createElement("p", { style: { color: col, fontFamily: "'Syne',sans-serif", fontSize: 28, fontWeight: 800, margin: 0, lineHeight: 1 } }, cur, React.createElement("span", { style: { fontSize: 13, color: "#6b7280", fontWeight: 400 } }, " day streak")),
+            React.createElement("p", { style: { color: "#6b7280", fontSize: 11, margin: "4px 0 0" } }, "Target: ", target, " days \xB7 Best: ", longest, " days")
+          ),
+          React.createElement(Arc, { pct, col })
+        ),
+        React.createElement(ProgBar, { pct, col, h: 5 }),
+        React.createElement("div", { style: { marginTop: 12, height: 80 } },
+          React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
+            React.createElement(BarChart, { data: last30, barSize: 6 },
+              React.createElement(XAxis, { dataKey: "d", tick: false, axisLine: false, tickLine: false }),
+              React.createElement(YAxis, { hide: true }),
+              React.createElement(Tooltip, { contentStyle: ttStyle, formatter: (v) => [v ? "Worked out" : "Rest day", ""], labelFormatter: l => l }),
+              React.createElement(Bar, { dataKey: "v", fill: col, radius: [3, 3, 0, 0] })
+            )
+          )
+        ),
+        React.createElement("p", { style: { color: "#555e73", fontSize: 10, textAlign: "center", margin: "4px 0 0" } }, "Last 30 days")
+      );
     }
-  }, daysLeft, " days to ", fmtDateFull(goals.weightDeadline || "2026-12-31"))), /*#__PURE__*/React.createElement(GoalEditor, {
-    goals: goals,
-    onSave: onSaveGoals,
-    settings: settings
-  }), confirmGoal && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: "rgba(0,0,0,.7)",
-      zIndex: 200
-    },
-    onClick: () => setConfirmGoal(null)
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: "fixed",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%,-50%)",
-      width: "calc(100% - 40px)",
-      maxWidth: 380,
-      background: "#0e1420",
-      border: "1px solid rgba(255,255,255,.12)",
-      borderRadius: 14,
-      padding: "20px",
-      zIndex: 201
+
+    if (goal.type === "habit") {
+      const { cur, total, last30 } = computeHabitStreak(goal.id, goal.startDate || today);
+      const target = goal.targetDays || 30;
+      const pct = Math.min(100, Math.round(cur / target * 100));
+      const todayDone = (habitLogs[goal.id] || {})[today];
+      return React.createElement("div", { key: goal.id, style: { ...cardStyle, borderLeft: `3px solid ${col}` } },
+        cardHeader,
+        React.createElement("button", { onClick: () => toggleHabit(goal.id, today),
+          style: { width: "100%", padding: "13px", marginBottom: 14, background: todayDone ? `${col}22` : "rgba(255,255,255,.03)", border: `2px solid ${todayDone ? col : "rgba(255,255,255,.08)"}`, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 } },
+          React.createElement("div", { style: { width: 26, height: 26, borderRadius: "50%", background: todayDone ? col : "transparent", border: `2px solid ${todayDone ? col : "#555e73"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } },
+            todayDone && React.createElement("span", { style: { color: "#080b11", fontWeight: 900, fontSize: 13 } }, "\u2713")),
+          React.createElement("div", { style: { textAlign: "left" } },
+            React.createElement("p", { style: { color: todayDone ? col : "#9ca3af", fontWeight: 700, fontSize: 13, margin: 0, fontFamily: "'Syne',sans-serif" } }, todayDone ? "Done today!" : "Mark today complete"),
+            React.createElement("p", { style: { color: "#555e73", fontSize: 11, margin: "2px 0 0" } }, goal.habitName || goal.label)
+          )
+        ),
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+          React.createElement("p", { style: { color: col, fontFamily: "'Syne',sans-serif", fontSize: 22, fontWeight: 800, margin: 0 } }, cur, React.createElement("span", { style: { fontSize: 12, color: "#6b7280", fontWeight: 400 } }, " day streak")),
+          React.createElement(Arc, { pct, col })
+        ),
+        React.createElement(ProgBar, { pct, col, h: 5 }),
+        React.createElement("div", { style: { display: "flex", gap: 0, marginTop: 8 } },
+          React.createElement(StatCell, { lbl: "Target", val: `${target} days`, c: col }),
+          React.createElement(StatCell, { lbl: "Total Completions", val: total, c: "#4ade80" })
+        ),
+        React.createElement("div", { style: { marginTop: 10, height: 50 } },
+          React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
+            React.createElement(BarChart, { data: last30, barSize: 5 },
+              React.createElement(XAxis, { dataKey: "d", tick: false, axisLine: false, tickLine: false }),
+              React.createElement(YAxis, { hide: true }),
+              React.createElement(Bar, { dataKey: "v", fill: col, radius: [3, 3, 0, 0] })
+            )
+          )
+        ),
+        React.createElement("p", { style: { color: "#555e73", fontSize: 10, textAlign: "center", margin: "2px 0 0" } }, "Last 30 days")
+      );
     }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#4ade80",
-      fontFamily: "'Syne',sans-serif",
-      fontSize: 15,
-      fontWeight: 800,
-      margin: "0 0 4px"
+
+    if (goal.type === "savings") {
+      const { netSaved, monthly } = computeSavings(goal.startDate || today);
+      const target = goal.targetAmount || 1;
+      const pct = Math.min(100, Math.max(0, Math.round(netSaved / target * 100)));
+      const dl = goal.deadline ? new Date(goal.deadline) : null;
+      const daysLeft = dl ? Math.max(0, Math.ceil((dl - new Date()) / 86400000)) : null;
+      return React.createElement("div", { key: goal.id, style: { ...cardStyle, borderLeft: `3px solid ${col}` } },
+        cardHeader,
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+          React.createElement("div", null,
+            React.createElement("p", { style: { color: col, fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, margin: 0, lineHeight: 1 } }, "$", Math.round(netSaved).toLocaleString(), React.createElement("span", { style: { fontSize: 12, color: "#6b7280", fontWeight: 400 } }, " saved")),
+            React.createElement("p", { style: { color: "#6b7280", fontSize: 11, margin: "4px 0 0" } }, "Target: $", target.toLocaleString(), daysLeft !== null ? ` \xB7 ${daysLeft} days left` : "")
+          ),
+          React.createElement(Arc, { pct, col })
+        ),
+        React.createElement(ProgBar, { pct, col, h: 5 }),
+        React.createElement("div", { style: { display: "flex", gap: 0, marginTop: 8 } },
+          React.createElement(StatCell, { lbl: "Still Needed", val: `$${Math.max(0, Math.round(target - netSaved)).toLocaleString()}`, c: col }),
+          React.createElement(StatCell, { lbl: "Progress", val: `${pct}%`, c: "#4ade80" })
+        ),
+        Object.keys(financeMonthsData).length === 0 && React.createElement("p", { style: { color: "#555e73", fontSize: 11, margin: "10px 0 0", textAlign: "center" } }, "Import Finance data to auto-track progress."),
+        monthly.length >= 2 && React.createElement("div", { style: { marginTop: 12, height: 100 } },
+          React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
+            React.createElement(BarChart, { data: monthly },
+              React.createElement(XAxis, { dataKey: "month", tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false }),
+              React.createElement(YAxis, { tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false, width: 40 }),
+              React.createElement(Tooltip, { contentStyle: ttStyle, formatter: v => [`$${v.toLocaleString()}`, "Net"] }),
+              React.createElement(Bar, { dataKey: "net", fill: col, radius: [3, 3, 0, 0] })
+            )
+          )
+        )
+      );
     }
-  }, "Mark as Complete?"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#9ca3af",
-      fontSize: 13,
-      margin: "0 0 14px"
+
+    if (goal.type === "debt") {
+      const entries = progressLogs[goal.id] || [];
+      const startBal = goal.startBalance || 0;
+      const currentBal = entries.length > 0 ? entries[entries.length - 1].value : startBal;
+      const paid = Math.max(0, startBal - currentBal);
+      const pct = startBal > 0 ? Math.min(100, Math.round(paid / startBal * 100)) : 0;
+      const dl = goal.deadline ? new Date(goal.deadline) : null;
+      const daysLeft = dl ? Math.max(0, Math.ceil((dl - new Date()) / 86400000)) : null;
+      const chartData = [{ d: "Start", bal: startBal }, ...entries.map(e => ({ d: fmtDate(e.date), bal: e.value }))];
+      return React.createElement("div", { key: goal.id, style: { ...cardStyle, borderLeft: `3px solid ${col}` } },
+        cardHeader,
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+          React.createElement("div", null,
+            React.createElement("p", { style: { color: col, fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, margin: 0, lineHeight: 1 } }, "$", Math.round(currentBal).toLocaleString(), React.createElement("span", { style: { fontSize: 12, color: "#6b7280", fontWeight: 400 } }, " remaining")),
+            React.createElement("p", { style: { color: "#6b7280", fontSize: 11, margin: "4px 0 0" } }, "Started: $", startBal.toLocaleString(), daysLeft !== null ? ` \xB7 ${daysLeft} days left` : "")
+          ),
+          React.createElement(Arc, { pct, col })
+        ),
+        React.createElement(ProgBar, { pct, col, h: 5 }),
+        React.createElement("div", { style: { display: "flex", gap: 0, marginTop: 8, marginBottom: 12 } },
+          React.createElement(StatCell, { lbl: "Paid Off", val: `$${Math.round(paid).toLocaleString()}`, c: "#4ade80" }),
+          React.createElement(StatCell, { lbl: "Remaining", val: `$${Math.round(currentBal).toLocaleString()}`, c: col })
+        ),
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+          React.createElement("input", { type: "number", value: balInputs[goal.id] || "", onChange: e => setBalInputs(p => ({ ...p, [goal.id]: e.target.value })), placeholder: "Update current balance...", style: { ...inp, flex: 1, fontSize: 12 } }),
+          React.createElement("button", { onClick: () => { if (!balInputs[goal.id]) return; addProgress(goal.id, balInputs[goal.id]); setBalInputs(p => ({ ...p, [goal.id]: "" })); },
+            style: { padding: "0 14px", background: col, color: "#080b11", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Update")
+        ),
+        chartData.length >= 2 && React.createElement("div", { style: { marginTop: 12, height: 100 } },
+          React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
+            React.createElement(LineChart, { data: chartData },
+              React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false }),
+              React.createElement(YAxis, { domain: ["auto", "auto"], tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false, width: 40 }),
+              React.createElement(ReferenceLine, { y: 0, stroke: "#4ade80", strokeDasharray: "3 3" }),
+              React.createElement(Tooltip, { contentStyle: ttStyle, formatter: v => [`$${v.toLocaleString()}`, "Balance"] }),
+              React.createElement(Line, { type: "monotone", dataKey: "bal", stroke: col, strokeWidth: 2, dot: { fill: col, r: 3 }, name: "Balance" })
+            )
+          )
+        )
+      );
     }
-  }, confirmGoal.label), /*#__PURE__*/React.createElement("input", {
-    type: "text",
-    value: confirmNote,
-    onChange: e => setConfirmNote(e.target.value),
-    placeholder: "Optional note...",
-    style: {
-      ...inp,
-      marginBottom: 12,
-      fontSize: 13
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: completeGoal,
-    style: {
-      flex: 1,
-      padding: "11px 0",
-      background: "#4ade80",
-      color: "#080b11",
-      border: "none",
-      borderRadius: 9,
-      fontSize: 13,
-      fontWeight: 800,
-      cursor: "pointer",
-      fontFamily: "'Syne',sans-serif"
-    }
-  }, "CONFIRM \u2713"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setConfirmGoal(null),
-    style: {
-      flex: 1,
-      padding: "11px 0",
-      background: "transparent",
-      border: "1px solid rgba(255,255,255,.1)",
-      color: "var(--text-secondary)",
-      borderRadius: 9,
-      fontSize: 13,
-      cursor: "pointer"
-    }
-  }, "Cancel")))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "var(--card-bg)",
-      border: "1px solid rgba(255,255,255,.07)",
-      borderRadius: 14,
-      padding: "16px",
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#6b7280",
-      fontSize: 10,
-      letterSpacing: ".07em",
-      textTransform: "uppercase",
-      margin: "0 0 4px",
-      fontWeight: 600
-    }
-  }, "Weight Goal"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#f4a823",
-      fontFamily: "'Syne',sans-serif",
-      fontSize: 26,
-      fontWeight: 800,
-      margin: "0 0 2px",
-      lineHeight: 1
-    }
-  }, cWt, " ", /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 13,
-      color: "var(--text-secondary)",
-      fontWeight: 400
-    }
-  }, "lbs")), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-muted)",
-      fontSize: 11,
-      margin: 0
-    }
-  }, "Target: ", wg, " lbs \xB7 ", fmtDateFull(goals.weightDeadline || "2026-12-31"))), /*#__PURE__*/React.createElement(Arc, {
-    pct: wPct,
-    col: "#f4a823"
-  })), /*#__PURE__*/React.createElement(ProgBar, {
-    pct: wPct,
-    col: "#f4a823",
-    h: 5
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 0,
-      marginTop: 12,
-      paddingTop: 10,
-      borderTop: "1px solid rgba(255,255,255,.05)"
-    }
-  }, /*#__PURE__*/React.createElement(StatCell, {
-    lbl: "Still to Lose",
-    val: `${wRemain.toFixed(1)} lbs`,
-    c: "#f4a823"
-  }), /*#__PURE__*/React.createElement(StatCell, {
-    lbl: "Lost So Far",
-    val: `${wLost.toFixed(1)} lbs`,
-    c: "#4ade80"
-  }), /*#__PURE__*/React.createElement(StatCell, {
-    lbl: "Days Left",
-    val: daysLeft,
-    c: "#60a5fa"
-  })), paceLabel && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 10,
-      padding: "8px 11px",
-      background: "rgba(244,168,35,.06)",
-      borderRadius: 8,
-      border: "1px solid rgba(244,168,35,.1)"
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#9ca3af",
-      fontSize: 11,
-      margin: 0
-    }
-  }, paceLabel, projLabel && /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: projStatus === "ahead" ? "#4ade80" : "#ef4444",
-      fontWeight: 700
-    }
-  }, " \xB7 Projected: ", projLabel))), cWt <= wg && /*#__PURE__*/React.createElement("button", {
-    onClick: () => setConfirmGoal({
-      id: "weight",
-      label: `Weight Goal: ${ws} → ${wg} lbs`
-    }),
-    style: {
-      width: "100%",
-      marginTop: 12,
-      padding: "10px 0",
-      background: "rgba(74,222,128,.12)",
-      border: "1px solid rgba(74,222,128,.25)",
-      color: "#4ade80",
-      borderRadius: 9,
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: "pointer"
-    }
-  }, "MARK AS COMPLETE \u2192")), wtFiltered.length >= 2 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "var(--card-bg)",
-      border: "1px solid rgba(255,255,255,.07)",
-      borderRadius: 12,
-      padding: "14px",
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement(Lbl, {
-    c: "Weight Trend"
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 5
-    }
-  }, [30, 90, 365].map(r => /*#__PURE__*/React.createElement("button", {
-    key: r,
-    onClick: () => setWeightRange(r),
-    style: {
-      padding: "3px 8px",
-      borderRadius: 6,
-      fontSize: 10,
-      cursor: "pointer",
-      border: `1px solid ${weightRange === r ? "rgba(244,168,35,.4)" : "var(--card-bg-4)"}`,
-      background: weightRange === r ? "rgba(244,168,35,.12)" : "transparent",
-      color: weightRange === r ? "#f4a823" : "var(--text-secondary)",
-      fontWeight: weightRange === r ? 700 : 400
-    }
-  }, r, "d")))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      height: 140
-    }
-  }, /*#__PURE__*/React.createElement(ResponsiveContainer, {
-    width: "100%",
-    height: "100%"
-  }, /*#__PURE__*/React.createElement(LineChart, {
-    data: wtFiltered
-  }, /*#__PURE__*/React.createElement(XAxis, {
-    dataKey: "d",
-    tick: {
-      fill: "var(--text-secondary)",
-      fontSize: 10
-    },
-    axisLine: false,
-    tickLine: false
-  }), /*#__PURE__*/React.createElement(YAxis, {
-    domain: ["auto", "auto"],
-    tick: {
-      fill: "var(--text-secondary)",
-      fontSize: 10
-    },
-    axisLine: false,
-    tickLine: false,
-    width: 36
-  }), /*#__PURE__*/React.createElement(ReferenceLine, {
-    y: wg,
-    stroke: "#4ade80",
-    strokeDasharray: "4 4",
-    label: {
-      value: "Goal",
-      fill: "#4ade80",
-      fontSize: 9,
-      position: "right"
-    }
-  }), /*#__PURE__*/React.createElement(Tooltip, {
-    contentStyle: ttStyle,
-    labelStyle: {
-      color: "#9ca3af"
-    },
-    itemStyle: {
-      color: "#f4a823"
-    }
-  }), /*#__PURE__*/React.createElement(Line, {
-    type: "monotone",
-    dataKey: "wt",
-    stroke: "#f4a823",
-    strokeWidth: 2,
-    dot: {
-      fill: "#f4a823",
-      r: 2
-    },
-    name: "Weight"
-  }))))), (goals.loanBalance || goals.savingsCurrent) && /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "rgba(52,211,153,.05)",
-      border: "1px solid rgba(52,211,153,.15)",
-      borderRadius: 12,
-      padding: "14px",
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement(Lbl, {
-    c: "Finance Snapshot"
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 0
-    }
-  }, goals.loanBalance && /*#__PURE__*/React.createElement(StatCell, {
-    lbl: "Loan Balance",
-    val: `$${parseFloat(goals.loanBalance).toLocaleString()}`,
-    sub: `Target: $0 by ${fmtDate(goals.loanDeadline || "2026-12-31")}`,
-    c: "#ef4444"
-  }), goals.savingsCurrent && /*#__PURE__*/React.createElement(StatCell, {
-    lbl: "Savings",
-    val: `$${parseFloat(goals.savingsCurrent).toLocaleString()}`,
-    sub: `Target: $${parseFloat(goals.savingsTarget || 20000).toLocaleString()}`,
-    c: "#34d399"
-  }))), wins.length > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement(Lbl, {
-    c: "Wins Archive"
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 5
-    }
-  }, [7, 30, 90].map(f => /*#__PURE__*/React.createElement("button", {
-    key: f,
-    onClick: () => setWinsFilter(f),
-    style: {
-      padding: "3px 8px",
-      borderRadius: 6,
-      fontSize: 10,
-      cursor: "pointer",
-      border: `1px solid ${winsFilter === f ? "rgba(74,222,128,.4)" : "var(--card-bg-4)"}`,
-      background: winsFilter === f ? "rgba(74,222,128,.12)" : "transparent",
-      color: winsFilter === f ? "#4ade80" : "var(--text-secondary)",
-      fontWeight: winsFilter === f ? 700 : 400
-    }
-  }, f, "d")))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 5
-    }
-  }, recentWins.slice(0, 10).map((w, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      display: "flex",
-      gap: 10,
-      padding: "9px 12px",
-      background: "var(--card-bg)",
-      borderRadius: 9,
-      border: "1px solid rgba(255,255,255,.06)",
-      alignItems: "flex-start"
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: "#f4a823",
-      fontSize: 10,
-      fontWeight: 700,
-      flexShrink: 0,
-      marginTop: 2
-    }
-  }, fmtDate(w.date)), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: "#c9ccd4",
-      fontSize: 12,
-      flex: 1
-    }
-  }, w.win))), recentWins.length === 0 && /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-muted)",
-      fontSize: 12,
-      margin: 0,
-      textAlign: "center",
-      padding: "12px 0"
-    }
-  }, "No wins logged in the last ", winsFilter, " days."))), completedGoals.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    c: "Completed Goals"
-  }), completedGoals.map((g, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      background: "rgba(74,222,128,.04)",
-      border: "1px solid rgba(74,222,128,.12)",
-      borderRadius: 10,
-      padding: "11px 13px",
-      marginBottom: 6,
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start"
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-primary)",
-      fontSize: 13,
-      fontWeight: 600,
-      margin: "0 0 2px"
-    }
-  }, g.label), g.note && /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#6b7280",
-      fontSize: 11,
-      margin: "0 0 2px",
-      fontStyle: "italic"
-    }
-  }, "\"", g.note, "\""), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-muted)",
-      fontSize: 10,
-      margin: 0
-    }
-  }, "Completed ", g.completedAt ? fmtDateFull(g.completedAt.split("T")[0]) : "")), /*#__PURE__*/React.createElement("span", {
-    style: {
-      background: "rgba(74,222,128,.15)",
-      color: "#4ade80",
-      fontSize: 10,
-      fontWeight: 700,
-      borderRadius: 6,
-      padding: "3px 9px",
-      flexShrink: 0
-    }
-  }, "DONE \u2713")))));
+
+    // Custom
+    const entries = progressLogs[goal.id] || [];
+    const startVal = goal.startValue || 0;
+    const currentVal = entries.length > 0 ? entries[entries.length - 1].value : startVal;
+    const targetVal = goal.targetValue || 1;
+    const achieved = Math.max(0, currentVal - startVal);
+    const total = Math.max(1, targetVal - startVal);
+    const pct = Math.min(100, Math.round(achieved / total * 100));
+    const dl = goal.deadline ? new Date(goal.deadline) : null;
+    const daysLeft = dl ? Math.max(0, Math.ceil((dl - new Date()) / 86400000)) : null;
+    return React.createElement("div", { key: goal.id, style: { ...cardStyle, borderLeft: `3px solid ${col}` } },
+      cardHeader,
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+        React.createElement("div", null,
+          React.createElement("p", { style: { color: col, fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, margin: 0, lineHeight: 1 } }, currentVal, React.createElement("span", { style: { fontSize: 12, color: "#6b7280", fontWeight: 400 } }, " ", goal.unit || "")),
+          React.createElement("p", { style: { color: "#6b7280", fontSize: 11, margin: "4px 0 0" } }, "Target: ", targetVal, " ", goal.unit || "", daysLeft !== null ? ` \xB7 ${daysLeft} days left` : "")
+        ),
+        React.createElement(Arc, { pct, col })
+      ),
+      React.createElement(ProgBar, { pct, col, h: 5 }),
+      React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 12 } },
+        React.createElement("input", { type: "number", value: valInputs[goal.id] || "", onChange: e => setValInputs(p => ({ ...p, [goal.id]: e.target.value })), placeholder: `Log current ${goal.unit || "value"}...`, style: { ...inp, flex: 1, fontSize: 12 } }),
+        React.createElement("button", { onClick: () => { if (!valInputs[goal.id]) return; addProgress(goal.id, valInputs[goal.id]); setValInputs(p => ({ ...p, [goal.id]: "" })); },
+          style: { padding: "0 14px", background: col, color: "#080b11", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Log")
+      )
+    );
+  };
+
+  return React.createElement("div", null,
+    showWizard && React.createElement(GoalWizard, { onSave: addGoal, onClose: () => setShowWizard(false) }),
+    confirmGoal && React.createElement(React.Fragment, null,
+      React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setConfirmGoal(null) }),
+      React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 40px)", maxWidth: 360, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 14, padding: "20px", zIndex: 201 } },
+        React.createElement("p", { style: { color: "#4ade80", fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 4px" } }, "Mark as Complete?"),
+        React.createElement("p", { style: { color: "#9ca3af", fontSize: 13, margin: "0 0 14px" } }, confirmGoal.label),
+        React.createElement("input", { type: "text", value: confirmNote, onChange: e => setConfirmNote(e.target.value), placeholder: "Add a note (optional)...", style: { ...inp, marginBottom: 12, fontSize: 13 } }),
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+          React.createElement("button", { onClick: completeGoal, style: { flex: 1, padding: "11px 0", background: "#4ade80", color: "#080b11", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "CONFIRM \u2713"),
+          React.createElement("button", { onClick: () => setConfirmGoal(null), style: { flex: 1, padding: "11px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", color: "#6b7280", borderRadius: 9, fontSize: 13, cursor: "pointer" } }, "Cancel")
+        )
+      )
+    ),
+    deleteConfirm && React.createElement(React.Fragment, null,
+      React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setDeleteConfirm(null) }),
+      React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 40px)", maxWidth: 340, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 14, padding: "20px", zIndex: 201 } },
+        React.createElement("p", { style: { color: "#ef4444", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: "0 0 8px" } }, "Delete this goal?"),
+        React.createElement("p", { style: { color: "#6b7280", fontSize: 12, margin: "0 0 16px" } }, "This cannot be undone."),
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+          React.createElement("button", { onClick: () => deleteGoal(deleteConfirm), style: { flex: 1, padding: "10px 0", background: "rgba(239,68,68,.15)", border: "1px solid rgba(239,68,68,.3)", color: "#ef4444", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer" } }, "Delete"),
+          React.createElement("button", { onClick: () => setDeleteConfirm(null), style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", color: "#6b7280", borderRadius: 9, fontSize: 13, cursor: "pointer" } }, "Cancel")
+        )
+      )
+    ),
+    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 } },
+      React.createElement(SectionHead, { label: "My Goals", color: "#34d399" }),
+      React.createElement("button", { onClick: () => setShowWizard(true), style: { padding: "8px 14px", background: "rgba(52,211,153,.12)", border: "1px solid rgba(52,211,153,.25)", color: "#34d399", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ Add Goal")
+    ),
+    goalsList.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 20px", background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 14, marginBottom: 14 } },
+      React.createElement("p", { style: { color: "#555e73", fontSize: 14, margin: "0 0 16px" } }, "No active goals yet."),
+      React.createElement("button", { onClick: () => setShowWizard(true), style: { padding: "11px 20px", background: "#34d399", color: "#080b11", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Set Your First Goal \u2192")
+    ),
+    ...goalsList.map(g => renderGoalCard(g)),
+    wins.length > 0 && React.createElement("div", { style: { marginBottom: 14 } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+        React.createElement(Lbl, { c: "Wins Archive" }),
+        React.createElement("div", { style: { display: "flex", gap: 4 } },
+          [7, 30, 90].map(f => React.createElement("button", { key: f, onClick: () => setWinsFilter(f),
+            style: { padding: "2px 7px", borderRadius: 5, fontSize: 10, cursor: "pointer", border: `1px solid ${winsFilter === f ? "rgba(74,222,128,.4)" : "rgba(255,255,255,.07)"}`, background: winsFilter === f ? "rgba(74,222,128,.12)" : "transparent", color: winsFilter === f ? "#4ade80" : "#6b7280", fontWeight: winsFilter === f ? 700 : 400 } }, f, "d"))
+        )
+      ),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 5 } },
+        recentWins.length === 0
+          ? React.createElement("p", { style: { color: "#555e73", fontSize: 12, margin: 0, textAlign: "center", padding: "12px 0" } }, "No wins in the last ", winsFilter, " days.")
+          : recentWins.slice(0, 10).map((w, i) => React.createElement("div", { key: i,
+              style: { display: "flex", gap: 10, padding: "9px 12px", background: "var(--card-bg)", borderRadius: 9, border: "1px solid rgba(255,255,255,.06)", alignItems: "flex-start" } },
+              React.createElement("span", { style: { color: "#f4a823", fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 } }, fmtDate(w.date)),
+              React.createElement("span", { style: { color: "#c9ccd4", fontSize: 12, flex: 1 } }, w.win)
+            ))
+      )
+    ),
+    completedGoals.length > 0 && React.createElement("div", null,
+      React.createElement(Lbl, { c: "Completed Goals" }),
+      completedGoals.map((g, i) => React.createElement("div", { key: i,
+        style: { background: "rgba(74,222,128,.04)", border: "1px solid rgba(74,222,128,.12)", borderRadius: 10, padding: "11px 13px", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "flex-start" } },
+        React.createElement("div", null,
+          React.createElement("p", { style: { color: "#d1d5db", fontSize: 13, fontWeight: 600, margin: "0 0 2px" } }, g.label),
+          g.note && React.createElement("p", { style: { color: "#6b7280", fontSize: 11, margin: "0 0 2px", fontStyle: "italic" } }, "\u201C", g.note, "\u201D"),
+          React.createElement("p", { style: { color: "#555e73", fontSize: 10, margin: 0 } }, "Completed ", g.completedAt ? fmtDateFull(g.completedAt.split("T")[0]) : "")
+        ),
+        React.createElement("span", { style: { background: "rgba(74,222,128,.15)", color: "#4ade80", fontSize: 10, fontWeight: 700, borderRadius: 6, padding: "3px 9px", flexShrink: 0 } }, "DONE \u2713")
+      ))
+    )
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -17670,13 +17750,6 @@ function App() {
   const handleSaveGoals = async updated => {
     setGoals(updated);
     await DB.set(KEYS.goals(), updated);
-    // Also update settings with new goal values
-    const newSettings = {
-      ...settings,
-      ...updated
-    };
-    setSettings(newSettings);
-    await DB.set(KEYS.settings(), newSettings);
   };
   const handleMilestone = msg => {
     setCelebration(msg);
