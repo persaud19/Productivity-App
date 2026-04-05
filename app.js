@@ -16154,7 +16154,8 @@ function FinanceTab({ settings }) {
       setImportMsg("Import failed: " + err.message);
     }
     setImporting(false);
-    setTimeout(() => setImportMsg(""), 6000);
+    // Only auto-clear success messages — errors stay until dismissed
+    setTimeout(() => setImportMsg(m => m.startsWith("Import") ? "" : m), 8000);
   };
 
   const handleScanStatement = async (e) => {
@@ -16270,7 +16271,7 @@ function FinanceTab({ settings }) {
       } else {
         text = await file.text();
       }
-      const rows = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 150).join("\n");
+      const rows = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 300).join("\n");
       const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(env => `  ${env.id}: ${env.name}`).join("\n");
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 60000);
@@ -16316,32 +16317,45 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
 
       const res = await fetch("/api/claude", {
         method: "POST", signal: controller.signal,
-        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 4096, messages: [{ role: "user", content: prompt }] })
+        headers: { "Content-Type": "application/json", "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 8192, messages: [{ role: "user", content: prompt }] })
       });
       const data = await res.json();
+
+      // Surface Netlify / API errors clearly
+      if (data.error || data.type === "error") {
+        const msg = data.error?.message || data.error || "API error — check that ANTHROPIC_API_KEY is set in Netlify.";
+        setImportMsg("Error: " + msg);
+        setCardParsing(false);
+        if (cardFileRef.current) cardFileRef.current.value = "";
+        return;
+      }
+
       const reply = data.content?.[0]?.text || "";
+      if (!reply) { setImportMsg("Empty response from Claude — check Netlify ANTHROPIC_API_KEY env var."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+
+      // Strip markdown fences from reply (handles both ``` and ```json wrappers)
+      const stripFences = str => { const m = str.match(/```(?:json)?\s*([\s\S]*?)```/); return m ? m[1].trim() : str.trim(); };
+      const srcLabel = file.name.replace(/\.(csv|xlsx?|txt)$/i, "");
 
       if (importMode === "bank_statement") {
-        // Extract JSON object
-        let jsonStr = reply.trim();
-        const fenced = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (fenced) jsonStr = fenced[1].trim();
-        const objMatch = jsonStr.match(/\{[\s\S]*\}/);
-        if (!objMatch) { setImportMsg("Could not parse bank statement — try again."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+        const cleaned = stripFences(reply);
+        const objMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (!objMatch) { setImportMsg("Could not parse bank statement — Claude returned: " + reply.slice(0, 120)); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
         const parsed = JSON.parse(objMatch[0]);
-        const srcLabel = file.name.replace(/\.csv$/i, "");
         const expenses = (parsed.expenses || []).map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: txnId("bexp", t.date, t.amount, t.desc), card: "Bank", isRefund: false, category: "Bank", highlevel: "" }));
         const incItems = (parsed.income || []).map(t => ({ id: txnId("binc", t.date, t.amount, t.desc || t.source), date: t.date, month: (t.date || "").slice(0, 7), amount: t.amount, source: t.source || t.desc || "Bank Deposit", type: "other", desc: t.desc }));
         setCardResults({ mode: "bank_statement", expenses, income: incItems, label: srcLabel });
       } else {
-        const arrMatch = reply.match(/\[[\s\S]*\]/);
-        if (!arrMatch) { setImportMsg("Could not parse CSV — try again or use Master CSV format."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+        const cleaned = stripFences(reply);
+        const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+        if (!arrMatch) { setImportMsg("Could not find transactions — Claude returned: " + reply.slice(0, 120)); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
         const parsed = JSON.parse(arrMatch[0]);
-        const srcLabel = file.name.replace(/\.csv$/i, "");
+        if (!parsed.length) { setImportMsg("No transactions found in file — check that the correct import mode is selected."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
         setCardResults({ mode: "credit_card", expenses: parsed.map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: txnId("cc", t.date, t.amount, t.desc), card: srcLabel, category: srcLabel, subCat: t.subCat || "", highlevel: "" })), income: [], label: srcLabel });
       }
     } catch(err) {
-      setImportMsg(err.name === "AbortError" ? "Timed out — try a smaller CSV (one month at a time)." : "Parse failed: " + err.message);
+      setImportMsg(err.name === "AbortError" ? "Timed out — try splitting into smaller date ranges." : "Parse failed: " + err.message);
     }
     setCardParsing(false);
     if (cardFileRef.current) cardFileRef.current.value = "";
@@ -17160,8 +17174,11 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       ),
 
       importMsg && /*#__PURE__*/React.createElement("div", {
-        style: { background: importMsg.includes("fail") || importMsg.includes("Error") ? "rgba(239,68,68,.1)" : "rgba(74,222,128,.1)", border: `1px solid ${importMsg.includes("fail") || importMsg.includes("Error") ? "rgba(239,68,68,.25)" : "rgba(74,222,128,.25)"}`, borderRadius: 10, padding: "12px 14px", fontSize: 13, color: importMsg.includes("fail") || importMsg.includes("Error") ? "#ef4444" : "#4ade80", fontWeight: 600 }
-      }, importMsg)
+        style: { background: importMsg.includes("fail") || importMsg.includes("Error") || importMsg.includes("error") ? "rgba(239,68,68,.1)" : "rgba(74,222,128,.1)", border: `1px solid ${importMsg.includes("fail") || importMsg.includes("Error") || importMsg.includes("error") ? "rgba(239,68,68,.25)" : "rgba(74,222,128,.25)"}`, borderRadius: 10, padding: "12px 14px", fontSize: 12, color: importMsg.includes("fail") || importMsg.includes("Error") || importMsg.includes("error") ? "#ef4444" : "#4ade80", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }
+      },
+        React.createElement("span", null, importMsg),
+        React.createElement("button", { onClick: () => setImportMsg(""), style: { background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 16, lineHeight: 1, flexShrink: 0, opacity: .7 } }, "\xD7")
+      )
     ),
 
     // ── ADD EXPENSE MODAL ───────────────────────────────────────────────
