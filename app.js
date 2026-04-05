@@ -15930,6 +15930,15 @@ function extractMerchantName(raw) {
     .split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
 }
 
+// Deterministic transaction ID — same content always produces the same ID
+// Prevents duplicates when re-importing the same CSV or overlapping date ranges
+function txnId(prefix, date, amount, desc) {
+  const raw = `${prefix}|${date}|${String(amount)}|${(desc || "").toLowerCase().trim().replace(/\s+/g, " ")}`;
+  let h = 0;
+  for (let i = 0; i < raw.length; i++) { h = (Math.imul(31, h) + raw.charCodeAt(i)) | 0; }
+  return `${prefix}_${Math.abs(h).toString(36)}`;
+}
+
 // Apply merchant rules to a list of transactions, returns augmented list
 function applyMerchantRules(transactions, rules) {
   return transactions.map(t => {
@@ -16169,7 +16178,7 @@ function FinanceTab({ settings }) {
       const match = reply.match(/\[[\s\S]*\]/);
       if (!match) { setImportMsg("No transactions found — try a clearer screenshot."); setScanning(false); return; }
       const txns = JSON.parse(match[0]);
-      setScanResults(txns.map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: "scan_" + t.date + "_" + Math.random().toString(36).slice(2, 7), isRefund: false, category: "Scanned", subCat: "", highlevel: "", envelopeId: CSS_CATEGORY_MAP[t.desc?.toLowerCase()] || "other" })));
+      setScanResults(txns.map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: txnId("scan", t.date, t.amount, t.desc), isRefund: false, category: "Scanned", subCat: "", highlevel: "", envelopeId: CSS_CATEGORY_MAP[t.desc?.toLowerCase()] || "other" })));
     } catch(err) {
       setImportMsg(err.name === "AbortError" ? "Scan timed out — try a smaller/clearer image." : "Scan failed: " + err.message);
     }
@@ -16259,15 +16268,15 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
         if (!objMatch) { setImportMsg("Could not parse bank statement — try again."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
         const parsed = JSON.parse(objMatch[0]);
         const srcLabel = file.name.replace(/\.csv$/i, "");
-        const expenses = (parsed.expenses || []).map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: `bank_exp_${t.date}_${Math.random().toString(36).slice(2,7)}`, card: "Bank", isRefund: false, category: "Bank", highlevel: "" }));
-        const incItems = (parsed.income || []).map(t => ({ id: "bank_inc_" + Date.now() + "_" + Math.random().toString(36).slice(2,5), date: t.date, month: (t.date || "").slice(0, 7), amount: t.amount, source: t.source || t.desc || "Bank Deposit", type: "other", desc: t.desc }));
+        const expenses = (parsed.expenses || []).map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: txnId("bexp", t.date, t.amount, t.desc), card: "Bank", isRefund: false, category: "Bank", highlevel: "" }));
+        const incItems = (parsed.income || []).map(t => ({ id: txnId("binc", t.date, t.amount, t.desc || t.source), date: t.date, month: (t.date || "").slice(0, 7), amount: t.amount, source: t.source || t.desc || "Bank Deposit", type: "other", desc: t.desc }));
         setCardResults({ mode: "bank_statement", expenses, income: incItems, label: srcLabel });
       } else {
         const arrMatch = reply.match(/\[[\s\S]*\]/);
         if (!arrMatch) { setImportMsg("Could not parse CSV — try again or use Master CSV format."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
         const parsed = JSON.parse(arrMatch[0]);
         const srcLabel = file.name.replace(/\.csv$/i, "");
-        setCardResults({ mode: "credit_card", expenses: parsed.map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: `cc_${t.date}_${Math.random().toString(36).slice(2,7)}`, card: srcLabel, category: srcLabel, subCat: t.subCat || "", highlevel: "" })), income: [], label: srcLabel });
+        setCardResults({ mode: "credit_card", expenses: parsed.map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: txnId("cc", t.date, t.amount, t.desc), card: srcLabel, category: srcLabel, subCat: t.subCat || "", highlevel: "" })), income: [], label: srcLabel });
       }
     } catch(err) {
       setImportMsg(err.name === "AbortError" ? "Timed out — try a smaller CSV (one month at a time)." : "Parse failed: " + err.message);
