@@ -15840,7 +15840,7 @@ function SubCatSelect({ envelopeId, value, onChange, extraOpts, onAdd, style }) 
   const custom = extraOpts || [];
   const all = [...new Set([...baseOpts, ...custom])].sort((a, b) => a.localeCompare(b));
 
-  const inputStyle = { background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 7, padding: "8px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" };
+  const inputStyle = { background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 7, padding: "8px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none", colorScheme: "dark" };
 
   if (adding) {
     return /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6 } },
@@ -16651,6 +16651,13 @@ Return exactly ${rawRows.length} objects. No markdown.`;
       setRuleForm({ keyword: suggestedKeyword, displayName: suggestedName, envelopeId: newEnvelopeId, subCat: subCatVal });
       setRulePrompt({ txn, alreadyHasRule });
     }
+  };
+
+  const handleDeleteTxn = async (txn) => {
+    const updated = transactions.filter(t => t.id !== txn.id);
+    setTransactions(updated);
+    await DB.set(KEYS.financeTransactions(txn.month || currentMonth), updated);
+    setEditingTxn(null);
   };
 
   const handleSaveRule = async () => {
@@ -17498,7 +17505,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
             /*#__PURE__*/React.createElement("select", {
               value: editTxnForm.envelopeId,
               onChange: e => setEditTxnForm(f => ({ ...f, envelopeId: e.target.value })),
-              style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 13, outline: "none" }
+              style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 13, outline: "none", colorScheme: "dark" }
             },
               FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
             )
@@ -17514,7 +17521,11 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
             style: { flex: 1, padding: "12px 0", background: "#34d399", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
           }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setEditingTxn(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
-        )
+        ),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => { if (window.confirm("Delete this transaction? This cannot be undone.")) handleDeleteTxn(editingTxn); },
+          style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 9, color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, "\uD83D\uDDD1 Delete Transaction")
       )
     ),
 
