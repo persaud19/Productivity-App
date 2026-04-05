@@ -6236,13 +6236,11 @@ function SundayBrief({
     setGenerated(false);
     const ctx = buildCtx();
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": window.__claude_api_key || "",
           "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
@@ -8023,13 +8021,11 @@ RULES:
 - reply: 1-2 sentences max. Be specific about what you're changing.
 Return ONLY valid JSON. No markdown fences.`;
       const apiMsgs = newMsgs.filter((m, i) => !(i === 0 && m.role === "assistant"));
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": window.__claude_api_key || "",
           "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
@@ -8349,13 +8345,11 @@ function PantryBarcodeScanner({
   };
   const lookupWithClaude = async barcode => {
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": window.__claude_api_key || "",
           "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
@@ -8684,13 +8678,11 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
       setProcError("");
       setPhase("processing");
       try {
-        const res = await fetch("https://api.anthropic.com/v1/messages", {
+        const res = await fetch("/api/claude", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": window.__claude_api_key || "",
             "anthropic-version": "2023-06-01",
-            "anthropic-dangerous-direct-browser-access": "true"
           },
           body: JSON.stringify({
             model: "claude-sonnet-4-20250514",
@@ -8751,13 +8743,11 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
     const current = unknowns[clarifyIdx];
     const pantryNames = pantryItems.filter(p => p.essential !== false).map(p => p.name).join(", ");
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": window.__claude_api_key || "",
           "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
@@ -11614,12 +11604,10 @@ Rules:
 - steps is an array of at least 3 detailed cooking instruction strings
 - If you cannot determine a value, make a reasonable estimate — never use null`;
 async function callClaude(messages, system) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/claude", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": window.__claude_api_key || "",
-      "anthropic-dangerous-direct-browser-access": "true"
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
@@ -12934,9 +12922,8 @@ Your job is to estimate macros through natural conversation. Rules:
       const apiMsgs = newMsgs.map(m => ({ role: m.role, content: m.content }));
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 400, system: systemPrompt, messages: apiMsgs }),
         signal: controller.signal
       });
@@ -13148,9 +13135,8 @@ function FoodTab({
       const weightVal = weight || settings?.currentWeight || "unknown";
       const goal = settings?.weightGoal ? `target weight ${settings.weightGoal}lbs` : settings?.primaryGoal || "general fitness";
       const age = settings?.age || 32;
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 200,
           messages: [{ role: "user", content: `You are a fitness nutritionist. Set daily macro targets for:\n- Age: ${age}\n- Current weight: ${weightVal}lbs\n- Goal: ${goal}\n- Activity: moderate (3-5 workouts/week)\n\nReturn ONLY valid JSON, no markdown:\n{"calories":2200,"protein":175,"carbs":220,"fat":65,"rationale":"one sentence"}\nUse evidence-based recommendations. Prioritize adequate protein for the goal.` }]
@@ -15052,13 +15038,11 @@ function HistoryBrowser({
         return "Week " + r.week + ": win=" + JSON.stringify(r.weekWin || "") + " gap=" + JSON.stringify(r.weekNote || "") + " pillars=" + scores + (r.aiBrief ? " brief=" + r.aiBrief.split("\n")[0] : "");
       }).join("\n");
       const prompt = "You are Ryan's long-term accountability partner with access to his full history. Analyze ALL of this data and give a 6-8 sentence insight report that identifies real multi-week patterns — not just this week.\n\nSTATISTICS:\n- Total days logged: " + allLogs.length + "\n- Workout frequency: " + workoutRate + "% of logged days\n- Avg snacking level (0=none, 3=heavy): " + avgSnack + "/3\n- Weight data points: " + weightData.length + "\n- Sunday reviews saved: " + reviews.length + "\n\nSUNDAY REVIEW HISTORY (most recent first):\n" + reviewSummaries + "\n\nWrite a candid pattern analysis. Call out:\n1. What is consistently improving vs consistently struggling\n2. Any cycles or recurring patterns (e.g. good week → bad week → good week)\n3. Which pillar is most consistently underscored\n4. One thing the data suggests he is not seeing himself\n5. One specific suggestion based on what works (reference actual good weeks)\n\nTone: Direct. Honest. Like a coach reviewing game tape. No generic advice — reference his actual data.";
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": window.__claude_api_key || "",
           "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true"
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
@@ -16173,9 +16157,8 @@ function FinanceTab({ settings }) {
       const mediaType = file.type || "image/jpeg";
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 45000);
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST", signal: controller.signal,
-        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 2000, messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
           { type: "text", text: "Extract all purchase transactions from this credit card statement. Ignore payment/balance rows.\nReturn ONLY a JSON array, no markdown:\n[{\"date\":\"YYYY-MM-DD\",\"amount\":45.99,\"desc\":\"MERCHANT\",\"card\":\"Amex\"}]\namount: positive number. card: Amex, TD Visa, CIBC, PC Financial, or Unknown." }
@@ -16260,9 +16243,8 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
 - subCat: best guess sub-category (e.g. Coffee, Gas, Fast Food, Grocery) or empty string`;
       }
 
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST", signal: controller.signal,
-        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 4096, messages: [{ role: "user", content: prompt }] })
       });
       const data = await res.json();
@@ -16496,9 +16478,8 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
       const ctx = await buildFinanceContext();
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 45000);
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST", signal: controller.signal,
-        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({ model: "claude-sonnet-4-5-20251001", max_tokens: 1024,
           messages: [{ role: "user", content: `You are a personal financial coach for Ryan and Sabrina Persaud (a Canadian couple). Analyze their spending data and write a concise Monthly Financial Brief.
 
@@ -16532,9 +16513,8 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       const ctx = await buildFinanceContext(true); // loads ALL months
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 45000);
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST", signal: controller.signal,
-        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 768,
           system: `You are a personal financial coach for Ryan and Sabrina Persaud (Canadian couple). You have their COMPLETE financial history below — every month of data available. Answer questions using ONLY this data. Always cite specific months and dollar amounts. Be direct, specific, and actionable. Never give generic advice — every answer must reference their actual numbers.\n\n${ctx}`,
@@ -17389,9 +17369,8 @@ function RemindersTab({ settings }) {
     }
     setAiLoading(true);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 300,
           messages: [{ role: "user", content: `Today is ${today}. Parse this into a reminder/note. Return ONLY valid JSON, no markdown:\n{"title":"short clear title","notes":"extra detail or empty","dueDate":"YYYY-MM-DD or empty","dueTime":"HH:MM 24h or empty","type":"personal or joint"}\nRules: type "joint" if it involves both people/household/we/us/our. Parse relative dates like "Friday","tomorrow" relative to ${today}. Keep title concise.\nInput: "${input.trim()}"` }]
@@ -17476,9 +17455,8 @@ function RemindersTab({ settings }) {
     setSummaryLoading(true);
     try {
       const list = openItems.map(r => `[${r.type.toUpperCase()}] ${r.title}${r.notes ? " \u2014 " + r.notes : ""}${r.dueDate ? " (due " + r.dueDate + ")" : ""}`).join("\n");
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
         body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 150, messages: [{ role: "user", content: `Today is ${today}. Give a 2-sentence brief of these open reminders. Flag overdue items and what needs action today or this week. Be direct \u2014 no bullet points.\n\nItems:\n${list}` }] })
       });
       const d = await res.json();
