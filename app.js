@@ -16989,7 +16989,10 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
             /*#__PURE__*/React.createElement("button", { onClick: () => setView("import"), style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "8px 18px", color: "#a78bfa", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "Import CSV")
           )
         : /*#__PURE__*/React.createElement("div", null,
-            /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", marginBottom: 10 } }, transactions.length + " transactions \xB7 " + transactions.filter(t=>t.isRefund).length + " refunds"),
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 } },
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, transactions.length + " transactions \xB7 " + transactions.filter(t=>t.isRefund).length + " refunds"),
+              /*#__PURE__*/React.createElement("button", { onClick: () => setView("import"), style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 6, padding: "4px 10px", color: "#a78bfa", fontSize: 10, fontWeight: 700, cursor: "pointer" } }, "\u2B06 Import more")
+            ),
             [...transactions].sort((a,b) => b.date.localeCompare(a.date)).map((t, i) => {
               const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
               return /*#__PURE__*/React.createElement("div", {
