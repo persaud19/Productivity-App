@@ -15813,6 +15813,12 @@ function FinanceTab({ settings }) {
   const [vaguePrompt, setVaguePrompt] = useState(null); // {txn, suggestions: [{label, envelopeId, subCat}]}
   const [editTxnForm, setEditTxnForm] = useState({ envelopeId: "other", subCat: "" });
   const [customSubCats, setCustomSubCats] = useState({});
+  const [coachReport, setCoachReport] = useState("");
+  const [coachLoading, setCoachLoading] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
   const fileRef = useRef(null);
   const scanRef = useRef(null);
   const cardFileRef = useRef(null);
@@ -16094,6 +16100,135 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
     setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
   };
 
+  // Build a concise financial context string to pass to Claude
+  const buildFinanceContext = async () => {
+    // Load current + last 2 months of data
+    const now = new Date();
+    const months = [0, 1, 2].map(offset => {
+      const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+      return d.toISOString().slice(0, 7);
+    });
+
+    const monthData = await Promise.all(months.map(async m => {
+      const txns = await DB.get(KEYS.financeTransactions(m)) || [];
+      const inc = await DB.get(KEYS.financeIncome(m)) || [];
+      const envs = await DB.get(KEYS.financeEnvelopes(m)) || [];
+      return { month: m, txns, inc, envs };
+    }));
+
+    let ctx = "FINANCIAL DATA SUMMARY\n";
+    ctx += `Generated: ${getToday()}\n\n`;
+
+    for (const { month, txns, inc, envs } of monthData) {
+      const spending = txns.filter(t => !t.isRefund);
+      const refunds = txns.filter(t => t.isRefund);
+      const totalSpent = spending.reduce((a, t) => a + (t.amount || 0), 0);
+      const totalRefunds = refunds.reduce((a, t) => a + (t.amount || 0), 0);
+      const totalInc = inc.reduce((a, i) => a + (i.amount || 0), 0);
+      const net = totalInc - (totalSpent - totalRefunds);
+
+      ctx += `=== ${month} ===\n`;
+      ctx += `Income: $${totalInc.toFixed(2)} | Spent: $${totalSpent.toFixed(2)} | Refunds: $${totalRefunds.toFixed(2)} | Net: ${net >= 0 ? "+" : ""}$${net.toFixed(2)}\n`;
+
+      if (inc.length) {
+        ctx += `Income sources: ${inc.map(i => i.source + " $" + (i.amount || 0).toFixed(2)).join(", ")}\n`;
+      }
+
+      // Spending by envelope
+      const byEnv = {};
+      spending.forEach(t => { byEnv[t.envelopeId] = (byEnv[t.envelopeId] || 0) + (t.amount || 0); });
+      ctx += "By category:\n";
+      FINANCE_ENVELOPES_DEFAULT.forEach(e => {
+        if (!byEnv[e.id]) return;
+        const budget = envs.find(ev => ev.id === e.id)?.allocated || 0;
+        const pct = budget > 0 ? Math.round((byEnv[e.id] / budget) * 100) + "% of budget" : "no budget set";
+        ctx += `  ${e.icon} ${e.name}: $${byEnv[e.id].toFixed(2)}${budget > 0 ? " / $" + budget.toFixed(0) + " (" + pct + ")" : ""}\n`;
+      });
+
+      // Sub-category breakdown for food (most granular)
+      const foodTxns = spending.filter(t => t.envelopeId === "food_drink" && t.subCat);
+      if (foodTxns.length) {
+        const bySub = {};
+        foodTxns.forEach(t => { bySub[t.subCat] = (bySub[t.subCat] || 0) + (t.amount || 0); });
+        ctx += `  Food breakdown: ${Object.entries(bySub).sort((a,b) => b[1]-a[1]).map(([k,v]) => k + " $" + v.toFixed(0)).join(", ")}\n`;
+      }
+
+      // Top 5 merchants
+      const byMerchant = {};
+      spending.forEach(t => {
+        const key = extractMerchantName(t.desc || t.card || "Unknown");
+        byMerchant[key] = (byMerchant[key] || 0) + (t.amount || 0);
+      });
+      const top5 = Object.entries(byMerchant).sort((a,b) => b[1]-a[1]).slice(0, 5);
+      if (top5.length) ctx += `Top merchants: ${top5.map(([k,v]) => k + " $" + v.toFixed(0)).join(", ")}\n`;
+      ctx += "\n";
+    }
+
+    return ctx;
+  };
+
+  const handleGenerateReport = async () => {
+    if (!window.__claude_api_key) { setCoachReport("No Claude API key — add it in \u2699 Settings."); return; }
+    setCoachLoading(true); setCoachReport("");
+    try {
+      const ctx = await buildFinanceContext();
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 45000);
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", signal: controller.signal,
+        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-sonnet-4-5-20251001", max_tokens: 1024,
+          messages: [{ role: "user", content: `You are a personal financial coach for Ryan and Sabrina Persaud (a Canadian couple). Analyze their spending data and write a concise Monthly Financial Brief.
+
+${ctx}
+
+Write a brief with these sections (use plain text, NO markdown headers, use emoji for visual structure):
+📊 SNAPSHOT — 2-3 sentences on overall financial health this month vs last month
+🔥 WATCH OUT — 2-3 biggest spending concerns with specific dollar amounts
+✅ WINS — 1-2 things they did well
+💡 RECOMMENDATIONS — 3-4 specific, actionable steps with dollar targets
+📈 TREND — 1 sentence on the 3-month trajectory
+
+Be direct, specific (use their real numbers), and conversational. Not a list of generic tips — real advice based on their actual data.` }] })
+      });
+      const data = await res.json();
+      setCoachReport(data.content?.[0]?.text || "Could not generate report.");
+    } catch(err) {
+      setCoachReport(err.name === "AbortError" ? "Timed out — try again." : "Error: " + err.message);
+    }
+    setCoachLoading(false);
+  };
+
+  const handleChatSend = async () => {
+    const msg = chatInput.trim();
+    if (!msg || chatLoading) return;
+    if (!window.__claude_api_key) { setChatMessages(m => [...m, { role: "assistant", content: "No Claude API key — add it in \u2699 Settings." }]); return; }
+    const newMessages = [...chatMessages, { role: "user", content: msg }];
+    setChatMessages(newMessages); setChatInput(""); setChatLoading(true);
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    try {
+      const ctx = await buildFinanceContext();
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 30000);
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", signal: controller.signal,
+        headers: { "Content-Type": "application/json", "x-api-key": window.__claude_api_key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001", max_tokens: 512,
+          system: `You are a financial coach for Ryan and Sabrina Persaud. Answer questions about their finances using ONLY the data below. Be specific with numbers, direct, and helpful. No generic advice — only what their data supports.\n\n${ctx}`,
+          messages: newMessages.slice(-8).map(m => ({ role: m.role, content: m.content }))
+        })
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "No response.";
+      setChatMessages(m => [...m, { role: "assistant", content: reply }]);
+    } catch(err) {
+      setChatMessages(m => [...m, { role: "assistant", content: err.name === "AbortError" ? "Timed out — try again." : "Error: " + err.message }]);
+    }
+    setChatLoading(false);
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  };
+
   const handleAddSubCat = async (envelopeId, newSubCat) => {
     const existing = customSubCats[envelopeId] || [];
     if (existing.includes(newSubCat)) return;
@@ -16218,6 +16353,7 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
       tabBtn("transactions", "TRANSACTIONS", "#60a5fa"),
       tabBtn("income",       "INCOME",       "#4ade80"),
       tabBtn("summary",      "SUMMARY",      "#f4a823"),
+      tabBtn("coach",        "COACH",        "#fb923c"),
       tabBtn("import",       "IMPORT",       "#a78bfa"),
       /*#__PURE__*/React.createElement("button", {
         onClick: () => { setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" }); setShowRulesTable(true); },
@@ -16424,6 +16560,85 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
         /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-secondary)", fontWeight: 700 } }, "NET CASH FLOW"),
         /*#__PURE__*/React.createElement("span", { style: { fontSize: 16, fontWeight: 800, color: netCashFlow >= 0 ? "#4ade80" : "#ef4444", fontFamily: "'Syne',sans-serif" } }, (netCashFlow >= 0 ? "+" : "") + fmt(netCashFlow))
       )
+    ),
+
+    // ── COACH VIEW ──────────────────────────────────────────────────────
+    view === "coach" && /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 16 } },
+
+      // ── Monthly Brief ──
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(251,146,60,.06)", border: "1px solid rgba(251,146,60,.2)", borderRadius: 16, padding: "18px 16px" } },
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: coachReport ? 14 : 0 } },
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 13, color: "#fb923c", margin: 0, letterSpacing: ".05em" } }, "📊 MONTHLY BRIEF"),
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "3px 0 0" } }, "AI analysis of your last 3 months")
+          ),
+          /*#__PURE__*/React.createElement("button", {
+            onClick: handleGenerateReport, disabled: coachLoading,
+            style: { padding: "9px 18px", background: coachLoading ? "rgba(251,146,60,.3)" : "#fb923c", border: "none", borderRadius: 10, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: coachLoading ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", flexShrink: 0 }
+          }, coachLoading ? "Analysing\u2026" : coachReport ? "Refresh" : "Generate")
+        ),
+        coachReport && /*#__PURE__*/React.createElement("div", { style: { fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap" } }, coachReport)
+      ),
+
+      // ── Chat divider ──
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+        /*#__PURE__*/React.createElement("div", { style: { flex: 1, height: 1, background: "rgba(255,255,255,.06)" } }),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".06em", margin: 0 } }, "ASK YOUR COACH"),
+        /*#__PURE__*/React.createElement("div", { style: { flex: 1, height: 1, background: "rgba(255,255,255,.06)" } })
+      ),
+
+      // ── Suggested questions ──
+      chatMessages.length === 0 && /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
+        [
+          "Where am I overspending this month?",
+          "How does my food spending compare to last month?",
+          "What\u2019s my biggest expense category?",
+          "Am I spending more or less than I earn?",
+          "Where can I cut back to save $200/month?"
+        ].map(q => /*#__PURE__*/React.createElement("button", {
+          key: q, onClick: () => { setChatInput(q); },
+          style: { textAlign: "left", padding: "10px 14px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 12, cursor: "pointer" }
+        }, q))
+      ),
+
+      // ── Chat messages ──
+      chatMessages.length > 0 && /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, maxHeight: 400, overflowY: "auto", padding: "4px 0" } },
+        chatMessages.map((m, i) => /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" } },
+          /*#__PURE__*/React.createElement("div", {
+            style: {
+              maxWidth: "85%", padding: "10px 14px", borderRadius: m.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+              background: m.role === "user" ? "rgba(251,146,60,.18)" : "rgba(255,255,255,.05)",
+              border: m.role === "user" ? "1px solid rgba(251,146,60,.3)" : "1px solid rgba(255,255,255,.08)",
+              fontSize: 13, color: "var(--text-primary)", lineHeight: 1.6, whiteSpace: "pre-wrap"
+            }
+          }, m.content)
+        )),
+        chatLoading && /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "flex-start" } },
+          /*#__PURE__*/React.createElement("div", { style: { padding: "10px 14px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: "14px 14px 14px 4px", fontSize: 13, color: "var(--text-muted)" } }, "Thinking\u2026")
+        ),
+        /*#__PURE__*/React.createElement("div", { ref: chatEndRef })
+      ),
+
+      // ── Chat input ──
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, position: "sticky", bottom: 0, background: "#080b11", paddingBottom: 4 } },
+        /*#__PURE__*/React.createElement("input", {
+          value: chatInput,
+          onChange: e => setChatInput(e.target.value),
+          onKeyDown: e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleChatSend(); } },
+          placeholder: "Ask about your finances\u2026",
+          style: { flex: 1, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, padding: "11px 14px", color: "var(--text-primary)", fontSize: 13, outline: "none" }
+        }),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: handleChatSend, disabled: chatLoading || !chatInput.trim(),
+          style: { padding: "11px 18px", background: chatInput.trim() ? "#fb923c" : "rgba(255,255,255,.06)", border: "none", borderRadius: 12, color: chatInput.trim() ? "#080b11" : "var(--text-muted)", fontSize: 13, fontWeight: 800, cursor: chatInput.trim() ? "pointer" : "default", fontFamily: "'Syne',sans-serif", transition: "all .2s" }
+        }, "\u2191")
+      ),
+
+      // Clear chat button
+      chatMessages.length > 0 && /*#__PURE__*/React.createElement("button", {
+        onClick: () => setChatMessages([]),
+        style: { alignSelf: "center", background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", textDecoration: "underline" }
+      }, "Clear conversation")
     ),
 
     // ── IMPORT VIEW ─────────────────────────────────────────────────────
