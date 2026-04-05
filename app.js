@@ -16507,7 +16507,18 @@ Return exactly ${rawRows.length} objects. No markdown.`;
         headers: { "Content-Type": "application/json", "anthropic-version": "2023-06-01" },
         body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 8192, messages: [{ role: "user", content: prompt }] })
       });
-      const data = await res.json();
+      const rawText = await res.text();
+      let data;
+      try { data = JSON.parse(rawText); } catch(jsonErr) {
+        if (rawText.trim().startsWith("<")) {
+          setImportMsg("Error: Netlify function not reachable — ANTHROPIC_API_KEY is probably not set. Go to Netlify \u2192 Site configuration \u2192 Environment variables, add ANTHROPIC_API_KEY, then trigger a redeploy.");
+        } else {
+          setImportMsg("Error: Unexpected server response — " + rawText.slice(0, 120));
+        }
+        setCardParsing(false);
+        if (cardFileRef.current) cardFileRef.current.value = "";
+        return;
+      }
 
       // Surface Netlify / API errors clearly
       if (data.error || data.type === "error") {
