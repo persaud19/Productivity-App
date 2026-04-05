@@ -320,6 +320,7 @@ const KEYS = {
   mealLibrary: () => `ml:meal:library`,
   sabinaPrompts: () => `ml:sabrina:mealPrompts`,
   financeEnvelopes: month => `ml:finance:envelopes:${month}`,
+  financeDefaultEnvelopes: () => `ml:finance:envelopes:default`,
   financeTransactions: month => `ml:finance:txns:${month}`,
   financeAllMonths: () => `ml:finance:months`,
   financeRollover: month => `ml:finance:rollover:${month}`,
@@ -16096,9 +16097,11 @@ function FinanceTab({ settings }) {
     const rollover = await DB.get(KEYS.financeRollover(month));
     const months = await DB.get(KEYS.financeAllMonths());
 
-    // Merge saved allocations with defaults
+    // If this month has no saved allocations, fall back to the default budget template
+    const defaultEnvs = (!saved || !saved.length) ? (await DB.get(KEYS.financeDefaultEnvelopes()) || []) : [];
+    const sourceEnvs = (saved && saved.length) ? saved : defaultEnvs;
     const baseEnvelopes = FINANCE_ENVELOPES_DEFAULT.map(def => {
-      const s = saved?.find(e => e.id === def.id);
+      const s = sourceEnvs.find(e => e.id === def.id);
       return { ...def, allocated: s?.allocated ?? 0 };
     });
     const incomeData = await DB.get(KEYS.financeIncome(month));
@@ -16119,6 +16122,11 @@ function FinanceTab({ settings }) {
   const saveEnvelopes = async (updated) => {
     setEnvelopes(updated);
     await DB.set(KEYS.financeEnvelopes(currentMonth), updated);
+  };
+
+  const setDefaultBudget = async () => {
+    await DB.set(KEYS.financeDefaultEnvelopes(), envelopes);
+    setImportMsg("Default budget saved — all months without a custom budget will now use these values.");
   };
 
   const handleImportCSV = async (e) => {
@@ -17035,6 +17043,12 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
         onClick: computeRollover,
         style: { background: "rgba(74,222,128,.1)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "#4ade80", fontWeight: 700, cursor: "pointer", marginBottom: 14 }
       }, "\u21A9 Pull rollover from " + monthLabel(allMonths.filter(m=>m<currentMonth).sort().pop())),
+
+      // Set as default budget button
+      totalAllocated > 0 && /*#__PURE__*/React.createElement("button", {
+        onClick: setDefaultBudget,
+        style: { background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "#a78bfa", fontWeight: 700, cursor: "pointer", marginBottom: 14, marginLeft: allMonths.some(m => m < currentMonth) ? 8 : 0 }
+      }, "\uD83D\uDCCC Set as Default Budget"),
 
       // Envelope list
       envelopes.map(env => {
