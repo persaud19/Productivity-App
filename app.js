@@ -180,7 +180,7 @@ const useUser = () => React.useContext(UserContext);
 const DB = (() => {
   // Firebase path helpers — convert key like "ml:log:2026-03-22" to "users/<uid>/ml/log/2026-03-22"
   // Shared household keys (food + chores) are routed to "households/<id>/..." when a household is active
-  const SHARED_KEY_PREFIXES = ["ml/food/", "ml/chores", "ml/reminders/joint", "ml/finance/"];
+  const SHARED_KEY_PREFIXES = ["ml/food/", "ml/chores", "ml/reminders/joint", "ml/finance/", "ml/mobility/"];
   const toPath = k => {
     const uid = window.__current_uid;
     const base = k.replace(/:/g, "/");
@@ -325,7 +325,9 @@ const KEYS = {
   financeRollover: month => `ml:finance:rollover:${month}`,
   financeIncome: month => `ml:finance:income:${month}`,
   merchantRules: () => `ml:finance:merchant_rules`,
-  customSubCats: () => `ml:finance:custom_subcats`
+  customSubCats: () => `ml:finance:custom_subcats`,
+  mobilityPool: () => `ml:mobility:pool`,
+  mobilityWeek: monday => `ml:mobility:week:${monday}`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1543,10 +1545,56 @@ function pickDailyExercises(date, all, n = 10) {
   }
   return picked;
 }
+// Returns the Monday date string (YYYY-MM-DD) for the week containing dateStr
+function getMondayOfWeek(dateStr) {
+  const d = new Date(dateStr + "T12:00:00");
+  const day = d.getDay(); // 0=Sun
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+// Returns "mon"/"tue"/"wed"/"thu"/"fri"/"sat"/"sun" for a date string
+function getDayKey(dateStr) {
+  return ["sun","mon","tue","wed","thu","fri","sat"][new Date(dateStr + "T12:00:00").getDay()];
+}
+
+// Generates a weekly plan: {mon:[id,...10], tue:[...], ...}
+// Uses a seeded shuffle so same Monday always produces the same plan
+// Different step offset per day guarantees no two days share the same set
+function generateWeeklyPlan(pool, mondayDate) {
+  if (!pool || pool.length < 1) return {};
+  const seedStr = mondayDate.replace(/-/g, "");
+  let s = seedStr.split("").reduce((a, c) => ((a * 31) + c.charCodeAt(0)) >>> 0, 7);
+  const rand = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0x100000000; };
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const days = ["mon","tue","wed","thu","fri","sat","sun"];
+  const n = shuffled.length;
+  const step = Math.max(1, Math.floor(n / 7));
+  const plan = {};
+  days.forEach((day, dayIdx) => {
+    const start = (dayIdx * step) % n;
+    const picked = [], used = new Set();
+    let pos = start, attempts = 0;
+    while (picked.length < Math.min(10, n) && attempts < n * 2) {
+      const ex = shuffled[pos % n];
+      if (!used.has(ex.id)) { picked.push(ex.id); used.add(ex.id); }
+      pos++; attempts++;
+    }
+    plan[day] = picked;
+  });
+  return plan;
+}
+
 function MobilityChecklist({
   checked,
   setChecked,
-  dailyList
+  dailyList,
+  onManagePool
 }) {
   const [tipOpen, setTipOpen] = useState(null);
   const done = dailyList.filter(e => checked[e.id]).length;
@@ -1568,13 +1616,12 @@ function MobilityChecklist({
       color: done === 10 ? "#4ade80" : done >= 5 ? "#f4a823" : "var(--text-secondary)",
       background: done === 10 ? "rgba(74,222,128,.12)" : done >= 5 ? "rgba(244,168,35,.1)" : "var(--card-bg-3)"
     }
-  }, done === 10 ? "DONE ✓" : `${done}/10`)), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-muted)",
-      fontSize: 10,
-      margin: "0 0 8px"
-    }
-  }, "Zone-balanced \xB7 Fresh selection every day"), /*#__PURE__*/React.createElement("div", {
+  }, done === 10 ? "DONE ✓" : `${done}/10`)), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }
+  },
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, "Weekly plan \xB7 No two days the same"),
+    onManagePool && /*#__PURE__*/React.createElement("button", { onClick: onManagePool, style: { background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 6, padding: "3px 9px", color: "var(--text-muted)", fontSize: 10, cursor: "pointer" } }, "\u2699\uFE0F Pool")
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
@@ -2110,7 +2157,60 @@ function Morning({
   const [backfillDate, setBackfillDate] = useState(getPrevDay());
   const [busy, setBusy] = useState(false);
   const [ok, setOk] = useState(false);
-  const dailyList = pickDailyExercises(getToday(), ALL_EXERCISES, 10);
+  const [mobilityPool, setMobilityPool] = useState(ALL_EXERCISES);
+  const [weekPlan, setWeekPlan] = useState(null);
+  const [mobLoading, setMobLoading] = useState(true);
+  const [showPoolManager, setShowPoolManager] = useState(false);
+  const [poolForm, setPoolForm] = useState({ name: "", zone: "full", reps: "", tip: "" });
+
+  // Load pool + generate/fetch weekly plan
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setMobLoading(true);
+      const poolData = await DB.get(KEYS.mobilityPool());
+      const pool = Array.isArray(poolData) && poolData.length ? poolData : ALL_EXERCISES;
+      const monday = getMondayOfWeek(getToday());
+      let plan = await DB.get(KEYS.mobilityWeek(monday));
+      if (!plan || !plan.mon || !plan.mon.length) {
+        plan = generateWeeklyPlan(pool, monday);
+        await DB.set(KEYS.mobilityWeek(monday), plan);
+      }
+      if (!cancelled) { setMobilityPool(pool); setWeekPlan(plan); setMobLoading(false); }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleAddPoolExercise = async () => {
+    if (!poolForm.name.trim()) return;
+    const newEx = { id: "custom_" + Date.now(), name: poolForm.name.trim(), zone: poolForm.zone, reps: poolForm.reps.trim() || "10 reps", tip: poolForm.tip.trim() || "" };
+    const updated = [...mobilityPool, newEx];
+    setMobilityPool(updated);
+    await DB.set(KEYS.mobilityPool(), updated);
+    setPoolForm({ name: "", zone: "full", reps: "", tip: "" });
+  };
+
+  const handleDeletePoolExercise = async (id) => {
+    const updated = mobilityPool.filter(e => e.id !== id);
+    setMobilityPool(updated);
+    await DB.set(KEYS.mobilityPool(), updated);
+  };
+
+  const handleResetPool = async () => {
+    setMobilityPool(ALL_EXERCISES);
+    await DB.set(KEYS.mobilityPool(), ALL_EXERCISES);
+    // Regenerate this week's plan with the reset pool
+    const monday = getMondayOfWeek(getToday());
+    const plan = generateWeeklyPlan(ALL_EXERCISES, monday);
+    setWeekPlan(plan);
+    await DB.set(KEYS.mobilityWeek(monday), plan);
+  };
+
+  // Today's exercise objects from the week plan
+  const todayDayKey = getDayKey(getToday());
+  const todayIds = weekPlan?.[todayDayKey] || [];
+  const dailyList = todayIds.map(id => mobilityPool.find(e => e.id === id)).filter(Boolean);
   const mobDone = dailyList.filter(e => mobility[e.id]).length;
   const gap = wt ? (parseFloat(wt) - (settings?.weightGoal || 180)).toFixed(1) : null;
   const stepGoal = settings?.stepGoal || 10000;
@@ -2528,12 +2628,65 @@ function Morning({
       }
     }))
   }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(MobilityChecklist, {
-      checked: mobility,
-      setChecked: setMobility,
-      dailyList: dailyList
-    })
-  }), /*#__PURE__*/React.createElement("button", {
+    ch: mobLoading
+      ? /*#__PURE__*/React.createElement("div", { style: { padding: "16px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 12 } }, "Loading mobility plan\u2026")
+      : /*#__PURE__*/React.createElement(MobilityChecklist, {
+          checked: mobility,
+          setChecked: setMobility,
+          dailyList: dailyList,
+          onManagePool: () => setShowPoolManager(true)
+        })
+  }),
+
+  // Pool Manager Modal
+  showPoolManager && /*#__PURE__*/React.createElement(React.Fragment, null,
+    /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 300 }, onClick: () => setShowPoolManager(false) }),
+    /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "#080b11", zIndex: 301, display: "flex", flexDirection: "column" } },
+      // Header
+      /*#__PURE__*/React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 } },
+        /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#f4a823", margin: 0 } }, "MOBILITY POOL"),
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0" } }, mobilityPool.length + " exercises \xB7 shared with household \xB7 " + Math.ceil(mobilityPool.length / 7) + "x coverage/week")
+        ),
+        /*#__PURE__*/React.createElement("button", { onClick: () => setShowPoolManager(false), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 22, cursor: "pointer", lineHeight: 1 } }, "\xD7")
+      ),
+      // Add new exercise form
+      /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", background: "rgba(244,168,35,.04)", flexShrink: 0 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#f4a823", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "ADD EXERCISE"),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
+          /*#__PURE__*/React.createElement("input", { placeholder: "Exercise name *", value: poolForm.name, onChange: e => setPoolForm(f => ({ ...f, name: e.target.value })), onKeyDown: e => e.key === "Enter" && handleAddPoolExercise(), style: { flex: "2 1 140px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+          /*#__PURE__*/React.createElement("select", { value: poolForm.zone, onChange: e => setPoolForm(f => ({ ...f, zone: e.target.value })), style: { flex: "1 1 90px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 6px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
+            Object.keys(ZONE_COLORS).map(z => /*#__PURE__*/React.createElement("option", { key: z, value: z }, z.charAt(0).toUpperCase() + z.slice(1)))
+          ),
+          /*#__PURE__*/React.createElement("input", { placeholder: "Reps/time (e.g. 10 reps)", value: poolForm.reps, onChange: e => setPoolForm(f => ({ ...f, reps: e.target.value })), style: { flex: "1 1 110px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+          /*#__PURE__*/React.createElement("input", { placeholder: "Tip (optional)", value: poolForm.tip, onChange: e => setPoolForm(f => ({ ...f, tip: e.target.value })), style: { flex: "2 1 140px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+          /*#__PURE__*/React.createElement("button", { onClick: handleAddPoolExercise, style: { padding: "7px 16px", background: "#f4a823", border: "none", borderRadius: 7, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
+        )
+      ),
+      // Exercise list
+      /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "0 0 60px" } },
+        mobilityPool.map(ex => {
+          const zc = ZONE_COLORS[ex.zone] || "#555";
+          return /*#__PURE__*/React.createElement("div", { key: ex.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+            /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+              /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 7 } },
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: 0, fontWeight: 500 } }, ex.name),
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, fontWeight: 700, background: zc + "22", color: zc, borderRadius: 4, padding: "1px 5px", letterSpacing: ".04em", textTransform: "uppercase" } }, ex.zone)
+              ),
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "2px 0 0" } }, ex.reps + (ex.tip ? " \xB7 " + ex.tip : ""))
+            ),
+            /*#__PURE__*/React.createElement("button", { onClick: () => handleDeletePoolExercise(ex.id), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 18, cursor: "pointer", padding: "0 4px", flexShrink: 0 } }, "\xD7")
+          );
+        })
+      ),
+      // Footer: reset button
+      /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderTop: "1px solid rgba(255,255,255,.06)", flexShrink: 0 } },
+        /*#__PURE__*/React.createElement("button", { onClick: () => { if (window.confirm("Reset pool to the 50 default exercises? This will also regenerate this week\u2019s plan.")) handleResetPool(); }, style: { background: "transparent", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "8px 16px", color: "#ef4444", fontSize: 11, cursor: "pointer" } }, "Reset to defaults (50 exercises)")
+      )
+    )
+  ),
+
+  /*#__PURE__*/React.createElement("button", {
     onClick: go,
     disabled: busy,
     style: {
