@@ -16370,6 +16370,45 @@ function FinanceTab({ settings }) {
     }).join(",")).join("\n");
   };
 
+  // Parse our normalised CSV (with header row) into raw row objects — used for stable txnId generation
+  const parseNormCsvRows = (csvText) => {
+    const lines = csvText.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const splitLine = line => {
+      const cols = []; let cur = "", inQ = false;
+      for (const ch of line) {
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { cols.push(cur); cur = ""; }
+        else { cur += ch; }
+      }
+      cols.push(cur);
+      return cols.map(c => c.trim().replace(/^"|"$/g, ""));
+    };
+    const hdr = splitLine(lines[0]);
+    const di  = hdr.findIndex(h => /^date$/i.test(h));
+    const ni  = hdr.findIndex(h => /^desc/i.test(h));
+    const ai  = hdr.findIndex(h => /^amount$/i.test(h));
+    const dbi = hdr.findIndex(h => /^debit$/i.test(h));
+    const cri = hdr.findIndex(h => /^credit$/i.test(h));
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const c = splitLine(lines[i]);
+      const date    = c[di >= 0 ? di : 0] || "";
+      const rawDesc = (c[ni >= 0 ? ni : 1] || "").replace(/^REFUND:\s*/i, "");
+      const isRefund = (c[ni >= 0 ? ni : 1] || "").toUpperCase().startsWith("REFUND:");
+      let amount = 0;
+      if (ai >= 0) {
+        amount = Math.abs(parseFloat(c[ai]) || 0);
+      } else {
+        const deb = parseFloat(c[dbi] || "") || 0;
+        const cred = parseFloat(c[cri] || "") || 0;
+        amount = deb > 0 ? deb : cred;
+      }
+      if (date && amount > 0) rows.push({ date, rawDesc, amount, isRefund });
+    }
+    return rows;
+  };
+
   const handleCardCSV = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -16414,48 +16453,52 @@ function FinanceTab({ settings }) {
           }
         }
       }
-      const rows = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 300).join("\n");
+      // Parse our normalised CSV into raw rows — IDs will be built from these, not from Claude output
+      const rawRows = parseNormCsvRows(text).slice(0, 300);
+      if (!rawRows.length) { setImportMsg("Could not parse any transactions from the file — check the format."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+
       const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(env => `  ${env.id}: ${env.name}`).join("\n");
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 60000);
 
+      // Build a simple numbered list for Claude — categorization only, no extraction needed
+      const txnList = rawRows.map((r, i) => `${i}: ${r.date} | ${r.rawDesc}${r.isRefund ? " [REFUND]" : ""} | $${r.amount}`).join("\n");
+
       let prompt;
       if (importMode === "bank_statement") {
-        prompt = `Parse this bank statement CSV. Classify every row as INCOME, EXPENSE, or SKIP.
+        prompt = `Classify each bank transaction as INCOME, EXPENSE, or SKIP.
 
-INCOME: deposits, direct deposits, payroll, e-transfers received, interest, government payments, refunds deposited.
-EXPENSE: withdrawals/debits that are NOT credit card payments. This includes: utilities (hydro, water, gas bill), property tax, mortgage/rent, insurance paid from bank, subscriptions billed directly to bank account.
-SKIP: any row that is a payment to a credit card (Amex, TD Visa, CIBC, PC Financial, Mastercard, Visa Payment, Credit Card Payment, etc.) — these are already captured in CC imports.
+INCOME: deposits, e-transfers received, payroll, government benefits (EI/CPP), interest.
+EXPENSE: utility bills (hydro, gas, water), mortgage, property tax, insurance, subscriptions billed from bank. Do NOT include credit card payments.
+SKIP: credit card bill payments (any row paying Visa/Amex/Mastercard/CIBC/TD), inter-account transfers, service charges/fees.
 
-CSV content:
-${rows}
+Transactions:
+${txnList}
 
-Return ONLY this JSON object — no markdown, no explanation:
-{
-  "income": [{"date":"YYYY-MM-DD","amount":1234.56,"desc":"RAW DESCRIPTION","source":"inferred source name e.g. Ryan Persaud Payroll"}],
-  "expenses": [{"date":"YYYY-MM-DD","amount":45.99,"desc":"RAW DESCRIPTION","envelopeId":"best_match","subCat":""}]
-}
-
-Envelope categories for expenses:
+Return a JSON array — one entry per row, same order, no extras:
+[{"idx":0,"type":"INCOME","envelopeId":"","subCat":"","source":"Payroll"}, ...]
+- idx: row number from list above
+- type: INCOME | EXPENSE | SKIP
+- envelopeId: from list below (EXPENSE only, else "")
+- source: for INCOME, infer a short source name (e.g. "Ryan Persaud Payroll", "EI Benefit")
+- subCat: short sub-category or ""
+Envelopes:
 ${envelopeList}
-
-Rules: amount is always positive. Property tax → household. Hydro/water/gas bill → subscriptions/Utilities. Mortgage → subscriptions. Insurance → subscriptions.`;
+Return exactly ${rawRows.length} objects. No markdown.`;
       } else {
-        prompt = `Parse this credit card CSV statement. Extract all purchase transactions. Skip any balance payments, transfers between accounts, or credit card payment rows.
+        prompt = `Categorize each credit card transaction. Do NOT change descriptions or amounts — only assign envelope + subCat.
 
-CSV content:
-${rows}
+Transactions:
+${txnList}
 
-Return ALL transactions as a JSON array. No markdown, no explanation — only the array.
-Envelope categories to assign (pick best match):
+Return a JSON array — one entry per row, same order:
+[{"idx":0,"envelopeId":"food_drink","subCat":"Coffee"}, ...]
+- idx: row number from list above
+- envelopeId: best match from list below
+- subCat: short sub-category (e.g. Coffee, Gas, Grocery) or ""
+Envelopes:
 ${envelopeList}
-
-Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":false,"envelopeId":"food_drink","subCat":""}]
-- date: ISO format
-- amount: positive number in CAD dollars
-- isRefund: true only if this is a credit/refund back to the account
-- envelopeId: one of the IDs listed above
-- subCat: best guess sub-category (e.g. Coffee, Gas, Fast Food, Grocery) or empty string`;
+Return exactly ${rawRows.length} objects. No markdown.`;
       }
 
       const res = await fetch("/api/claude", {
@@ -16481,21 +16524,34 @@ Format: [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","isRefund":f
       const stripFences = str => { const m = str.match(/```(?:json)?\s*([\s\S]*?)```/); return m ? m[1].trim() : str.trim(); };
       const srcLabel = file.name.replace(/\.(csv|xlsx?|txt)$/i, "");
 
+      const cleaned = stripFences(reply);
+      const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+      if (!arrMatch) { setImportMsg("Could not parse Claude response — " + reply.slice(0, 120)); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+      const cats = JSON.parse(arrMatch[0]);
+      // Build a map from idx → category so order mismatches don't matter
+      const catMap = {};
+      cats.forEach(c => { if (c.idx != null) catMap[c.idx] = c; });
+
       if (importMode === "bank_statement") {
-        const cleaned = stripFences(reply);
-        const objMatch = cleaned.match(/\{[\s\S]*\}/);
-        if (!objMatch) { setImportMsg("Could not parse bank statement — Claude returned: " + reply.slice(0, 120)); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
-        const parsed = JSON.parse(objMatch[0]);
-        const expenses = (parsed.expenses || []).map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: txnId("bexp", t.date, t.amount, t.desc), card: "Bank", isRefund: false, category: "Bank", highlevel: "" }));
-        const incItems = (parsed.income || []).map(t => ({ id: txnId("binc", t.date, t.amount, t.desc || t.source), date: t.date, month: (t.date || "").slice(0, 7), amount: t.amount, source: t.source || t.desc || "Bank Deposit", type: "other", desc: t.desc }));
+        const expenses = [], incItems = [];
+        rawRows.forEach((r, i) => {
+          const cat = catMap[i] || cats[i] || {};
+          if (!cat.type || cat.type === "SKIP") return;
+          if (cat.type === "INCOME") {
+            incItems.push({ id: txnId("binc", r.date, r.amount, r.rawDesc), date: r.date, month: r.date.slice(0, 7), amount: r.amount, source: cat.source || r.rawDesc, type: "other", desc: r.rawDesc });
+          } else if (cat.type === "EXPENSE") {
+            expenses.push({ date: r.date, amount: r.amount, desc: r.rawDesc, month: r.date.slice(0, 7), id: txnId("bexp", r.date, r.amount, r.rawDesc), card: "Bank", isRefund: false, envelopeId: cat.envelopeId || "other", subCat: cat.subCat || "", category: "Bank", highlevel: "" });
+          }
+        });
+        if (!expenses.length && !incItems.length) { setImportMsg("No transactions classified — try re-importing or check the file format."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
         setCardResults({ mode: "bank_statement", expenses, income: incItems, label: srcLabel });
       } else {
-        const cleaned = stripFences(reply);
-        const arrMatch = cleaned.match(/\[[\s\S]*\]/);
-        if (!arrMatch) { setImportMsg("Could not find transactions — Claude returned: " + reply.slice(0, 120)); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
-        const parsed = JSON.parse(arrMatch[0]);
-        if (!parsed.length) { setImportMsg("No transactions found in file — check that the correct import mode is selected."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
-        setCardResults({ mode: "credit_card", expenses: parsed.map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: txnId("cc", t.date, t.amount, t.desc), card: srcLabel, category: srcLabel, subCat: t.subCat || "", highlevel: "" })), income: [], label: srcLabel });
+        const expenses = rawRows.map((r, i) => {
+          const cat = catMap[i] || cats[i] || {};
+          return { date: r.date, amount: r.amount, desc: r.rawDesc, isRefund: r.isRefund, month: r.date.slice(0, 7), id: txnId("cc", r.date, r.amount, r.rawDesc), card: srcLabel, category: srcLabel, envelopeId: cat.envelopeId || "other", subCat: cat.subCat || "", highlevel: "" };
+        });
+        if (!expenses.length) { setImportMsg("No transactions found in file."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+        setCardResults({ mode: "credit_card", expenses, income: [], label: srcLabel });
       }
     } catch(err) {
       setImportMsg(err.name === "AbortError" ? "Timed out — try splitting into smaller date ranges." : "Parse failed: " + err.message);
