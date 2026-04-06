@@ -2174,11 +2174,13 @@ function Morning({
   onSave,
   settings,
   onMilestone,
-  allLogs
+  allLogs,
+  initialDate,
+  onInitialDateConsumed
 }) {
   const allLogsArr = allLogs || [];
-  const [histDate, setHistDate] = useState(getToday());
-  const [view, setView] = useState("log"); // "log" | "history"
+  const [histDate, setHistDate] = useState(initialDate || getToday());
+  const [view, setView] = useState(initialDate && initialDate !== getToday() ? "history" : "log"); // "log" | "history"
   const [histLog, setHistLog] = useState(null);
   const isHistory = view === "history";
   const ex = isHistory ? histLog && histLog.morning || {} : todayLog?.morning || {};
@@ -4922,11 +4924,13 @@ function Evening({
   reminders,
   jointReminders,
   mealLog,
-  macroTargets
+  macroTargets,
+  initialDate,
+  onInitialDateConsumed
 }) {
   const allLogsArr = allLogs || [];
-  const [view, setView] = useState("log");
-  const [histDate, setHistDate] = useState(getToday());
+  const [view, setView] = useState(initialDate && initialDate !== getToday() ? "history" : "log");
+  const [histDate, setHistDate] = useState(initialDate || getToday());
   const [histLog, setHistLog] = useState(null);
   useEffect(() => {
     if (view === "history") {
@@ -14442,7 +14446,8 @@ function Home({
 function DayDetailView({
   date,
   log,
-  onClose
+  onClose,
+  onEditLog
 }) {
   const [section, setSection] = useState("morning"); // morning | evening | both
   const m = log?.morning || {};
@@ -14552,19 +14557,16 @@ function DayDetailView({
       fontSize: 10,
       margin: 0
     }
-  }, "Read-only log entry")), /*#__PURE__*/React.createElement("button", {
-    onClick: onClose,
-    style: {
-      padding: "7px 14px",
-      background: "var(--card-bg-2)",
-      border: "1px solid rgba(255,255,255,.1)",
-      color: "#9ca3af",
-      borderRadius: 9,
-      fontSize: 12,
-      cursor: "pointer",
-      fontWeight: 700
-    }
-  }, "\u2190 Back")), /*#__PURE__*/React.createElement("div", {
+  }, "Log entry")), /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center" } },
+    onEditLog && /*#__PURE__*/React.createElement("button", {
+      onClick: () => { onEditLog(date, section === "both" ? "morning" : section); onClose(); },
+      style: { padding: "7px 12px", background: "rgba(244,168,35,.15)", border: "1px solid rgba(244,168,35,.3)", color: "#f4a823", borderRadius: 9, fontSize: 12, cursor: "pointer", fontWeight: 700 }
+    }, "\u270F\uFE0F Edit"),
+    /*#__PURE__*/React.createElement("button", {
+      onClick: onClose,
+      style: { padding: "7px 14px", background: "var(--card-bg-2)", border: "1px solid rgba(255,255,255,.1)", color: "#9ca3af", borderRadius: 9, fontSize: 12, cursor: "pointer", fontWeight: 700 }
+    }, "\u2190 Back")
+  )), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 6
@@ -14965,7 +14967,8 @@ function DayDetailView({
 function HistoryBrowser({
   allLogs,
   allSundays,
-  settings
+  settings,
+  onEditLog
 }) {
   const [view, setView] = useState("calendar"); // calendar | sundays | insights
   const [selectedDate, setSelectedDate] = useState(null);
@@ -15065,10 +15068,8 @@ function HistoryBrowser({
     return /*#__PURE__*/React.createElement(DayDetailView, {
       date: selectedDate,
       log: detailLog,
-      onClose: () => {
-        setSelectedDate(null);
-        setDetailLog(null);
-      }
+      onClose: () => { setSelectedDate(null); setDetailLog(null); },
+      onEditLog: onEditLog
     });
   }
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -18042,6 +18043,7 @@ function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [goals, setGoals] = useState(DEFAULT_GOALS);
   const [tab, setTab] = useState("morning");
+  const [editLogDate, setEditLogDate] = useState(null); // {date, section} when navigating to edit a past log
   const [todayLog, setTodayLog] = useState(null);
   const [allLogs, setAllLogs] = useState([]);
   const [allSundays, setAllSundays] = useState([]);
@@ -18541,7 +18543,9 @@ function App() {
     onSave: loadAll,
     settings: settings,
     onMilestone: handleMilestone,
-    allLogs: allLogs
+    allLogs: allLogs,
+    initialDate: editLogDate?.section === "morning" ? editLogDate.date : null,
+    onInitialDateConsumed: () => setEditLogDate(null)
   }), tab === "train" && /*#__PURE__*/React.createElement(Train, {
     todayLog: todayLog,
     onSave: loadAll,
@@ -18555,7 +18559,9 @@ function App() {
     reminders: reminders,
     jointReminders: jointReminders,
     mealLog: todayMealLog,
-    macroTargets: macroTargets
+    macroTargets: macroTargets,
+    initialDate: editLogDate?.section === "evening" ? editLogDate.date : null,
+    onInitialDateConsumed: () => setEditLogDate(null)
   }), tab === "food" && /*#__PURE__*/React.createElement(FoodTab, {
     uid: settings.uid || "ryan",
     partnerUid: settings.partnerUid || "sabrina",
@@ -18588,7 +18594,8 @@ function App() {
   }), tab === "history" && /*#__PURE__*/React.createElement(HistoryBrowser, {
     allLogs: allLogs,
     allSundays: allSundays,
-    settings: settings
+    settings: settings,
+    onEditLog: (date, section) => { setEditLogDate({ date, section }); setTab(section === "evening" ? "evening" : "morning"); }
   }), tab === "finance" && /*#__PURE__*/React.createElement(FinanceTab, {
     settings: settings
   })), /*#__PURE__*/React.createElement("button", {
