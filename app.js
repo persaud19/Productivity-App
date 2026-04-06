@@ -16061,6 +16061,7 @@ function FinanceTab({ settings }) {
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState("");
   const [editingEnvelope, setEditingEnvelope] = useState(null);
+  const [drillEnvelope, setDrillEnvelope] = useState(null); // envelope id being drilled into
   const [scanning, setScanning] = useState(false);
   const [scanResults, setScanResults] = useState(null);
   const [showAddTxn, setShowAddTxn] = useState(false);
@@ -17065,10 +17066,14 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           style: { background: over ? "rgba(239,68,68,.06)" : "rgba(255,255,255,.03)", border: `1px solid ${over ? "rgba(239,68,68,.25)" : "rgba(255,255,255,.07)"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 10 }
         },
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
-            /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+            /*#__PURE__*/React.createElement("div", {
+              style: { display: "flex", alignItems: "center", gap: 8, cursor: spent > 0 ? "pointer" : "default", flex: 1 },
+              onClick: () => spent > 0 && setDrillEnvelope(drillEnvelope === env.id ? null : env.id)
+            },
               /*#__PURE__*/React.createElement("span", { style: { fontSize: 16 } }, env.icon),
               /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 600 } }, env.name),
-              rollover > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "#4ade80", fontWeight: 700, background: "rgba(74,222,128,.12)", borderRadius: 4, padding: "1px 5px" } }, "+" + fmt(rollover))
+              rollover > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "#4ade80", fontWeight: 700, background: "rgba(74,222,128,.12)", borderRadius: 4, padding: "1px 5px" } }, "+" + fmt(rollover)),
+              spent > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "var(--text-muted)", marginLeft: 2 } }, drillEnvelope === env.id ? "▲" : "▼")
             ),
             /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
               isEditing
@@ -17103,6 +17108,21 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           effective > 0 && /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 4 } },
             /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Spent: " + fmt(spent)),
             /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Budget: " + fmt(effective))
+          ),
+          // Drill-down: transactions for this envelope
+          drillEnvelope === env.id && /*#__PURE__*/React.createElement("div", { style: { marginTop: 10, borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: 10 } },
+            [...transactions].filter(t => t.envelopeId === env.id && !t.isRefund).sort((a,b) => b.date.localeCompare(a.date)).map((t, i) => /*#__PURE__*/React.createElement("div", {
+              key: t.id || i,
+              style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)", cursor: "pointer" },
+              onClick: e => { e.stopPropagation(); setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }
+            },
+              /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-primary)", margin: "0 0 1px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc || t.category),
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 9, color: "var(--text-muted)", margin: 0 } }, t.date + (t.subCat ? " \xB7 " + t.subCat : "") + " \xB7 " + t.card)
+              ),
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-primary)", flexShrink: 0, paddingLeft: 8 } }, "-" + fmt(t.amount))
+            )),
+            transactions.filter(t => t.envelopeId === env.id && !t.isRefund).length === 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, "No transactions yet")
           )
         );
       })
