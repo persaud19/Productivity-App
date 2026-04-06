@@ -16062,6 +16062,7 @@ function FinanceTab({ settings }) {
   const [importMsg, setImportMsg] = useState("");
   const [editingEnvelope, setEditingEnvelope] = useState(null);
   const [drillEnvelope, setDrillEnvelope] = useState(null); // envelope id being drilled into
+  const [txnFilter, setTxnFilter] = useState({ card: "", envelopeId: "", sort: "date_desc" });
   const [scanning, setScanning] = useState(false);
   const [scanResults, setScanResults] = useState(null);
   const [showAddTxn, setShowAddTxn] = useState(false);
@@ -17136,27 +17137,76 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
             /*#__PURE__*/React.createElement("button", { onClick: () => setView("import"), style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "8px 18px", color: "#a78bfa", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "Import CSV")
           )
         : /*#__PURE__*/React.createElement("div", null,
-            /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 } },
-              /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, transactions.length + " transactions \xB7 " + transactions.filter(t=>t.isRefund).length + " refunds"),
+            // ── Filter + sort bar ──
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" } },
+              /*#__PURE__*/React.createElement("select", {
+                value: txnFilter.card,
+                onChange: e => setTxnFilter(f => ({ ...f, card: e.target.value })),
+                style: { flex: 1, minWidth: 100, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "6px 8px", color: "var(--text-secondary)", fontSize: 11, outline: "none", colorScheme: "dark" }
+              },
+                /*#__PURE__*/React.createElement("option", { value: "" }, "All Cards"),
+                [...new Set(transactions.map(t => t.card).filter(Boolean))].sort().map(c => /*#__PURE__*/React.createElement("option", { key: c, value: c }, c))
+              ),
+              /*#__PURE__*/React.createElement("select", {
+                value: txnFilter.envelopeId,
+                onChange: e => setTxnFilter(f => ({ ...f, envelopeId: e.target.value })),
+                style: { flex: 1, minWidth: 110, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "6px 8px", color: "var(--text-secondary)", fontSize: 11, outline: "none", colorScheme: "dark" }
+              },
+                /*#__PURE__*/React.createElement("option", { value: "" }, "All Categories"),
+                FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+              ),
+              /*#__PURE__*/React.createElement("select", {
+                value: txnFilter.sort,
+                onChange: e => setTxnFilter(f => ({ ...f, sort: e.target.value })),
+                style: { flex: 1, minWidth: 110, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "6px 8px", color: "var(--text-secondary)", fontSize: 11, outline: "none", colorScheme: "dark" }
+              },
+                /*#__PURE__*/React.createElement("option", { value: "date_desc" }, "Date \u2193 Newest"),
+                /*#__PURE__*/React.createElement("option", { value: "date_asc" }, "Date \u2191 Oldest"),
+                /*#__PURE__*/React.createElement("option", { value: "alpha_asc" }, "A \u2192 Z"),
+                /*#__PURE__*/React.createElement("option", { value: "alpha_desc" }, "Z \u2192 A"),
+                /*#__PURE__*/React.createElement("option", { value: "amount_desc" }, "Amount \u2193 Highest"),
+                /*#__PURE__*/React.createElement("option", { value: "amount_asc" }, "Amount \u2191 Lowest")
+              )
+            ),
+            // ── Count + import ──
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 } },
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, (() => {
+                const filtered = transactions.filter(t => (!txnFilter.card || t.card === txnFilter.card) && (!txnFilter.envelopeId || t.envelopeId === txnFilter.envelopeId));
+                return filtered.length + " transaction" + (filtered.length !== 1 ? "s" : "") + (txnFilter.card || txnFilter.envelopeId ? " (filtered)" : " \xB7 " + transactions.filter(t=>t.isRefund).length + " refunds");
+              })()),
               /*#__PURE__*/React.createElement("button", { onClick: () => setView("import"), style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 6, padding: "4px 10px", color: "#a78bfa", fontSize: 10, fontWeight: 700, cursor: "pointer" } }, "\u2B06 Import more")
             ),
-            [...transactions].sort((a,b) => b.date.localeCompare(a.date)).map((t, i) => {
-              const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
-              return /*#__PURE__*/React.createElement("div", {
-                key: t.id || i,
-                style: { display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10, marginBottom: 6 }
-              },
-                /*#__PURE__*/React.createElement("span", { style: { fontSize: 18, flexShrink: 0, marginTop: 1 } }, env?.icon || "📋"),
-                /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-                  /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc || t.category),
-                  /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + t.card + " \xB7 " + (env?.name || t.category))
-                ),
-                /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 } },
-                  /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)" } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount))),
-                  /*#__PURE__*/React.createElement("button", { onClick: () => { setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }, style: { fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" } }, "edit")
-                )
-              );
-            })
+            // ── Transaction rows ──
+            (() => {
+              const sortFns = {
+                date_desc: (a,b) => b.date.localeCompare(a.date),
+                date_asc:  (a,b) => a.date.localeCompare(b.date),
+                alpha_asc: (a,b) => (a.desc||"").localeCompare(b.desc||""),
+                alpha_desc:(a,b) => (b.desc||"").localeCompare(a.desc||""),
+                amount_desc:(a,b) => b.amount - a.amount,
+                amount_asc: (a,b) => a.amount - b.amount,
+              };
+              const visible = [...transactions]
+                .filter(t => (!txnFilter.card || t.card === txnFilter.card) && (!txnFilter.envelopeId || t.envelopeId === txnFilter.envelopeId))
+                .sort(sortFns[txnFilter.sort] || sortFns.date_desc);
+              return visible.map((t, i) => {
+                const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
+                return /*#__PURE__*/React.createElement("div", {
+                  key: t.id || i,
+                  style: { display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10, marginBottom: 6 }
+                },
+                  /*#__PURE__*/React.createElement("span", { style: { fontSize: 18, flexShrink: 0, marginTop: 1 } }, env?.icon || "📋"),
+                  /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                    /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc || t.category),
+                    /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + t.card + " \xB7 " + (env?.name || t.category) + (t.subCat ? " \xB7 " + t.subCat : ""))
+                  ),
+                  /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 } },
+                    /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)" } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount))),
+                    /*#__PURE__*/React.createElement("button", { onClick: () => { setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }, style: { fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" } }, "edit")
+                  )
+                );
+              });
+            })()
           )
     ),
 
