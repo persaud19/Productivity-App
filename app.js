@@ -2671,64 +2671,7 @@ function Morning({
         fontSize: 13
       }
     }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: mobLoading
-      ? /*#__PURE__*/React.createElement("div", { style: { padding: "16px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 12 } }, "Loading mobility plan\u2026")
-      : /*#__PURE__*/React.createElement(MobilityChecklist, {
-          checked: mobility,
-          setChecked: setMobility,
-          dailyList: dailyList,
-          onManagePool: () => setShowPoolManager(true)
-        })
   }),
-
-  // Pool Manager Modal
-  showPoolManager && /*#__PURE__*/React.createElement(React.Fragment, null,
-    /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 300 }, onClick: () => setShowPoolManager(false) }),
-    /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "#080b11", zIndex: 301, display: "flex", flexDirection: "column" } },
-      // Header
-      /*#__PURE__*/React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 } },
-        /*#__PURE__*/React.createElement("div", null,
-          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#f4a823", margin: 0 } }, "MOBILITY POOL"),
-          /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0" } }, mobilityPool.length + " exercises \xB7 shared with household \xB7 " + Math.ceil(mobilityPool.length / 7) + "x coverage/week")
-        ),
-        /*#__PURE__*/React.createElement("button", { onClick: () => setShowPoolManager(false), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 22, cursor: "pointer", lineHeight: 1 } }, "\xD7")
-      ),
-      // Add new exercise form
-      /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", background: "rgba(244,168,35,.04)", flexShrink: 0 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#f4a823", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "ADD EXERCISE"),
-        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
-          /*#__PURE__*/React.createElement("input", { placeholder: "Exercise name *", value: poolForm.name, onChange: e => setPoolForm(f => ({ ...f, name: e.target.value })), onKeyDown: e => e.key === "Enter" && handleAddPoolExercise(), style: { flex: "2 1 140px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
-          /*#__PURE__*/React.createElement("select", { value: poolForm.zone, onChange: e => setPoolForm(f => ({ ...f, zone: e.target.value })), style: { flex: "1 1 90px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 6px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
-            Object.keys(ZONE_COLORS).map(z => /*#__PURE__*/React.createElement("option", { key: z, value: z }, z.charAt(0).toUpperCase() + z.slice(1)))
-          ),
-          /*#__PURE__*/React.createElement("input", { placeholder: "Reps/time (e.g. 10 reps)", value: poolForm.reps, onChange: e => setPoolForm(f => ({ ...f, reps: e.target.value })), style: { flex: "1 1 110px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
-          /*#__PURE__*/React.createElement("input", { placeholder: "Tip (optional)", value: poolForm.tip, onChange: e => setPoolForm(f => ({ ...f, tip: e.target.value })), style: { flex: "2 1 140px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
-          /*#__PURE__*/React.createElement("button", { onClick: handleAddPoolExercise, style: { padding: "7px 16px", background: "#f4a823", border: "none", borderRadius: 7, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
-        )
-      ),
-      // Exercise list
-      /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "0 0 60px" } },
-        mobilityPool.map(ex => {
-          const zc = ZONE_COLORS[ex.zone] || "#555";
-          return /*#__PURE__*/React.createElement("div", { key: ex.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,.04)" } },
-            /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-              /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 7 } },
-                /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: 0, fontWeight: 500 } }, ex.name),
-                /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, fontWeight: 700, background: zc + "22", color: zc, borderRadius: 4, padding: "1px 5px", letterSpacing: ".04em", textTransform: "uppercase" } }, ex.zone)
-              ),
-              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "2px 0 0" } }, ex.reps + (ex.tip ? " \xB7 " + ex.tip : ""))
-            ),
-            /*#__PURE__*/React.createElement("button", { onClick: () => handleDeletePoolExercise(ex.id), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 18, cursor: "pointer", padding: "0 4px", flexShrink: 0 } }, "\xD7")
-          );
-        })
-      ),
-      // Footer: reset button
-      /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderTop: "1px solid rgba(255,255,255,.06)", flexShrink: 0 } },
-        /*#__PURE__*/React.createElement("button", { onClick: () => { if (window.confirm("Reset pool to the 50 default exercises? This will also regenerate this week\u2019s plan.")) handleResetPool(); }, style: { background: "transparent", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "8px 16px", color: "#ef4444", fontSize: 11, cursor: "pointer" } }, "Reset to defaults (50 exercises)")
-      )
-    )
-  ),
 
   /*#__PURE__*/React.createElement("button", {
     onClick: go,
@@ -2747,6 +2690,189 @@ function Morning({
       letterSpacing: ".05em"
     }
   }, busy ? "SAVING..." : "LOG MORNING →"))));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEALTH SCORECARD — calorie in vs out banner shown at top of all Health tabs
+// ─────────────────────────────────────────────────────────────────────────────
+function HealthScorecard({ todayLog, todayMealLog, macroTargets }) {
+  const [trainHistory, setTrainHistory] = useState([]);
+  useEffect(() => {
+    DB.get(KEYS.trainHistory()).then(h => setTrainHistory(Array.isArray(h) ? h : []));
+  }, []);
+
+  // Calories IN — from today's meal log
+  const slots = ["breakfast", "lunch", "dinner"];
+  let calIn = 0;
+  if (todayMealLog) {
+    slots.forEach(s => { if (todayMealLog[s]) calIn += todayMealLog[s].calories || 0; });
+    (todayMealLog.snacks || []).forEach(s => { calIn += s.calories || 0; });
+  }
+
+  // Calories BURNED — today's train sessions (walk has explicit calories; strength/cardio use estimates)
+  const today = getToday();
+  const todaySessions = trainHistory.filter(s => s.date === today);
+  const calBurned = todaySessions.reduce((sum, s) => {
+    if (s.calories) return sum + s.calories;
+    if (s.type === "strength") return sum + 280; // avg 45-min strength session
+    if (s.type === "cardio") return sum + 350;   // avg cardio session
+    return sum;
+  }, 0);
+
+  // BMR estimate from morning weight if available (rough 2000 baseline)
+  const bmr = macroTargets?.calories || 2000;
+  const tdee = bmr + calBurned;
+  const net = calIn - tdee;
+  const isDeficit = net <= 0;
+
+  // Only show if there's some data to display
+  if (calIn === 0 && calBurned === 0) return null;
+
+  const pct = tdee > 0 ? Math.min(100, Math.round(calIn / tdee * 100)) : 0;
+  const barColor = isDeficit ? "#4ade80" : "#ef4444";
+
+  return /*#__PURE__*/React.createElement("div", {
+    style: { background: isDeficit ? "rgba(74,222,128,.07)" : "rgba(239,68,68,.07)", border: `1px solid ${isDeficit ? "rgba(74,222,128,.2)" : "rgba(239,68,68,.2)"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16 }
+  },
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+      /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: barColor, letterSpacing: ".07em", margin: 0 } }, "TODAY'S CALORIE BALANCE"),
+      /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, fontWeight: 800, color: barColor, margin: 0 } }, (isDeficit ? "" : "+") + net.toFixed(0) + " kcal")
+    ),
+    /*#__PURE__*/React.createElement("div", { style: { height: 7, background: "rgba(255,255,255,.07)", borderRadius: 4, overflow: "hidden", marginBottom: 8 } },
+      /*#__PURE__*/React.createElement("div", { style: { width: pct + "%", height: "100%", background: barColor, borderRadius: 4, transition: "width .3s" } })
+    ),
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between" } },
+      /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } },
+        "\uD83C\uDF7D " + (calIn > 0 ? calIn + " kcal in" : "No meals logged")
+      ),
+      /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } },
+        "\uD83D\uDD25 " + tdee + " kcal out" + (calBurned > 0 ? " (" + calBurned + " exercise)" : " (BMR only)")
+      )
+    )
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MOBILITY TAB — standalone tab for Health section
+// ─────────────────────────────────────────────────────────────────────────────
+function MobilityTab({ todayLog, onSave }) {
+  const [mobility, setMobilityState] = useState({});
+  const [mobilityPool, setMobilityPool] = useState(ALL_EXERCISES);
+  const [weekPlan, setWeekPlan] = useState(null);
+  const [mobLoading, setMobLoading] = useState(true);
+  const [showPoolManager, setShowPoolManager] = useState(false);
+  const [poolForm, setPoolForm] = useState({ name: "", zone: "full", reps: "", tip: "" });
+
+  useEffect(() => {
+    const load = async () => {
+      setMobLoading(true);
+      const poolData = await DB.get(KEYS.mobilityPool());
+      const pool = Array.isArray(poolData) && poolData.length ? poolData : ALL_EXERCISES;
+      const monday = getMondayOfWeek(getToday());
+      let plan = await DB.get(KEYS.mobilityWeek(monday));
+      if (!plan) { plan = generateWeeklyPlan(pool, monday); await DB.set(KEYS.mobilityWeek(monday), plan); }
+      const logData = await DB.get(KEYS.log(getToday()));
+      setMobility(logData?.morning?.mobilityChecked || {});
+      setMobilityPool(pool);
+      setWeekPlan(plan);
+      setMobLoading(false);
+    };
+    load();
+  }, []);
+
+  const setMobility = async (updated) => {
+    setMobilityState(typeof updated === "function" ? updated(mobility) : updated);
+    const checked = typeof updated === "function" ? updated(mobility) : updated;
+    const todayDayKey = getDayKey(getToday());
+    const todayIds = weekPlan?.[todayDayKey] || [];
+    const dailyList = todayIds.map(id => mobilityPool.find(e => e.id === id)).filter(Boolean);
+    const mobDone = dailyList.filter(e => checked[e.id]).length;
+    const existing = (await DB.get(KEYS.log(getToday()))) || {};
+    await DB.set(KEYS.log(getToday()), { ...existing, morning: { ...(existing.morning || {}), mobilityChecked: checked, mobilityCount: mobDone } });
+    onSave && onSave();
+  };
+
+  const handleAddPoolExercise = async () => {
+    if (!poolForm.name.trim()) return;
+    const newEx = { id: "custom_" + Date.now(), name: poolForm.name.trim(), zone: poolForm.zone, reps: poolForm.reps.trim() || "10 reps", tip: poolForm.tip.trim() || "" };
+    const updated = [...mobilityPool, newEx];
+    setMobilityPool(updated);
+    await DB.set(KEYS.mobilityPool(), updated);
+    setPoolForm({ name: "", zone: "full", reps: "", tip: "" });
+  };
+
+  const handleDeletePoolExercise = async (id) => {
+    const updated = mobilityPool.filter(e => e.id !== id);
+    setMobilityPool(updated);
+    await DB.set(KEYS.mobilityPool(), updated);
+  };
+
+  const handleResetPool = async () => {
+    setMobilityPool(ALL_EXERCISES);
+    await DB.set(KEYS.mobilityPool(), ALL_EXERCISES);
+    const monday = getMondayOfWeek(getToday());
+    const plan = generateWeeklyPlan(ALL_EXERCISES, monday);
+    setWeekPlan(plan);
+    await DB.set(KEYS.mobilityWeek(monday), plan);
+  };
+
+  const todayDayKey = getDayKey(getToday());
+  const todayIds = weekPlan?.[todayDayKey] || [];
+  const dailyList = todayIds.map(id => mobilityPool.find(e => e.id === id)).filter(Boolean);
+  const mobDone = dailyList.filter(e => mobility[e.id]).length;
+
+  return /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement(SectionHead, { label: "Mobility", color: "#a78bfa" }),
+    /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px 13px" } }, fmtMid(getToday()) + " \xB7 " + mobDone + "/10 done"),
+    /*#__PURE__*/React.createElement(Card, {
+      ch: mobLoading
+        ? /*#__PURE__*/React.createElement("div", { style: { padding: "16px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 12 } }, "Loading mobility plan\u2026")
+        : /*#__PURE__*/React.createElement(MobilityChecklist, { checked: mobility, setChecked: setMobility, dailyList: dailyList, onManagePool: () => setShowPoolManager(true) })
+    }),
+    // Pool Manager Modal
+    showPoolManager && /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 300 }, onClick: () => setShowPoolManager(false) }),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "#080b11", zIndex: 301, display: "flex", flexDirection: "column" } },
+        /*#__PURE__*/React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 } },
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#a78bfa", margin: 0 } }, "MOBILITY POOL"),
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0" } }, mobilityPool.length + " exercises \xB7 " + Math.ceil(mobilityPool.length / 7) + "x coverage/week")
+          ),
+          /*#__PURE__*/React.createElement("button", { onClick: () => setShowPoolManager(false), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 22, cursor: "pointer", lineHeight: 1 } }, "\xD7")
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", background: "rgba(167,139,250,.04)", flexShrink: 0 } },
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#a78bfa", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "ADD EXERCISE"),
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
+            /*#__PURE__*/React.createElement("input", { placeholder: "Exercise name *", value: poolForm.name, onChange: e => setPoolForm(f => ({ ...f, name: e.target.value })), onKeyDown: e => e.key === "Enter" && handleAddPoolExercise(), style: { flex: "2 1 140px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+            /*#__PURE__*/React.createElement("select", { value: poolForm.zone, onChange: e => setPoolForm(f => ({ ...f, zone: e.target.value })), style: { flex: "1 1 90px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 6px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
+              Object.keys(ZONE_COLORS).map(z => /*#__PURE__*/React.createElement("option", { key: z, value: z }, z.charAt(0).toUpperCase() + z.slice(1)))
+            ),
+            /*#__PURE__*/React.createElement("input", { placeholder: "Reps/time", value: poolForm.reps, onChange: e => setPoolForm(f => ({ ...f, reps: e.target.value })), style: { flex: "1 1 110px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+            /*#__PURE__*/React.createElement("input", { placeholder: "Tip (optional)", value: poolForm.tip, onChange: e => setPoolForm(f => ({ ...f, tip: e.target.value })), style: { flex: "2 1 140px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+            /*#__PURE__*/React.createElement("button", { onClick: handleAddPoolExercise, style: { padding: "7px 16px", background: "#a78bfa", border: "none", borderRadius: 7, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
+          )
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "0 0 60px" } },
+          mobilityPool.map(ex => {
+            const zc = ZONE_COLORS[ex.zone] || "#555";
+            return /*#__PURE__*/React.createElement("div", { key: ex.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+              /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 7 } },
+                  /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: 0, fontWeight: 500 } }, ex.name),
+                  /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, fontWeight: 700, background: zc + "22", color: zc, borderRadius: 4, padding: "1px 5px", letterSpacing: ".04em", textTransform: "uppercase" } }, ex.zone)
+                ),
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "2px 0 0" } }, ex.reps + (ex.tip ? " \xB7 " + ex.tip : ""))
+              ),
+              /*#__PURE__*/React.createElement("button", { onClick: () => handleDeletePoolExercise(ex.id), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 18, cursor: "pointer", padding: "0 4px", flexShrink: 0 } }, "\xD7")
+            );
+          })
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderTop: "1px solid rgba(255,255,255,.06)", flexShrink: 0 } },
+          /*#__PURE__*/React.createElement("button", { onClick: () => { if (window.confirm("Reset to 50 default exercises?")) handleResetPool(); }, style: { background: "transparent", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "8px 16px", color: "#ef4444", fontSize: 11, cursor: "pointer" } }, "Reset to defaults (50 exercises)")
+        )
+      )
+    )
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18263,6 +18389,10 @@ function App() {
       id: "food",
       l: "FOOD",
       c: "#4ade80"
+    }, {
+      id: "mobility",
+      l: "MOBILITY",
+      c: "#a78bfa"
     }]
   }, {
     id: "home",
@@ -18538,7 +18668,11 @@ function App() {
     style: {
       padding: "20px 20px 80px"
     }
-  }, tab === "morning" && /*#__PURE__*/React.createElement(Morning, {
+  }, activeSection.id === "health" && /*#__PURE__*/React.createElement(HealthScorecard, {
+    todayLog: todayLog,
+    todayMealLog: todayMealLog,
+    macroTargets: macroTargets
+  }), tab === "morning" && /*#__PURE__*/React.createElement(Morning, {
     todayLog: todayLog,
     onSave: loadAll,
     settings: settings,
@@ -18550,6 +18684,9 @@ function App() {
     todayLog: todayLog,
     onSave: loadAll,
     settings: settings
+  }), tab === "mobility" && /*#__PURE__*/React.createElement(MobilityTab, {
+    todayLog: todayLog,
+    onSave: loadAll
   }), tab === "evening" && /*#__PURE__*/React.createElement(Evening, {
     todayLog: todayLog,
     onSave: loadAll,
