@@ -17171,9 +17171,19 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
   const fmt = n => "$" + Math.abs(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
   // ── Render ──────────────────────────────────────────────────────────────
-  const tabBtn = (id, label, col) => /*#__PURE__*/React.createElement("button", {
+  // Derive active main tab from view
+  const finTab = ["envelopes","transactions","income"].includes(view) ? "budget"
+    : ["summary","coach"].includes(view) ? "insights"
+    : "import";
+
+  const mainTabBtn = (id, label, col, defaultView) => /*#__PURE__*/React.createElement("button", {
+    onClick: () => { if (finTab !== id) setView(defaultView); },
+    style: { flex: 1, padding: "12px 0", border: "none", background: finTab === id ? `rgba(${col},0.12)` : "transparent", cursor: "pointer", fontSize: 11, fontWeight: finTab === id ? 800 : 500, fontFamily: "'Syne',sans-serif", letterSpacing: ".06em", color: finTab === id ? `rgb(${col})` : "#6b7585", borderBottom: `2px solid ${finTab === id ? `rgb(${col})` : "transparent"}`, whiteSpace: "nowrap", transition: "all .15s" }
+  }, label);
+
+  const subTabBtn = (id, label, col) => /*#__PURE__*/React.createElement("button", {
     onClick: () => setView(id),
-    style: { flexShrink: 0, padding: "10px 14px", border: "none", background: "transparent", cursor: "pointer", fontSize: 10, fontWeight: view === id ? 800 : 500, fontFamily: "'Syne',sans-serif", letterSpacing: ".06em", color: view === id ? col : "#c8d0dc", borderBottom: `2px solid ${view === id ? col : "transparent"}`, whiteSpace: "nowrap" }
+    style: { padding: "6px 14px", border: `1px solid ${view === id ? col : "rgba(255,255,255,.08)"}`, background: view === id ? `${col}18` : "transparent", borderRadius: 20, cursor: "pointer", fontSize: 11, fontWeight: view === id ? 700 : 400, color: view === id ? col : "var(--text-muted)", whiteSpace: "nowrap", transition: "all .15s" }
   }, label);
 
   if (loading) return /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: 13 } }, "Loading...");
@@ -17198,18 +17208,31 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       )
     ),
 
-    // Sub-tabs
-    /*#__PURE__*/React.createElement("div", { style: { display: "flex", overflowX: "auto", borderBottom: "1px solid rgba(255,255,255,.06)", marginBottom: 16, scrollbarWidth: "none" } },
-      tabBtn("envelopes",    "ENVELOPES",    "#34d399"),
-      tabBtn("transactions", "TRANSACTIONS", "#60a5fa"),
-      tabBtn("income",       "INCOME",       "#4ade80"),
-      tabBtn("summary",      "SUMMARY",      "#f4a823"),
-      tabBtn("coach",        "COACH",        "#fb923c"),
-      tabBtn("import",       "IMPORT",       "#a78bfa"),
-      /*#__PURE__*/React.createElement("button", {
-        onClick: () => { setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" }); setShowRulesTable(true); },
-        style: { flexShrink: 0, padding: "10px 14px", background: "transparent", border: "none", borderBottom: "2px solid transparent", color: "#a78bfa", fontSize: 10, fontWeight: 700, letterSpacing: ".06em", cursor: "pointer", whiteSpace: "nowrap" }
-      }, "⚡ RULES")
+    // Main tabs (3 consolidated)
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", borderBottom: "1px solid rgba(255,255,255,.06)", marginBottom: 12 } },
+      mainTabBtn("budget",   "💰 BUDGET",   "52,211,153",  "envelopes"),
+      mainTabBtn("insights", "📊 INSIGHTS", "251,146,60",  "summary"),
+      mainTabBtn("import",   "📥 IMPORT",   "167,139,250", "import")
+    ),
+
+    // Secondary nav row
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", marginBottom: 16, paddingBottom: 2 } },
+      finTab === "budget" && /*#__PURE__*/React.createElement(React.Fragment, null,
+        subTabBtn("envelopes",    "Envelopes",    "#34d399"),
+        subTabBtn("transactions", "Transactions", "#60a5fa"),
+        subTabBtn("income",       "Income",       "#4ade80")
+      ),
+      finTab === "insights" && /*#__PURE__*/React.createElement(React.Fragment, null,
+        subTabBtn("summary", "Summary", "#f4a823"),
+        subTabBtn("coach",   "Coach",   "#fb923c")
+      ),
+      finTab === "import" && /*#__PURE__*/React.createElement(React.Fragment, null,
+        subTabBtn("import", "Import CSV", "#a78bfa"),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => { setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" }); setShowRulesTable(true); },
+          style: { padding: "6px 14px", border: "1px solid rgba(167,139,250,.25)", background: "transparent", borderRadius: 20, cursor: "pointer", fontSize: 11, fontWeight: 400, color: "var(--text-muted)", whiteSpace: "nowrap" }
+        }, "⚡ Rules")
+      )
     ),
 
     // ── ENVELOPES VIEW ──────────────────────────────────────────────────
