@@ -16208,6 +16208,8 @@ function FinanceTab({ settings }) {
   const [ruleForm, setRuleForm] = useState({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
   const [vaguePrompt, setVaguePrompt] = useState(null); // {txn, suggestions: [{label, envelopeId, subCat}]}
   const [editTxnForm, setEditTxnForm] = useState({ envelopeId: "other", subCat: "" });
+  const [editingIncome, setEditingIncome] = useState(null);
+  const [editIncomeForm, setEditIncomeForm] = useState({ source: "", amount: "", date: "", type: "other" });
   const [customSubCats, setCustomSubCats] = useState({});
   const [coachReport, setCoachReport] = useState("");
   const [coachLoading, setCoachLoading] = useState(false);
@@ -17054,6 +17056,50 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
     await DB.set(KEYS.financeIncome(currentMonth), updated);
   };
 
+  const handleEditIncome = async () => {
+    if (!editingIncome) return;
+    const amt = parseFloat(editIncomeForm.amount);
+    if (!editIncomeForm.source.trim() || isNaN(amt) || amt <= 0) return;
+    const updated = income.map(i => i.id === editingIncome.id
+      ? { ...i, source: editIncomeForm.source.trim(), amount: amt, date: editIncomeForm.date, month: editIncomeForm.date.slice(0, 7), type: editIncomeForm.type }
+      : i);
+    setIncome(updated);
+    await DB.set(KEYS.financeIncome(currentMonth), updated);
+    setEditingIncome(null);
+  };
+
+  // Move an income entry → transactions (user can then recategorize it)
+  const handleMoveIncomeToTxn = async () => {
+    if (!editingIncome) return;
+    if (!window.confirm("Move this entry to Transactions? It will appear as an uncategorized expense.")) return;
+    const inc = editingIncome;
+    const txn = { id: "moved_" + Date.now(), date: inc.date, month: inc.month || inc.date.slice(0, 7), amount: inc.amount, desc: inc.source, isRefund: false, card: "Bank", category: "Bank", envelopeId: "other", subCat: "", highlevel: "" };
+    const updInc = income.filter(i => i.id !== inc.id);
+    setIncome(updInc);
+    await DB.set(KEYS.financeIncome(currentMonth), updInc);
+    const existingTxns = await DB.get(KEYS.financeTransactions(txn.month)) || [];
+    await DB.set(KEYS.financeTransactions(txn.month), [...existingTxns, txn]);
+    setTransactions(prev => [...prev, txn]);
+    setEditingIncome(null);
+    setView("transactions");
+  };
+
+  // Move a transaction → income (e.g. a deposit miscategorized as expense)
+  const handleMoveTxnToIncome = async () => {
+    if (!editingTxn) return;
+    if (!window.confirm("Move this entry to Income?")) return;
+    const t = editingTxn;
+    const inc = { id: "moved_" + Date.now(), date: t.date, month: t.month || t.date.slice(0, 7), amount: t.amount, source: t.desc || "Income", type: "other", desc: t.desc || "" };
+    const updTxns = transactions.filter(x => x.id !== t.id);
+    setTransactions(updTxns);
+    await DB.set(KEYS.financeTransactions(t.month || currentMonth), updTxns);
+    const existingInc = await DB.get(KEYS.financeIncome(inc.month)) || [];
+    await DB.set(KEYS.financeIncome(inc.month), [...existingInc, inc]);
+    setIncome(prev => [...prev, inc]);
+    setEditingTxn(null);
+    setView("income");
+  };
+
   const handleAddTxn = async () => {
     const amt = parseFloat(addTxnForm.amount);
     if (!addTxnForm.desc.trim() || isNaN(amt) || amt <= 0) return;
@@ -17408,14 +17454,14 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       // Income entries list
       income.length === 0
         ? /*#__PURE__*/React.createElement("p", { style: { textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: "30px 0" } }, "No income logged for " + monthLabel(currentMonth) + ". Tap + ADD.")
-        : income.map(inc => /*#__PURE__*/React.createElement("div", { key: inc.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "rgba(74,222,128,.04)", border: "1px solid rgba(74,222,128,.12)", borderRadius: 10, marginBottom: 8 } },
+        : income.map(inc => /*#__PURE__*/React.createElement("div", { key: inc.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "rgba(74,222,128,.04)", border: "1px solid rgba(74,222,128,.12)", borderRadius: 10, marginBottom: 8, cursor: "pointer" }, onClick: () => { setEditingIncome(inc); setEditIncomeForm({ source: inc.source || "", amount: String(inc.amount || ""), date: inc.date || getToday(), type: inc.type || "other" }); } },
             /*#__PURE__*/React.createElement("div", null,
               /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 600 } }, inc.source),
-              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, inc.date + " \xB7 " + inc.type)
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, inc.date + " \xB7 " + (inc.type || "other"))
             ),
             /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
               /*#__PURE__*/React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "#4ade80" } }, "+" + fmt(inc.amount)),
-              /*#__PURE__*/React.createElement("button", { onClick: () => handleDeleteIncome(inc.id), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", lineHeight: 1 } }, "\xD7")
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px" } }, "edit")
             )
           )),
       // Net cash flow callout
@@ -17750,10 +17796,50 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setEditingTxn(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
         ),
+        /*#__PURE__*/React.createElement("button", { onClick: handleMoveTxnToIncome, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 9, color: "#4ade80", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Income"),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => { if (window.confirm("Delete this transaction? This cannot be undone.")) handleDeleteTxn(editingTxn); },
           style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 9, color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, "\uD83D\uDDD1 Delete Transaction")
+      )
+    ),
+
+    // ── Edit Income Modal ───────────────────────────────────────────────────
+    editingIncome && /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setEditingIncome(null) }),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#4ade80", margin: "0 0 16px" } }, "EDIT INCOME"),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SOURCE"),
+            /*#__PURE__*/React.createElement("input", { value: editIncomeForm.source, onChange: e => setEditIncomeForm(f => ({ ...f, source: e.target.value })), placeholder: "e.g. Ryan Salary, EI Benefit", style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" } })
+          ),
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+            /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "AMOUNT ($)"),
+              /*#__PURE__*/React.createElement("input", { type: "number", min: "0", step: "0.01", value: editIncomeForm.amount, onChange: e => setEditIncomeForm(f => ({ ...f, amount: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" } })
+            ),
+            /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "DATE"),
+              /*#__PURE__*/React.createElement("input", { type: "date", value: editIncomeForm.date, onChange: e => setEditIncomeForm(f => ({ ...f, date: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 13, outline: "none", colorScheme: "dark", boxSizing: "border-box" } })
+            )
+          ),
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CATEGORY"),
+            /*#__PURE__*/React.createElement("select", { value: editIncomeForm.type, onChange: e => setEditIncomeForm(f => ({ ...f, type: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 13, outline: "none", colorScheme: "dark" } },
+              [["salary","💼 Salary / Employment"],["freelance","🧑‍💻 Freelance"],["business","🏢 Business"],["investment","📈 Investment / Interest"],["government","🏛️ Government / EI / CPP"],["etransfer","📲 E-Transfer Received"],["rental","🏠 Rental Income"],["tax_refund","🧾 Tax Refund"],["other","📦 Other"]].map(([v, l]) => /*#__PURE__*/React.createElement("option", { key: v, value: v }, l))
+            )
+          )
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
+          /*#__PURE__*/React.createElement("button", { onClick: handleEditIncome, style: { flex: 1, padding: "12px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
+          /*#__PURE__*/React.createElement("button", { onClick: () => setEditingIncome(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
+        ),
+        /*#__PURE__*/React.createElement("button", { onClick: handleMoveIncomeToTxn, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 9, color: "#60a5fa", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Transactions"),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => { if (window.confirm("Delete this income entry? This cannot be undone.")) { handleDeleteIncome(editingIncome.id); setEditingIncome(null); } },
+          style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 9, color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, "\uD83D\uDDD1 Delete Income Entry")
       )
     ),
 
