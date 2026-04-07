@@ -16261,25 +16261,59 @@ function FinanceTab({ settings }) {
   const handleScanStatement = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setScanning(true); setScanResults(null); setImportMsg("");
+    setScanning(true); setScanResults(null); setImportMsg("Scanning image…");
     try {
       const base64 = await new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result.split(",")[1]); r.readAsDataURL(file); });
       const mediaType = file.type || "image/jpeg";
+      const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(e => `${e.id}: ${e.name}`).join(", ");
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 45000);
       const res = await fetch("/api/claude", {
         method: "POST", signal: controller.signal,
-        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 2000, messages: [{ role: "user", content: [
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 3000, messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-          { type: "text", text: "Extract all purchase transactions from this credit card statement. Ignore payment/balance rows.\nReturn ONLY a JSON array, no markdown:\n[{\"date\":\"YYYY-MM-DD\",\"amount\":45.99,\"desc\":\"MERCHANT\",\"card\":\"Amex\"}]\namount: positive number. card: Amex, TD Visa, CIBC, PC Financial, or Unknown." }
+          { type: "text", text: `Extract all purchase transactions from this statement screenshot. Ignore payment rows, balance rows, and totals.
+Return ONLY a JSON array, no markdown:
+[{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","card":"Amex","envelopeId":"food_drink","subCat":"Grocery"}]
+- amount: positive number
+- card: Amex, TD Visa, CIBC, PC Financial, or Unknown
+- envelopeId: best match from — ${envelopeList}
+- subCat: short sub-category (e.g. Grocery, Coffee, Gas) or ""` }
         ]}] })
       });
-      const data = await res.json();
+      const rawText = await res.text();
+      let data;
+      try { data = JSON.parse(rawText); } catch(e) {
+        setImportMsg(rawText.trim().startsWith("<") ? "Scan failed: Netlify function timed out — try again." : "Scan failed: Unexpected response.");
+        setScanning(false); return;
+      }
+      if (data.error || data.type === "error") {
+        setImportMsg("Scan failed: " + (data.error?.message || "API error"));
+        setScanning(false); return;
+      }
       const reply = data.content?.[0]?.text || "";
       const match = reply.match(/\[[\s\S]*\]/);
-      if (!match) { setImportMsg("No transactions found — try a clearer screenshot."); setScanning(false); return; }
+      if (!match) { setImportMsg("No transactions found in image — try a clearer screenshot."); setScanning(false); return; }
       const txns = JSON.parse(match[0]);
-      setScanResults(txns.map(t => ({ ...t, month: (t.date || "").slice(0, 7), id: txnId("scan", t.date, t.amount, t.desc), isRefund: false, category: "Scanned", subCat: "", highlevel: "", envelopeId: CSS_CATEGORY_MAP[t.desc?.toLowerCase()] || "other" })));
+      // Apply merchant rules as fallback for uncategorized entries
+      const applyRules = (desc, envelopeId) => {
+        if (envelopeId && envelopeId !== "other") return envelopeId;
+        const d = (desc || "").toLowerCase();
+        const rule = merchantRules.find(r => d.includes(r.keyword.toLowerCase()));
+        return rule ? rule.envelopeId : (envelopeId || "other");
+      };
+      setScanResults(txns.map(t => ({
+        ...t,
+        month: (t.date || "").slice(0, 7),
+        id: txnId("scan", t.date, t.amount, t.desc),
+        isRefund: false,
+        category: "Scanned",
+        highlevel: "",
+        envelopeId: applyRules(t.desc, t.envelopeId),
+        subCat: t.subCat || ""
+      })));
+      setImportMsg("");
     } catch(err) {
       setImportMsg(err.name === "AbortError" ? "Scan timed out — try a smaller/clearer image." : "Scan failed: " + err.message);
     }
