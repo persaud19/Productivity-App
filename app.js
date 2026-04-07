@@ -18167,7 +18167,7 @@ function App() {
   }, [userCtx?.uid]);
   const [setupDone, setSetupDone] = useState(null); // null=loading
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [goals, setGoals] = useState(DEFAULT_GOALS);
+  const [goals, setGoals] = useState([]);
   const [tab, setTab] = useState("morning");
   const [editLogDate, setEditLogDate] = useState(null); // {date, section} when navigating to edit a past log
   const [todayLog, setTodayLog] = useState(null);
