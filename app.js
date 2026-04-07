@@ -2772,7 +2772,7 @@ function MobilityTab({ todayLog, onSave }) {
       let plan = await DB.get(KEYS.mobilityWeek(monday));
       if (!plan) { plan = generateWeeklyPlan(pool, monday); await DB.set(KEYS.mobilityWeek(monday), plan); }
       const logData = await DB.get(KEYS.log(getToday()));
-      setMobility(logData?.morning?.mobilityChecked || {});
+      setMobilityState(logData?.morning?.mobilityChecked || {});
       setMobilityPool(pool);
       setWeekPlan(plan);
       setMobLoading(false);
@@ -18382,6 +18382,10 @@ function App() {
     label: "HEALTH",
     color: "#fb923c",
     tabs: [{
+      id: "mobility",
+      l: "MOBILITY",
+      c: "#a78bfa"
+    }, {
       id: "train",
       l: "TRAIN",
       c: "#fb923c"
@@ -18389,10 +18393,6 @@ function App() {
       id: "food",
       l: "FOOD",
       c: "#4ade80"
-    }, {
-      id: "mobility",
-      l: "MOBILITY",
-      c: "#a78bfa"
     }]
   }, {
     id: "home",
