@@ -5,6 +5,24 @@
 
 ---
 
+## Session Log Index
+
+> All session and weekly logs live in this folder. Upload whichever is most recent when starting a new Claude session.
+> Text files have no size constraint — log verbosely.
+
+| File | Period | Key Work |
+|------|--------|----------|
+| `weekly-log-2026-W15.md` | Apr 6–12 2026 | Finance overhaul, Goals bug, Mobility tab, Scorecard, code cleanup |
+| `session-log-2026-04-06.md` | Apr 6 2026 | Same detail as above — daily log for W15 Mon |
+
+### Logging Rules
+- **Daily log**: `session-log-YYYY-MM-DD.md` — created at end of each working day. Captures every change, bug, and decision made that day.
+- **Weekly log**: `weekly-log-YYYY-Www.md` (ISO week, e.g. W15) — compiled every Sunday. Aggregates all daily logs for the week into one file.
+- **This file** (`project-history.md`): Updated at the end of each week with a summary of what changed. The Session Log Index table above stays current.
+- **Git**: All three types committed to `dev` branch. Never auto-deploy — merge to `main` only on explicit "deploy" instruction.
+
+---
+
 ## Foundation (Initial Build)
 
 ### Auth & Infrastructure
