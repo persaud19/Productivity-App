@@ -16185,7 +16185,6 @@ function FinanceTab({ settings }) {
   const [rolloverIn, setRolloverIn] = useState({});
   const [allMonths, setAllMonths] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState("");
   const [editingEnvelope, setEditingEnvelope] = useState(null);
   const [drillEnvelope, setDrillEnvelope] = useState(null); // envelope id being drilled into
@@ -16217,7 +16216,6 @@ function FinanceTab({ settings }) {
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef(null);
-  const fileRef = useRef(null);
   const scanRef = useRef(null);
   const cardFileRef = useRef(null);
 
@@ -16258,44 +16256,6 @@ function FinanceTab({ settings }) {
   const setDefaultBudget = async () => {
     await DB.set(KEYS.financeDefaultEnvelopes(), envelopes);
     setImportMsg("Default budget saved — all months without a custom budget will now use these values.");
-  };
-
-  const handleImportCSV = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    setImportMsg("Parsing...");
-    try {
-      const text = await file.text();
-      const parsed = parseFinanceCSV(text);
-      // Group by month
-      const byMonth = {};
-      parsed.forEach(t => {
-        if (!byMonth[t.month]) byMonth[t.month] = [];
-        byMonth[t.month].push(t);
-      });
-      // Save each month's transactions
-      const monthList = Object.keys(byMonth).sort();
-      for (const m of monthList) {
-        const existing = await DB.get(KEYS.financeTransactions(m)) || [];
-        // Merge — deduplicate by id
-        const existingIds = new Set(existing.map(t => t.id));
-        const newTxns = byMonth[m].filter(t => !existingIds.has(t.id));
-        await DB.set(KEYS.financeTransactions(m), [...existing, ...newTxns]);
-      }
-      await DB.set(KEYS.financeAllMonths(), monthList);
-      setAllMonths(monthList);
-      // Reload current month
-      const curTxns = await DB.get(KEYS.financeTransactions(currentMonth));
-      setTransactions(Array.isArray(curTxns) ? curTxns : []);
-      setImportMsg(`Imported ${parsed.length} transactions across ${monthList.length} months.`);
-      setView("transactions");
-    } catch(err) {
-      setImportMsg("Import failed: " + err.message);
-    }
-    setImporting(false);
-    // Only auto-clear success messages — errors stay until dismissed
-    setTimeout(() => setImportMsg(m => m.startsWith("Import") ? "" : m), 8000);
   };
 
   const handleScanStatement = async (e) => {
@@ -17709,14 +17669,6 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           /*#__PURE__*/React.createElement("button", { onClick: confirmCardResults, style: { flex: 1, padding: "10px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Confirm & Save"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setCardResults(null), style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
         )
-      ),
-
-      // ── Master CSV (legacy) ──
-      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(167,139,250,.05)", border: "1px solid rgba(167,139,250,.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#a78bfa", letterSpacing: ".06em", margin: "0 0 4px" } }, "MASTER CSV"),
-        /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 10px" } }, "Legacy: Date, Credit Card, Amount, Category, Sub Category, Description, Highlevel"),
-        /*#__PURE__*/React.createElement("input", { ref: fileRef, type: "file", accept: ".csv", style: { display: "none" }, onChange: handleImportCSV }),
-        /*#__PURE__*/React.createElement("button", { onClick: () => fileRef.current?.click(), disabled: importing, style: { padding: "9px 18px", background: "#a78bfa", border: "none", borderRadius: 9, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: importing ? .6 : 1 } }, importing ? "Importing\u2026" : "Choose CSV File")
       ),
 
       // ── Screenshot scan ──
