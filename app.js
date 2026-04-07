@@ -17352,8 +17352,19 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
 
     // ── TRANSACTIONS VIEW ───────────────────────────────────────────────
     view === "transactions" && /*#__PURE__*/React.createElement("div", null,
+      // Add Cash / Add Expense buttons — always visible
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12 } },
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => { setAddTxnForm(f => ({ ...f, card: "Cash", date: getToday(), amount: "", desc: "" })); setShowAddTxn(true); },
+          style: { flex: 1, padding: "10px 0", background: "rgba(251,191,36,.1)", border: "1px solid rgba(251,191,36,.3)", borderRadius: 10, color: "#fbbf24", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+        }, "💵 + CASH"),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => { setAddTxnForm(f => ({ ...f, card: "Amex", date: getToday(), amount: "", desc: "" })); setShowAddTxn(true); },
+          style: { flex: 1, padding: "10px 0", background: "rgba(52,211,153,.08)", border: "1px solid rgba(52,211,153,.25)", borderRadius: 10, color: "#34d399", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+        }, "+ ADD EXPENSE")
+      ),
       transactions.length === 0
-        ? /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "40px 0" } },
+        ? /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "30px 0" } },
             /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, marginBottom: 12 } }, "No transactions for " + monthLabel(currentMonth)),
             /*#__PURE__*/React.createElement("button", { onClick: () => setView("import"), style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "8px 18px", color: "#a78bfa", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "Import CSV")
           )
@@ -17776,7 +17787,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
             /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
               /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CARD"),
-              /*#__PURE__*/React.createElement("select", { value: addTxnForm.card, onChange: e => setAddTxnForm(f => ({ ...f, card: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
+              /*#__PURE__*/React.createElement("select", { value: addTxnForm.card, onChange: e => setAddTxnForm(f => ({ ...f, card: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none", colorScheme: "dark" } },
                 ["Amex", "TD Visa", "CIBC", "PC Financial", "Cash", "Other"].map(c => /*#__PURE__*/React.createElement("option", { key: c, value: c }, c))
               )
             ),
