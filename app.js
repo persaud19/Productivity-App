@@ -17219,8 +17219,8 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", marginBottom: 16, paddingBottom: 2 } },
       finTab === "budget" && /*#__PURE__*/React.createElement(React.Fragment, null,
         subTabBtn("envelopes",    "Envelopes",    "#34d399"),
-        subTabBtn("transactions", "Transactions", "#60a5fa"),
-        subTabBtn("income",       "Income",       "#4ade80")
+        subTabBtn("transactions", "Money Out", "#60a5fa"),
+        subTabBtn("income",       "Money In",  "#4ade80")
       ),
       finTab === "insights" && /*#__PURE__*/React.createElement(React.Fragment, null,
         subTabBtn("summary", "Summary", "#f4a823"),
@@ -17454,7 +17454,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           ["Refunds",         "+" + fmt(totalRefunds), "#4ade80"],
           ["Budgeted",        fmt(totalAllocated), "#34d399"],
           ["Net Cash Flow",   totalIncome > 0 ? (netCashFlow >= 0 ? "+" : "") + fmt(netCashFlow) : "—", netCashFlow >= 0 ? "#4ade80" : "#ef4444"],
-          ["Transactions",    transactions.length.toString(), "var(--text-muted)"]
+          ["Money Out",    transactions.length.toString(), "var(--text-muted)"]
         ].map(([label, val, col]) => /*#__PURE__*/React.createElement("div", {
           key: label, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,.05)" }
         },
@@ -17499,14 +17499,14 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       // Income header
       /*#__PURE__*/React.createElement("div", { style: { background: "rgba(74,222,128,.07)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 14, padding: "14px 16px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" } },
         /*#__PURE__*/React.createElement("div", null,
-          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#4ade80", letterSpacing: ".07em", margin: "0 0 2px" } }, "TOTAL INCOME"),
+          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#4ade80", letterSpacing: ".07em", margin: "0 0 2px" } }, "TOTAL MONEY IN"),
           /*#__PURE__*/React.createElement("p", { style: { fontSize: 22, fontWeight: 800, color: "#4ade80", margin: 0, fontFamily: "'Syne',sans-serif" } }, fmt(totalIncome))
         ),
         /*#__PURE__*/React.createElement("button", { onClick: () => setShowAddIncome(true), style: { background: "#4ade80", border: "none", borderRadius: 10, padding: "10px 16px", color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
       ),
       // Income entries list
       income.length === 0
-        ? /*#__PURE__*/React.createElement("p", { style: { textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: "30px 0" } }, "No income logged for " + monthLabel(currentMonth) + ". Tap + ADD.")
+        ? /*#__PURE__*/React.createElement("p", { style: { textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: "30px 0" } }, "No money in logged for " + monthLabel(currentMonth) + ". Tap + ADD.")
         : income.map(inc => /*#__PURE__*/React.createElement("div", { key: inc.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "rgba(74,222,128,.04)", border: "1px solid rgba(74,222,128,.12)", borderRadius: 10, marginBottom: 8, cursor: "pointer" }, onClick: () => { setEditingIncome(inc); setEditIncomeForm({ source: inc.source || "", amount: String(inc.amount || ""), date: inc.date || getToday(), type: inc.type || "other" }); } },
             /*#__PURE__*/React.createElement("div", null,
               /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 600 } }, inc.source),
@@ -17693,7 +17693,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
 
         // Income section
         cardResults.income.length > 0 && /*#__PURE__*/React.createElement("div", null,
-          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#4ade80", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "INCOME"),
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#4ade80", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "MONEY IN"),
           /*#__PURE__*/React.createElement("div", { style: { maxHeight: 150, overflowY: "auto" } },
             cardResults.income.map((t, i) => /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
               /*#__PURE__*/React.createElement("div", null,
@@ -17849,7 +17849,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setEditingTxn(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
         ),
-        /*#__PURE__*/React.createElement("button", { onClick: handleMoveTxnToIncome, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 9, color: "#4ade80", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Income"),
+        /*#__PURE__*/React.createElement("button", { onClick: handleMoveTxnToIncome, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 9, color: "#4ade80", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Money In"),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => { if (window.confirm("Delete this transaction? This cannot be undone.")) handleDeleteTxn(editingTxn); },
           style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 9, color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }
@@ -17861,7 +17861,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
     editingIncome && /*#__PURE__*/React.createElement(React.Fragment, null,
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setEditingIncome(null) }),
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#4ade80", margin: "0 0 16px" } }, "EDIT INCOME"),
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#4ade80", margin: "0 0 16px" } }, "EDIT MONEY IN"),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SOURCE"),
@@ -17888,11 +17888,11 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           /*#__PURE__*/React.createElement("button", { onClick: handleEditIncome, style: { flex: 1, padding: "12px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setEditingIncome(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
         ),
-        /*#__PURE__*/React.createElement("button", { onClick: handleMoveIncomeToTxn, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 9, color: "#60a5fa", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Transactions"),
+        /*#__PURE__*/React.createElement("button", { onClick: handleMoveIncomeToTxn, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 9, color: "#60a5fa", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Money Out"),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => { if (window.confirm("Delete this income entry? This cannot be undone.")) { handleDeleteIncome(editingIncome.id); setEditingIncome(null); } },
           style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 9, color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }
-        }, "\uD83D\uDDD1 Delete Income Entry")
+        }, "\uD83D\uDDD1 Delete Entry")
       )
     ),
 
@@ -17900,7 +17900,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
     showAddIncome && /*#__PURE__*/React.createElement(React.Fragment, null,
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setShowAddIncome(false) }),
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#4ade80", margin: "0 0 16px" } }, "ADD INCOME"),
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#4ade80", margin: "0 0 16px" } }, "ADD MONEY IN"),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "DATE"),
