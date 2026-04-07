@@ -16958,7 +16958,6 @@ Return exactly ${bRows.length} objects. No markdown.`;
   };
 
   const handleGenerateReport = async () => {
-    if (!window.__claude_api_key) { setCoachReport("No Claude API key — add it in \u2699 Settings."); return; }
     setCoachLoading(true); setCoachReport("");
     try {
       const ctx = await buildFinanceContext();
@@ -16966,7 +16965,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
       setTimeout(() => controller.abort(), 45000);
       const res = await fetch("/api/claude", {
         method: "POST", signal: controller.signal,
-        body: JSON.stringify({ model: "claude-sonnet-4-5-20251001", max_tokens: 1024,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1200,
           messages: [{ role: "user", content: `You are a personal financial coach for Ryan and Sabrina Persaud (a Canadian couple). Analyze their spending data and write a concise Monthly Financial Brief.
 
 ${ctx}
@@ -16980,8 +16980,17 @@ Write a brief with these sections (use plain text, NO markdown headers, use emoj
 
 Be direct, specific (use their real numbers), and conversational. Not a list of generic tips — real advice based on their actual data.` }] })
       });
-      const data = await res.json();
-      setCoachReport(data.content?.[0]?.text || "Could not generate report.");
+      const rawText = await res.text();
+      let data;
+      try { data = JSON.parse(rawText); } catch(e) {
+        setCoachReport(rawText.trim().startsWith("<") ? "Error: Netlify function timed out — try again in a moment." : "Error: Unexpected response — " + rawText.slice(0, 100));
+        setCoachLoading(false); return;
+      }
+      if (data.error || data.type === "error") {
+        setCoachReport("Error: " + (data.error?.message || JSON.stringify(data.error) || "API error"));
+        setCoachLoading(false); return;
+      }
+      setCoachReport(data.content?.[0]?.text || "No report returned — check that your data has at least one month imported.");
     } catch(err) {
       setCoachReport(err.name === "AbortError" ? "Timed out — try again." : "Error: " + err.message);
     }
@@ -16991,7 +17000,6 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
   const handleChatSend = async () => {
     const msg = chatInput.trim();
     if (!msg || chatLoading) return;
-    if (!window.__claude_api_key) { setChatMessages(m => [...m, { role: "assistant", content: "No Claude API key — add it in \u2699 Settings." }]); return; }
     const newMessages = [...chatMessages, { role: "user", content: msg }];
     setChatMessages(newMessages); setChatInput(""); setChatLoading(true);
     setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -17001,14 +17009,25 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       setTimeout(() => controller.abort(), 45000);
       const res = await fetch("/api/claude", {
         method: "POST", signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001", max_tokens: 768,
+          model: "claude-haiku-4-5-20251001", max_tokens: 900,
           system: `You are a personal financial coach for Ryan and Sabrina Persaud (Canadian couple). You have their COMPLETE financial history below — every month of data available. Answer questions using ONLY this data. Always cite specific months and dollar amounts. Be direct, specific, and actionable. Never give generic advice — every answer must reference their actual numbers.\n\n${ctx}`,
           messages: newMessages.slice(-10).map(m => ({ role: m.role, content: m.content }))
         })
       });
-      const data = await res.json();
-      const reply = data.content?.[0]?.text || "No response.";
+      const rawText = await res.text();
+      let data;
+      try { data = JSON.parse(rawText); } catch(e) {
+        const errMsg = rawText.trim().startsWith("<") ? "Netlify function timed out — try again." : "Unexpected response — " + rawText.slice(0, 100);
+        setChatMessages(m => [...m, { role: "assistant", content: "Error: " + errMsg }]);
+        setChatLoading(false); return;
+      }
+      if (data.error || data.type === "error") {
+        setChatMessages(m => [...m, { role: "assistant", content: "Error: " + (data.error?.message || JSON.stringify(data.error)) }]);
+        setChatLoading(false); return;
+      }
+      const reply = data.content?.[0]?.text || "No response received.";
       setChatMessages(m => [...m, { role: "assistant", content: reply }]);
     } catch(err) {
       setChatMessages(m => [...m, { role: "assistant", content: err.name === "AbortError" ? "Timed out — try again." : "Error: " + err.message }]);
