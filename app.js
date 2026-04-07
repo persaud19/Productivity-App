@@ -16596,15 +16596,24 @@ function FinanceTab({ settings }) {
       if (!rawRows.length) { setImportMsg("Could not parse any transactions from the file — check the format."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
 
       const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(env => `  ${env.id}: ${env.name}`).join("\n");
-      const controller = new AbortController();
-      setTimeout(() => controller.abort(), 60000);
 
-      // Build a simple numbered list for Claude — categorization only, no extraction needed
-      const txnList = rawRows.map((r, i) => `${i}: ${r.date} | ${r.rawDesc}${r.isRefund ? " [REFUND]" : ""} | $${r.amount}`).join("\n");
+      // Batch rows to avoid Netlify's 10-second function timeout on large CSVs
+      const BATCH_SIZE = 50;
+      const totalBatches = Math.ceil(rawRows.length / BATCH_SIZE);
+      const catMap = {};
+      const stripFences = str => { const m = str.match(/```(?:json)?\s*([\s\S]*?)```/); return m ? m[1].trim() : str.trim(); };
+      const srcLabel = file.name.replace(/\.(csv|xlsx?|txt)$/i, "");
 
-      let prompt;
-      if (importMode === "bank_statement") {
-        prompt = `Classify each bank transaction as INCOME, EXPENSE, or SKIP.
+      for (let b = 0; b < totalBatches; b++) {
+        const bStart = b * BATCH_SIZE;
+        const bRows = rawRows.slice(bStart, bStart + BATCH_SIZE);
+        setImportMsg(totalBatches > 1 ? `Processing batch ${b + 1} of ${totalBatches}…` : "Processing…");
+
+        const txnList = bRows.map((r, j) => `${bStart + j}: ${r.date} | ${r.rawDesc}${r.isRefund ? " [REFUND]" : ""} | $${r.amount}`).join("\n");
+
+        let prompt;
+        if (importMode === "bank_statement") {
+          prompt = `Classify each bank transaction as INCOME, EXPENSE, or SKIP.
 
 INCOME: deposits, e-transfers received, payroll, government benefits (EI/CPP), interest.
 EXPENSE: utility bills (hydro, gas, water), mortgage, property tax, insurance, subscriptions billed from bank. Do NOT include credit card payments.
@@ -16622,9 +16631,9 @@ Return a JSON array — one entry per row, same order, no extras:
 - subCat: short sub-category or ""
 Envelopes:
 ${envelopeList}
-Return exactly ${rawRows.length} objects. No markdown.`;
-      } else {
-        prompt = `Categorize each credit card transaction. Do NOT change descriptions or amounts — only assign envelope + subCat.
+Return exactly ${bRows.length} objects. No markdown.`;
+        } else {
+          prompt = `Categorize each credit card transaction. Do NOT change descriptions or amounts — only assign envelope + subCat.
 
 Transactions:
 ${txnList}
@@ -16636,55 +16645,52 @@ Return a JSON array — one entry per row, same order:
 - subCat: short sub-category (e.g. Coffee, Gas, Grocery) or ""
 Envelopes:
 ${envelopeList}
-Return exactly ${rawRows.length} objects. No markdown.`;
-      }
-
-      const res = await fetch("/api/claude", {
-        method: "POST", signal: controller.signal,
-        headers: { "Content-Type": "application/json", "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 8192, messages: [{ role: "user", content: prompt }] })
-      });
-      const rawText = await res.text();
-      let data;
-      try { data = JSON.parse(rawText); } catch(jsonErr) {
-        if (rawText.trim().startsWith("<")) {
-          setImportMsg("Error: Netlify function not reachable — ANTHROPIC_API_KEY is probably not set. Go to Netlify \u2192 Site configuration \u2192 Environment variables, add ANTHROPIC_API_KEY, then trigger a redeploy.");
-        } else {
-          setImportMsg("Error: Unexpected server response — " + rawText.slice(0, 120));
+Return exactly ${bRows.length} objects. No markdown.`;
         }
-        setCardParsing(false);
-        if (cardFileRef.current) cardFileRef.current.value = "";
-        return;
+
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 25000);
+
+        const res = await fetch("/api/claude", {
+          method: "POST", signal: controller.signal,
+          headers: { "Content-Type": "application/json", "anthropic-version": "2023-06-01" },
+          body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 4096, messages: [{ role: "user", content: prompt }] })
+        });
+        const rawText = await res.text();
+        let data;
+        try { data = JSON.parse(rawText); } catch(jsonErr) {
+          if (rawText.trim().startsWith("<")) {
+            setImportMsg("Error: Netlify function timed out or is unreachable. If this keeps happening, try a smaller date range. (Check that ANTHROPIC_API_KEY is set in Netlify \u2192 Site configuration \u2192 Environment variables.)");
+          } else {
+            setImportMsg("Error: Unexpected server response — " + rawText.slice(0, 120));
+          }
+          setCardParsing(false);
+          if (cardFileRef.current) cardFileRef.current.value = "";
+          return;
+        }
+
+        // Surface Netlify / API errors clearly
+        if (data.error || data.type === "error") {
+          const msg = data.error?.message || data.error || "API error — check that ANTHROPIC_API_KEY is set in Netlify.";
+          setImportMsg("Error: " + msg);
+          setCardParsing(false);
+          if (cardFileRef.current) cardFileRef.current.value = "";
+          return;
+        }
+
+        const reply = data.content?.[0]?.text || "";
+        if (!reply) { setImportMsg("Empty response from Claude — check Netlify ANTHROPIC_API_KEY env var."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+
+        const cleaned = stripFences(reply);
+        const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+        if (!arrMatch) { setImportMsg(`Could not parse Claude response (batch ${b + 1}) — ` + reply.slice(0, 120)); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+        JSON.parse(arrMatch[0]).forEach(c => { if (c.idx != null) catMap[c.idx] = c; });
       }
-
-      // Surface Netlify / API errors clearly
-      if (data.error || data.type === "error") {
-        const msg = data.error?.message || data.error || "API error — check that ANTHROPIC_API_KEY is set in Netlify.";
-        setImportMsg("Error: " + msg);
-        setCardParsing(false);
-        if (cardFileRef.current) cardFileRef.current.value = "";
-        return;
-      }
-
-      const reply = data.content?.[0]?.text || "";
-      if (!reply) { setImportMsg("Empty response from Claude — check Netlify ANTHROPIC_API_KEY env var."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
-
-      // Strip markdown fences from reply (handles both ``` and ```json wrappers)
-      const stripFences = str => { const m = str.match(/```(?:json)?\s*([\s\S]*?)```/); return m ? m[1].trim() : str.trim(); };
-      const srcLabel = file.name.replace(/\.(csv|xlsx?|txt)$/i, "");
-
-      const cleaned = stripFences(reply);
-      const arrMatch = cleaned.match(/\[[\s\S]*\]/);
-      if (!arrMatch) { setImportMsg("Could not parse Claude response — " + reply.slice(0, 120)); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
-      const cats = JSON.parse(arrMatch[0]);
-      // Build a map from idx → category so order mismatches don't matter
-      const catMap = {};
-      cats.forEach(c => { if (c.idx != null) catMap[c.idx] = c; });
 
       if (importMode === "bank_statement") {
         const expenses = [], incItems = [];
         rawRows.forEach((r, i) => {
-          const cat = catMap[i] || cats[i] || {};
+          const cat = catMap[i] || {};
           if (!cat.type || cat.type === "SKIP") return;
           if (cat.type === "INCOME") {
             incItems.push({ id: txnId("binc", r.date, r.amount, r.rawDesc), date: r.date, month: r.date.slice(0, 7), amount: r.amount, source: cat.source || r.rawDesc, type: "other", desc: r.rawDesc });
@@ -16696,7 +16702,7 @@ Return exactly ${rawRows.length} objects. No markdown.`;
         setCardResults({ mode: "bank_statement", expenses, income: incItems, label: srcLabel });
       } else {
         const expenses = rawRows.map((r, i) => {
-          const cat = catMap[i] || cats[i] || {};
+          const cat = catMap[i] || {};
           return { date: r.date, amount: r.amount, desc: r.rawDesc, isRefund: r.isRefund, month: r.date.slice(0, 7), id: txnId("cc", r.date, r.amount, r.rawDesc), card: srcLabel, category: srcLabel, envelopeId: cat.envelopeId || "other", subCat: cat.subCat || "", highlevel: "" };
         });
         if (!expenses.length) { setImportMsg("No transactions found in file."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
