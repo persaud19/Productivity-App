@@ -18495,13 +18495,13 @@ function App() {
     label: "HOME",
     color: "#60a5fa",
     tabs: [{
-      id: "chores",
-      l: "CHORES",
-      c: "#60a5fa"
-    }, {
       id: "pantry",
       l: "INVENTORY",
       c: "#fb923c"
+    }, {
+      id: "chores",
+      l: "TASKS",
+      c: "#60a5fa"
     }]
   }, {
     id: "history",
