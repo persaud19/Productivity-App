@@ -285,7 +285,7 @@
 
   // ── Step 3: Review Header ──────────────────────────────────────────────────
 
-  function StepReviewHeader({ extracted, onConfirm, onBack }) {
+  function StepReviewHeader({ extracted, onConfirm, onBack, important, onToggleImportant }) {
     var CARDS = ["Amex", "Visa", "Mastercard", "Debit", "Cash", "Other"];
 
     var [form, setForm] = useState({
@@ -363,8 +363,39 @@
         (extracted.lineItems || []).length + " line item" + ((extracted.lineItems || []).length !== 1 ? "s" : "") + " found on receipt"
       ),
 
+      // Important flag toggle
+      React.createElement("div", {
+        onClick: onToggleImportant,
+        style: {
+          display: "flex", alignItems: "center", gap: 10,
+          marginTop: 14, padding: "11px 14px",
+          background: important ? "rgba(244,168,35,.08)" : "rgba(255,255,255,.03)",
+          border: "1px solid " + (important ? "rgba(244,168,35,.35)" : "rgba(255,255,255,.08)"),
+          borderRadius: 10, cursor: "pointer"
+        }
+      },
+        React.createElement("div", {
+          style: {
+            width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+            background: important ? C.amber : "transparent",
+            border: "2px solid " + (important ? C.amber : "rgba(255,255,255,.2)"),
+            display: "flex", alignItems: "center", justifyContent: "center"
+          }
+        },
+          important && React.createElement("span", { style: { fontSize: 11, color: "#080b11", fontWeight: 900, lineHeight: 1 } }, "✓")
+        ),
+        React.createElement("div", null,
+          React.createElement("p", {
+            style: { fontSize: 12, fontWeight: 700, color: important ? C.amber : C.textSec, margin: "0 0 1px" }
+          }, "Mark as Important"),
+          React.createElement("p", {
+            style: { fontSize: 10, color: C.muted, margin: 0 }
+          }, "Warranty, large purchase, or return-likely — you'll be reminded to save the photo")
+        )
+      ),
+
       React.createElement("button", {
-        style: btn(C.amber, false, { marginTop: 14 }),
+        style: btn(C.amber, false, { marginTop: 10 }),
         onClick: function () { onConfirm(form); }
       }, "Looks Good — Match Items →"),
 
@@ -659,8 +690,28 @@
         : React.createElement("p", {
             style: { fontSize: 12, color: C.muted, margin: "0 0 0" }
           }, "Saved without Finance link"),
+
+      receipt.important && React.createElement("div", {
+        style: {
+          marginTop: 20, padding: "14px 16px",
+          background: "rgba(244,168,35,.08)",
+          border: "1px solid rgba(244,168,35,.3)",
+          borderRadius: 12, textAlign: "left"
+        }
+      },
+        React.createElement("p", {
+          style: { fontSize: 13, fontWeight: 700, color: C.amber, margin: "0 0 5px" }
+        }, "📁  Save the photo to your phone"),
+        React.createElement("p", {
+          style: { fontSize: 12, color: C.textSec, margin: "0 0 2px", lineHeight: 1.6 }
+        }, "Go to your camera roll and move this receipt photo into a Receipts folder so you can find it for returns, warranties, or expenses."),
+        React.createElement("p", {
+          style: { fontSize: 10, color: C.muted, margin: 0 }
+        }, "The app has everything it needs — this reminder is just for the physical photo.")
+      ),
+
       React.createElement("button", {
-        style: btn(C.amber, false, { marginTop: 24 }),
+        style: btn(C.amber, false, { marginTop: 20 }),
         onClick: onClose
       }, "Done ✓")
     );
@@ -689,6 +740,7 @@
     var [matchResults, setMatchResults] = useState(null);
     var [savedReceipt, setSavedReceipt] = useState(null);
     var [invChanges, setInvChanges] = useState(0);
+    var [important, setImportant] = useState(false);
     var [error, setError] = useState(null);
 
     var STEP_LABELS = {
@@ -753,7 +805,8 @@
             });
           }),
           linkedTransactionId: linkedTxnId || null,
-          month: (header.date || "").slice(0, 7) || currentYearMonth()
+          month: (header.date || "").slice(0, 7) || currentYearMonth(),
+          important: important
         };
 
         // Apply inventory updates
@@ -863,7 +916,9 @@
         step === "review"     && extracted && React.createElement(StepReviewHeader, {
           extracted: extracted,
           onConfirm: handleConfirmHeader,
-          onBack: function () { setStep("capture"); }
+          onBack: function () { setStep("capture"); },
+          important: important,
+          onToggleImportant: function () { setImportant(function (v) { return !v; }); }
         }),
         step === "matching" && extracted && React.createElement(StepMatchItems, {
           lineItems: extracted.lineItems || [],
