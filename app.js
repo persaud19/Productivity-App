@@ -10865,7 +10865,7 @@ Rules:
 - ing is an array of ingredient strings with quantities
 - steps is an array of at least 3 detailed cooking instruction strings
 - If you cannot determine a value, make a reasonable estimate — never use null`;
-async function callClaude(messages, system) {
+async function callClaude(messages, system, maxTokens) {
   const res = await fetch("/api/claude", {
     method: "POST",
     headers: {
@@ -10873,7 +10873,7 @@ async function callClaude(messages, system) {
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 2000,
+      max_tokens: maxTokens || 2000,
       system: system || "You are a recipe extraction assistant. Return ONLY valid JSON.",
       messages
     })
@@ -10908,25 +10908,32 @@ function AddMealModal({
 
   // ── Extract from photo(s) ────────────────────────────────────────────────
   // front = required (ingredients/macros), back = optional (instructions)
+  const getMimeType = file => {
+    const t = (file.type || "").toLowerCase();
+    if (t === "image/png") return "image/png";
+    if (t === "image/gif") return "image/gif";
+    if (t === "image/webp") return "image/webp";
+    return "image/jpeg"; // default — covers jpg, heic, and anything else
+  };
   const handlePhotos = async (front, back) => {
     setStatus("loading");
     try {
       const frontB64 = await fileToBase64(front);
       const content = [
-        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: frontB64 } }
+        { type: "image", source: { type: "base64", media_type: getMimeType(front), data: frontB64 } }
       ];
       if (back) {
         const backB64 = await fileToBase64(back);
-        content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: backB64 } });
+        content.push({ type: "image", source: { type: "base64", media_type: getMimeType(back), data: backB64 } });
         content.push({ type: "text", text: EXTRACT_PROMPT_TWO_CARDS });
       } else {
         content.push({ type: "text", text: EXTRACT_PROMPT });
       }
-      const result = await callClaude([{ role: "user", content }]);
+      const result = await callClaude([{ role: "user", content }], null, back ? 4096 : 2000);
       setDraft({ ...result, id: `c${Date.now()}`, source: "photo" });
       setStatus("review");
     } catch (e) {
-      setErrMsg("Couldn't read that image — try a clearer photo with visible text.");
+      setErrMsg("Extraction failed: " + (e.message || "Unknown error") + ". Try again or use a clearer photo.");
       setStatus("error");
     }
   };
