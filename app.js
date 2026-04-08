@@ -327,6 +327,7 @@ const KEYS = {
   financeIncome: month => `ml:finance:income:${month}`,
   merchantRules: () => `ml:finance:merchant_rules`,
   customSubCats: () => `ml:finance:custom_subcats`,
+  receipt: id => `ml:receipts:${id}`,
   goalHabitLog: id => `ml:goals:habit:${id}`,
   goalProgressLog: id => `ml:goals:progress:${id}`,
   mobilityPool: () => `ml:mobility:pool`,
@@ -9085,6 +9086,7 @@ function PantryTab({
   onAddToGrocery
 }) {
   const [mode, setMode] = useState("list"); // list | chat | barcode | receipt
+  const [showReceiptScanner, setShowReceiptScanner] = useState(false);
 
   const addItems = async newItems => {
     const merged = [...pantryItems];
@@ -9253,10 +9255,28 @@ function PantryTab({
       cursor: "pointer",
       fontFamily: "'Syne',sans-serif"
     }
-  }, "\uD83D\uDCF7 Scan Barcode")), /*#__PURE__*/React.createElement(PantryEditor, {
+  }, "\uD83D\uDCF7 Scan Barcode"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowReceiptScanner(true),
+    style: {
+      flex: 1,
+      padding: "10px 0",
+      background: "rgba(167,139,250,.1)",
+      border: "1px solid rgba(167,139,250,.25)",
+      color: "#a78bfa",
+      borderRadius: 9,
+      fontSize: 11,
+      fontWeight: 700,
+      cursor: "pointer",
+      fontFamily: "'Syne',sans-serif"
+    }
+  }, "\uD83E\uDDFE Scan Receipt")), /*#__PURE__*/React.createElement(PantryEditor, {
     pantryItems: pantryItems,
     setPantryItems: setPantryItems,
     onAddToGrocery: onAddToGrocery
+  }), showReceiptScanner && window.MissionReceiptScanner && /*#__PURE__*/React.createElement(window.MissionReceiptScanner, {
+    pantryItems: pantryItems,
+    onInventoryUpdate: applyReceipt,
+    onClose: () => setShowReceiptScanner(false)
   }));
 }
 
@@ -16127,6 +16147,7 @@ function FinanceTab({ settings }) {
   const [ruleForm, setRuleForm] = useState({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
   const [vaguePrompt, setVaguePrompt] = useState(null); // {txn, suggestions: [{label, envelopeId, subCat}]}
   const [editTxnForm, setEditTxnForm] = useState({ envelopeId: "other", subCat: "" });
+  const [txnReceiptData, setTxnReceiptData] = useState(null); // receipt linked to editingTxn
   const [editingIncome, setEditingIncome] = useState(null);
   const [editIncomeForm, setEditIncomeForm] = useState({ source: "", amount: "", date: "", type: "other" });
   const [customSubCats, setCustomSubCats] = useState({});
@@ -16167,6 +16188,15 @@ function FinanceTab({ settings }) {
   }, []);
 
   useEffect(() => { loadMonth(currentMonth); }, [currentMonth, loadMonth]);
+
+  // Load receipt data when a transaction with a linked receipt is opened
+  useEffect(() => {
+    if (editingTxn?.receiptId) {
+      DB.get(KEYS.receipt(editingTxn.receiptId)).then(r => setTxnReceiptData(r || null));
+    } else {
+      setTxnReceiptData(null);
+    }
+  }, [editingTxn?.receiptId]);
 
   const saveEnvelopes = async (updated) => {
     setEnvelopes(updated);
@@ -17348,7 +17378,10 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
                   ),
                   /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 } },
                     /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)" } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount))),
-                    /*#__PURE__*/React.createElement("button", { onClick: () => { setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }, style: { fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" } }, "edit")
+                    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 4 } },
+                      t.receiptId && /*#__PURE__*/React.createElement("span", { title: "Receipt attached", style: { fontSize: 9, color: "#a78bfa", background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 4, padding: "2px 5px" } }, "\uD83E\uDDFE"),
+                      /*#__PURE__*/React.createElement("button", { onClick: () => { setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }, style: { fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" } }, "edit")
+                    )
                   )
                 );
               });
@@ -17756,6 +17789,20 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           /*#__PURE__*/React.createElement("button", { onClick: () => setEditingTxn(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
         ),
         /*#__PURE__*/React.createElement("button", { onClick: handleMoveTxnToIncome, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 9, color: "#4ade80", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Money In"),
+        txnReceiptData && /*#__PURE__*/React.createElement("div", { style: { marginTop: 14, borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: 12 } },
+          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#a78bfa", letterSpacing: ".06em", margin: "0 0 8px" } }, "\uD83E\uDDFE RECEIPT: " + (txnReceiptData.vendor || "") + (txnReceiptData.date ? "  \xB7  " + txnReceiptData.date : "")),
+          (txnReceiptData.lineItems || []).filter(li => li.totalPrice != null && (li.name || li.rawText)).map((li, i) =>
+            /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--text-secondary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, li.qty > 1 ? li.qty + "×  " + (li.name || li.rawText) : (li.name || li.rawText)),
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: li.totalPrice < 0 ? "#4ade80" : "var(--text-primary)", flexShrink: 0, paddingLeft: 8 } }, (li.totalPrice < 0 ? "-" : "") + "$" + Math.abs(parseFloat(li.totalPrice) || 0).toFixed(2))
+            )
+          ),
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 6, paddingTop: 4 } },
+            txnReceiptData.subtotal != null && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Subtotal $" + parseFloat(txnReceiptData.subtotal).toFixed(2)),
+            txnReceiptData.tax != null && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Tax $" + parseFloat(txnReceiptData.tax).toFixed(2)),
+            txnReceiptData.total != null && /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "#d1d5db" } }, "Total $" + parseFloat(txnReceiptData.total).toFixed(2))
+          )
+        ),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => { if (window.confirm("Delete this transaction? This cannot be undone.")) handleDeleteTxn(editingTxn); },
           style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 9, color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }
@@ -18453,7 +18500,7 @@ function App() {
       c: "#60a5fa"
     }, {
       id: "pantry",
-      l: "PANTRY",
+      l: "INVENTORY",
       c: "#fb923c"
     }]
   }, {
