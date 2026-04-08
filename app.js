@@ -18349,9 +18349,16 @@ function App() {
     } else {
       loadAll();
     }
-    // Re-fetch today's data whenever the app comes back to the foreground
-    // (handles overnight stale state — tab left open past midnight)
-    const handleVisibility = () => { if (!document.hidden) loadAll(); };
+    // Silently re-fetch today's log whenever the app comes back to the foreground
+    // (handles overnight stale state — tab left open past midnight).
+    // Does NOT call loadAll() so the loading screen never fires mid-session.
+    const handleVisibility = async () => {
+      if (document.hidden) return;
+      const td = await DB.get(KEYS.log(getToday()));
+      setTodayLog(td || null);
+      const ml = await DB.get(KEYS.mealLog(getToday()));
+      setTodayMealLog(ml || {});
+    };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
