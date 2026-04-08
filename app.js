@@ -1829,25 +1829,25 @@ function HistoryStrip({
         width: 38,
         padding: "6px 2px",
         borderRadius: 8,
-        border: "1px solid " + (sel ? ac : hasData ? "rgba(74,222,128,.25)" : "var(--card-border)"),
-        background: sel ? ac.replace(/[^,]+\)$/, "0.08)").replace("rgb(", "rgba(") : hasData ? "rgba(74,222,128,.05)" : "rgba(255,255,255,.02)",
+        border: "1px solid " + (sel ? ac : hasData ? "rgba(74,222,128,.3)" : "rgba(255,255,255,.08)"),
+        background: sel ? ac : hasData ? "rgba(74,222,128,.08)" : "rgba(255,255,255,.02)",
         cursor: "pointer",
         transition: "all .12s"
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: sel ? ac : isToday ? "var(--text-primary)" : "var(--text-secondary)",
+        color: sel ? "#080b11" : isToday ? "var(--text-primary)" : "var(--text-secondary)",
         fontSize: 9,
-        fontWeight: sel ? 800 : 500,
+        fontWeight: 700,
         margin: "0 0 2px",
         textTransform: "uppercase"
       }
     }, isToday ? "NOW" : dow), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: sel ? ac : hasData ? "#4ade80" : "var(--text-muted)",
+        color: sel ? "#080b11" : hasData ? "#4ade80" : "var(--text-secondary)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 14,
-        fontWeight: sel ? 800 : 600,
+        fontWeight: 800,
         margin: 0
       }
     }, dom), hasData && /*#__PURE__*/React.createElement("div", {
@@ -1855,7 +1855,7 @@ function HistoryStrip({
         width: 4,
         height: 4,
         borderRadius: "50%",
-        background: sel ? ac : "#4ade80",
+        background: sel ? "#080b11" : "#4ade80",
         margin: "2px auto 0"
       }
     }));
