@@ -30,20 +30,49 @@
     return "rcpt_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
-  function toBase64(file) {
+  // Compress + encode image to base64 before sending to Claude.
+  // Resizes to max 1600px on longest side at JPEG 0.82 quality.
+  // Keeps base64 output well under Netlify's 6MB function payload limit
+  // regardless of the original photo size (handles up to ~20MB raw images).
+  function compressAndEncode(file) {
     return new Promise(function (resolve, reject) {
       var reader = new FileReader();
-      reader.onload = function () { resolve(reader.result.split(",")[1]); };
       reader.onerror = reject;
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onerror = reject;
+        img.onload = function () {
+          var MAX = 1600;
+          var w = img.width;
+          var h = img.height;
+
+          // Scale down only if needed — never upscale
+          if (w > MAX || h > MAX) {
+            if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
+            else        { w = Math.round(w * MAX / h); h = MAX; }
+          }
+
+          var canvas = document.createElement("canvas");
+          canvas.width  = w;
+          canvas.height = h;
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+
+          // toDataURL always outputs JPEG regardless of input format —
+          // avoids HEIC/HEIF issues on iOS where the browser can decode
+          // but FileReader gives a raw HEIC blob Claude can't always parse.
+          var dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+          resolve(dataUrl.split(",")[1]); // return base64 only, no prefix
+        };
+        img.src = e.target.result;
+      };
       reader.readAsDataURL(file);
     });
   }
 
   function guessMediaType(file) {
-    if (file.type && file.type.startsWith("image/")) return file.type;
-    var ext = (file.name || "").split(".").pop().toLowerCase();
-    var map = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", heic: "image/heic", heif: "image/heic" };
-    return map[ext] || "image/jpeg";
+    // After compressAndEncode the output is always JPEG
+    return "image/jpeg";
   }
 
   function currentYearMonth() {
@@ -760,7 +789,7 @@
       setError(null);
       setStep("extracting");
       try {
-        var base64 = await toBase64(file);
+        var base64 = await compressAndEncode(file);
         var mediaType = guessMediaType(file);
         var data = await extractReceiptData(base64, mediaType);
         setExtracted(data);
