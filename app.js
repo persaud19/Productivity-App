@@ -10899,32 +10899,39 @@ function AddMealModal({
   const [backFile, setBackFile] = useState(null);    // back of recipe card
   const fileRef = useRef(null);
   const backRef = useRef(null);
-  const fileToBase64 = file => new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result.split(",")[1]);
-    r.onerror = rej;
-    r.readAsDataURL(file);
+  // Resize + compress image to max 1200px wide, JPEG quality 0.82
+  // Keeps recipe text legible while dropping file size from ~4MB → ~150KB
+  const compressImage = file => new Promise((res, rej) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      // Always output JPEG so media_type is always consistent
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+      res(dataUrl.split(",")[1]); // return base64 only
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Could not load image")); };
+    img.src = url;
   });
 
   // ── Extract from photo(s) ────────────────────────────────────────────────
   // front = required (ingredients/macros), back = optional (instructions)
-  const getMimeType = file => {
-    const t = (file.type || "").toLowerCase();
-    if (t === "image/png") return "image/png";
-    if (t === "image/gif") return "image/gif";
-    if (t === "image/webp") return "image/webp";
-    return "image/jpeg"; // default — covers jpg, heic, and anything else
-  };
   const handlePhotos = async (front, back) => {
     setStatus("loading");
     try {
-      const frontB64 = await fileToBase64(front);
+      const frontB64 = await compressImage(front);
       const content = [
-        { type: "image", source: { type: "base64", media_type: getMimeType(front), data: frontB64 } }
+        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: frontB64 } }
       ];
       if (back) {
-        const backB64 = await fileToBase64(back);
-        content.push({ type: "image", source: { type: "base64", media_type: getMimeType(back), data: backB64 } });
+        const backB64 = await compressImage(back);
+        content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: backB64 } });
         content.push({ type: "text", text: EXTRACT_PROMPT_TWO_CARDS });
       } else {
         content.push({ type: "text", text: EXTRACT_PROMPT });
