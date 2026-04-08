@@ -15349,6 +15349,7 @@ function HistoryBrowser({
     const isToday = dateStr === today;
     const isFuture = dateStr > today;
     const isLoading = loadingDate === dateStr;
+    const isSelected = dateStr === selectedDate;
     const log = allLogs.find(l => l.date === dateStr);
     const hasMorning = !!(log?.morning?.weight || log?.morning?.intention);
     const hasEvening = !!(log?.evening?.win || log?.evening?.dayRating);
@@ -15360,8 +15361,8 @@ function HistoryBrowser({
       style: {
         aspectRatio: "1",
         borderRadius: 8,
-        border: "1px solid " + (isToday ? "rgba(167,139,250,.5)" : hasLog ? "rgba(74,222,128,.25)" : "rgba(255,255,255,.05)"),
-        background: isToday ? "rgba(167,139,250,.15)" : hasLog ? "rgba(74,222,128,.07)" : "rgba(255,255,255,.02)",
+        border: "1px solid " + (isSelected ? "#a78bfa" : isToday ? "rgba(167,139,250,.5)" : hasLog ? "rgba(74,222,128,.3)" : "rgba(255,255,255,.06)"),
+        background: isSelected ? "#a78bfa" : isToday ? "rgba(167,139,250,.18)" : hasLog ? "rgba(74,222,128,.1)" : "rgba(255,255,255,.02)",
         cursor: hasLog && !isFuture ? "pointer" : "default",
         display: "flex",
         flexDirection: "column",
@@ -15374,9 +15375,9 @@ function HistoryBrowser({
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: isToday ? "#a78bfa" : hasLog ? "#4ade80" : "var(--text-muted)",
+        color: isSelected ? "#080b11" : isToday ? "#a78bfa" : hasLog ? "#4ade80" : "var(--text-muted)",
         fontSize: 11,
-        fontWeight: isToday || hasLog ? 800 : 400,
+        fontWeight: 800,
         margin: 0,
         fontFamily: "'Syne',sans-serif"
       }
@@ -15390,14 +15391,14 @@ function HistoryBrowser({
         width: 4,
         height: 4,
         borderRadius: "50%",
-        background: hasMorning ? "#f4a823" : "var(--card-border-2)"
+        background: isSelected ? "rgba(8,11,17,.5)" : hasMorning ? "#f4a823" : "rgba(255,255,255,.15)"
       }
     }), /*#__PURE__*/React.createElement("div", {
       style: {
         width: 4,
         height: 4,
         borderRadius: "50%",
-        background: hasEvening ? "#60a5fa" : "var(--card-border-2)"
+        background: isSelected ? "rgba(8,11,17,.5)" : hasEvening ? "#60a5fa" : "rgba(255,255,255,.15)"
       }
     })), exceptional && /*#__PURE__*/React.createElement("div", {
       style: {
