@@ -11786,6 +11786,40 @@ Rules:
 - ing is an array of ingredient strings with quantities
 - steps is an array of at least 3 detailed cooking instruction strings
 - If you cannot determine a value, make a reasonable estimate — never use null`;
+const EXTRACT_PROMPT_TWO_CARDS = `You have TWO images of a recipe card. The FIRST image is the FRONT of the card (typically shows the recipe name, ingredients list with amounts, and nutritional info). The SECOND image is the BACK of the card (typically shows the cooking instructions/steps).
+
+Extract the complete recipe and return ONLY a valid JSON object — no markdown fences, no explanation, just raw JSON.
+
+Required format (fill in real values, no nulls):
+{
+  "name": "Recipe Name",
+  "cat": "D",
+  "cal": 480,
+  "prot": 35,
+  "carbs": 40,
+  "fat": 14,
+  "prep": 10,
+  "cook": 25,
+  "cad": 5.50,
+  "tags": ["high-protein","quick"],
+  "ing": ["2 chicken breasts","1 cup brown rice","1 tbsp olive oil"],
+  "steps": [
+    "Detailed step 1 — be specific about technique, heat, and timing.",
+    "Detailed step 2.",
+    "Detailed step 3."
+  ]
+}
+
+Rules:
+- Use the front image for: name, ingredients (ing), nutritional info (cal/prot/carbs/fat), and any notes
+- Use the back image for: cooking steps (steps), prep/cook times
+- cat must be exactly "B" (breakfast), "L" (lunch), or "D" (dinner)
+- cal, prot, carbs, fat are integers (per serving for 2 people)
+- prep and cook are integers in minutes
+- cad is estimated cost per serving in Canadian dollars (float)
+- ing is an array of ingredient strings with quantities
+- steps is an array of at least 3 detailed cooking instruction strings
+- If you cannot determine a value, make a reasonable estimate — never use null`;
 async function callClaude(messages, system) {
   const res = await fetch("/api/claude", {
     method: "POST",
@@ -11816,7 +11850,10 @@ function AddMealModal({
   const [status, setStatus] = useState("idle"); // idle | loading | review | error
   const [errMsg, setErrMsg] = useState("");
   const [draft, setDraft] = useState(null);
+  const [frontFile, setFrontFile] = useState(null);  // front of recipe card
+  const [backFile, setBackFile] = useState(null);    // back of recipe card
   const fileRef = useRef(null);
+  const backRef = useRef(null);
   const fileToBase64 = file => new Promise((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(r.result.split(",")[1]);
@@ -11824,30 +11861,24 @@ function AddMealModal({
     r.readAsDataURL(file);
   });
 
-  // ── Extract from photo ───────────────────────────────────────────────────
-  const handlePhoto = async file => {
+  // ── Extract from photo(s) ────────────────────────────────────────────────
+  // front = required (ingredients/macros), back = optional (instructions)
+  const handlePhotos = async (front, back) => {
     setStatus("loading");
     try {
-      const b64 = await fileToBase64(file);
-      const result = await callClaude([{
-        role: "user",
-        content: [{
-          type: "image",
-          source: {
-            type: "base64",
-            media_type: file.type,
-            data: b64
-          }
-        }, {
-          type: "text",
-          text: EXTRACT_PROMPT
-        }]
-      }]);
-      setDraft({
-        ...result,
-        id: `c${Date.now()}`,
-        source: "photo"
-      });
+      const frontB64 = await fileToBase64(front);
+      const content = [
+        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: frontB64 } }
+      ];
+      if (back) {
+        const backB64 = await fileToBase64(back);
+        content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: backB64 } });
+        content.push({ type: "text", text: EXTRACT_PROMPT_TWO_CARDS });
+      } else {
+        content.push({ type: "text", text: EXTRACT_PROMPT });
+      }
+      const result = await callClaude([{ role: "user", content }]);
+      setDraft({ ...result, id: `c${Date.now()}`, source: "photo" });
       setStatus("review");
     } catch (e) {
       setErrMsg("Couldn't read that image — try a clearer photo with visible text.");
@@ -12271,49 +12302,33 @@ ${EXTRACT_PROMPT}`;
       fontFamily: "'Syne',sans-serif",
       letterSpacing: ".04em"
     }
-  }, l))), mode === "photo" && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#9ca3af",
-      fontSize: 13,
-      margin: "0 0 14px",
-      lineHeight: 1.6
-    }
-  }, "Take a photo of a recipe card, cookbook page, or printed recipe. Claude reads the image and extracts everything automatically."), /*#__PURE__*/React.createElement("input", {
-    ref: fileRef,
-    type: "file",
-    accept: "image/*",
-    capture: "environment",
-    style: {
-      display: "none"
-    },
-    onChange: e => e.target.files[0] && handlePhoto(e.target.files[0])
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => fileRef.current?.click(),
-    style: {
-      width: "100%",
-      padding: "36px 0",
-      background: "var(--card-bg)",
-      border: "2px dashed rgba(244,168,35,.3)",
-      borderRadius: 12,
-      color: "#f4a823",
-      fontSize: 13,
-      cursor: "pointer",
-      fontWeight: 600
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: "block",
-      fontSize: 32,
-      marginBottom: 8
-    }
-  }, "\uD83D\uDCF7"), "Take photo or upload image"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-muted)",
-      fontSize: 10,
-      margin: "10px 0 0",
-      textAlign: "center"
-    }
-  }, "Works best with clear, well-lit photos where recipe text is readable")), mode === "url" && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+  }, l))), mode === "photo" && /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement("p", { style: { color: "#9ca3af", fontSize: 13, margin: "0 0 14px", lineHeight: 1.6 } }, "Recipe cards typically have 2 sides. Upload the front (ingredients) and back (instructions) — Claude combines both into one complete recipe."),
+    /*#__PURE__*/React.createElement("input", { ref: fileRef, type: "file", accept: "image/*", capture: "environment", style: { display: "none" }, onChange: e => { if (e.target.files[0]) setFrontFile(e.target.files[0]); } }),
+    /*#__PURE__*/React.createElement("input", { ref: backRef, type: "file", accept: "image/*", capture: "environment", style: { display: "none" }, onChange: e => { if (e.target.files[0]) setBackFile(e.target.files[0]); } }),
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => fileRef.current?.click(),
+        style: { flex: 1, padding: "24px 8px", background: frontFile ? "rgba(74,222,128,.08)" : "var(--card-bg)", border: frontFile ? "2px solid rgba(74,222,128,.4)" : "2px dashed rgba(244,168,35,.3)", borderRadius: 12, color: frontFile ? "#4ade80" : "#f4a823", fontSize: 12, cursor: "pointer", fontWeight: 600, textAlign: "center" }
+      },
+        /*#__PURE__*/React.createElement("span", { style: { display: "block", fontSize: 24, marginBottom: 6 } }, frontFile ? "\u2713" : "\uD83D\uDCF7"),
+        frontFile ? "Front \u2713" : "Front Side",
+        /*#__PURE__*/React.createElement("span", { style: { display: "block", fontSize: 9, color: "var(--text-muted)", marginTop: 4, fontWeight: 400 } }, "Ingredients + amounts")
+      ),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => backRef.current?.click(),
+        style: { flex: 1, padding: "24px 8px", background: backFile ? "rgba(74,222,128,.08)" : "var(--card-bg)", border: backFile ? "2px solid rgba(74,222,128,.4)" : "2px dashed rgba(96,165,250,.2)", borderRadius: 12, color: backFile ? "#4ade80" : "#60a5fa", fontSize: 12, cursor: "pointer", fontWeight: 600, textAlign: "center" }
+      },
+        /*#__PURE__*/React.createElement("span", { style: { display: "block", fontSize: 24, marginBottom: 6 } }, backFile ? "\u2713" : "\uD83D\uDCF7"),
+        backFile ? "Back \u2713" : "Back Side",
+        /*#__PURE__*/React.createElement("span", { style: { display: "block", fontSize: 9, color: "var(--text-muted)", marginTop: 4, fontWeight: 400 } }, "Cooking instructions")
+      )
+    ),
+    frontFile && /*#__PURE__*/React.createElement("button", {
+      onClick: () => handlePhotos(frontFile, backFile),
+      style: { width: "100%", padding: "13px 0", background: "#f4a823", border: "none", borderRadius: 10, color: "#080b11", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", marginBottom: 8 }
+    }, backFile ? "\uD83E\uDDE0  Extract from Both Sides" : "\uD83E\uDDE0  Extract from Front Side Only"),
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "4px 0 0", textAlign: "center" } }, frontFile ? (backFile ? "Both sides ready — tap to extract" : "Front uploaded \xB7 Back side is optional") : "Upload the front side to get started")), mode === "url" && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     style: {
       color: "#9ca3af",
       fontSize: 13,
@@ -16177,6 +16192,8 @@ function FinanceTab({ settings }) {
   const [importMode, setImportMode] = useState("credit_card"); // "credit_card" | "bank_statement"
   const [cardParsing, setCardParsing] = useState(false);
   const [cardResults, setCardResults] = useState(null);
+  const [flaggedScanIds, setFlaggedScanIds] = useState(new Set());
+  const [flaggedCardIds, setFlaggedCardIds] = useState(new Set());
   const [deduping, setDeduping] = useState(false);
   const [merchantRules, setMerchantRules] = useState(MERCHANT_RULES_SEED);
   const [showRulesTable, setShowRulesTable] = useState(false);
@@ -16311,7 +16328,11 @@ Return ONLY a JSON array, no markdown:
   const confirmScan = async () => {
     if (!scanResults?.length) return;
     const byMonth = {};
-    scanResults.forEach(t => { if (!byMonth[t.month]) byMonth[t.month] = []; byMonth[t.month].push(t); });
+    scanResults.forEach(t => {
+      const txn = { ...t, needsReview: flaggedScanIds.has(t.id) };
+      if (!byMonth[txn.month]) byMonth[txn.month] = [];
+      byMonth[txn.month].push(txn);
+    });
     for (const m of Object.keys(byMonth)) {
       const existing = await DB.get(KEYS.financeTransactions(m)) || [];
       const ids = new Set(existing.map(t => t.id));
@@ -16319,8 +16340,15 @@ Return ONLY a JSON array, no markdown:
     }
     const months = [...new Set([...allMonths, ...Object.keys(byMonth)])].sort();
     await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
-    setScanResults(null); await loadMonth(currentMonth);
-    setImportMsg(`Added ${scanResults.length} transactions from screenshot.`); setView("transactions");
+    setScanResults(null);
+    const flagCount = flaggedScanIds.size;
+    setFlaggedScanIds(new Set());
+    // Switch to the month that was actually imported (fixes wrong-month display bug)
+    const targetMonth = Object.keys(byMonth).sort().pop() || currentMonth;
+    if (targetMonth !== currentMonth) setCurrentMonth(targetMonth);
+    await loadMonth(targetMonth);
+    setImportMsg(`Imported ${scanResults.length} transaction${scanResults.length !== 1 ? "s" : ""}${flagCount ? ` · ${flagCount} flagged for review` : ""}.`);
+    setView("transactions");
   };
 
   // Parse a month string like "02 Apr. 2026" → "2026-04-02"
@@ -16748,8 +16776,9 @@ Return exactly ${bRows.length} objects. No markdown.`;
       for (const m of Object.keys(byMonth)) {
         const existing = await DB.get(KEYS.financeTransactions(m)) || [];
         const ids = new Set(existing.map(t => t.id));
-        await DB.set(KEYS.financeTransactions(m), [...existing, ...byMonth[m].filter(t => !ids.has(t.id))]);
+        await DB.set(KEYS.financeTransactions(m), [...existing, ...byMonth[m].map(t => ({ ...t, needsReview: flaggedCardIds.has(t.id) })).filter(t => !ids.has(t.id))]);
       }
+      setFlaggedCardIds(new Set());
       const months = [...new Set([...allMonths, ...Object.keys(byMonth)])].sort();
       await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
       const ruleCount = ruled.filter(t => t._ruleApplied).length;
@@ -17406,7 +17435,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
                 const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
                 return /*#__PURE__*/React.createElement("div", {
                   key: t.id || i,
-                  style: { display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10, marginBottom: 6 }
+                  style: { display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", background: t.needsReview ? "rgba(244,168,35,.04)" : "rgba(255,255,255,.03)", border: t.needsReview ? "1px solid rgba(244,168,35,.25)" : "1px solid rgba(255,255,255,.06)", borderRadius: 10, marginBottom: 6 }
                 },
                   /*#__PURE__*/React.createElement("span", { style: { fontSize: 18, flexShrink: 0, marginTop: 1 } }, env?.icon || "📋"),
                   /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
@@ -17417,6 +17446,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
                     /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)" } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount))),
                     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 4 } },
                       t.receiptId && /*#__PURE__*/React.createElement("span", { title: "Receipt attached", style: { fontSize: 9, color: "#a78bfa", background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 4, padding: "2px 5px" } }, "\uD83E\uDDFE"),
+                      t.needsReview && /*#__PURE__*/React.createElement("span", { title: "Flagged for review", style: { fontSize: 9, color: "#f4a823", background: "rgba(244,168,35,.12)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 4, padding: "2px 5px" } }, "\uD83D\uDEA9 Review"),
                       /*#__PURE__*/React.createElement("button", { onClick: () => { setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }, style: { fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" } }, "edit")
                     )
                   )
@@ -17663,12 +17693,17 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           /*#__PURE__*/React.createElement("div", { style: { maxHeight: 200, overflowY: "auto" } },
             cardResults.expenses.slice(0, 50).map((t, i) => {
               const env = FINANCE_ENVELOPES_DEFAULT.find(ev => ev.id === t.envelopeId);
-              return /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
-                /*#__PURE__*/React.createElement("div", { style: { minWidth: 0, flex: 1, paddingRight: 8 } },
-                  /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc),
+              const isFlagged = flaggedCardIds.has(t.id);
+              return /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 6, padding: "6px 4px", borderBottom: "1px solid rgba(255,255,255,.04)", background: isFlagged ? "rgba(244,168,35,.06)" : "transparent", borderRadius: 4 } },
+                /*#__PURE__*/React.createElement("button", {
+                  onClick: () => setFlaggedCardIds(prev => { const next = new Set(prev); isFlagged ? next.delete(t.id) : next.add(t.id); return next; }),
+                  style: { background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 0, opacity: isFlagged ? 1 : 0.2, flexShrink: 0 }
+                }, "\uD83D\uDEA9"),
+                /*#__PURE__*/React.createElement("div", { style: { minWidth: 0, flex: 1 } },
+                  /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: isFlagged ? "#f4a823" : "var(--text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc),
                   /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + (env?.icon || "") + " " + (env?.name || "Other") + (t.subCat ? " / " + t.subCat : ""))
                 ),
-                /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)", flexShrink: 0 } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount || 0)))
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: t.isRefund ? "#4ade80" : isFlagged ? "#f4a823" : "var(--text-primary)", flexShrink: 0 } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount || 0)))
               );
             })
           ),
@@ -17690,8 +17725,8 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
         ),
 
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 14 } },
-          /*#__PURE__*/React.createElement("button", { onClick: confirmCardResults, style: { flex: 1, padding: "10px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Confirm & Save"),
-          /*#__PURE__*/React.createElement("button", { onClick: () => setCardResults(null), style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
+          /*#__PURE__*/React.createElement("button", { onClick: confirmCardResults, style: { flex: 1, padding: "10px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, flaggedCardIds.size ? "Import All (" + flaggedCardIds.size + " flagged)" : "Import All"),
+          /*#__PURE__*/React.createElement("button", { onClick: () => { setCardResults(null); setFlaggedCardIds(new Set()); }, style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
         )
       ),
 
@@ -17705,22 +17740,31 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
 
       // Scan results
       scanResults && /*#__PURE__*/React.createElement("div", { style: { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 14, padding: "16px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: "#4ade80", margin: "0 0 12px" } }, "FOUND " + scanResults.length + " TRANSACTIONS"),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: "#4ade80", margin: 0 } }, "FOUND " + scanResults.length + " TRANSACTIONS"),
+          flaggedScanIds.size > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "#f4a823", fontWeight: 700 } }, flaggedScanIds.size + " flagged for review")
+        ),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 10px", lineHeight: 1.5 } }, "Tap \uD83D\uDEA9 to flag any transaction that looks wrong — it will be saved but marked for review."),
         /*#__PURE__*/React.createElement("div", { style: { maxHeight: 300, overflowY: "auto", marginBottom: 12 } },
           scanResults.map((t, i) => {
             const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
-            return /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,.05)" } },
-              /*#__PURE__*/React.createElement("div", null,
-                /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-primary)", margin: 0, fontWeight: 500 } }, t.desc),
+            const isFlagged = flaggedScanIds.has(t.id);
+            return /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 8, padding: "7px 6px", borderBottom: "1px solid rgba(255,255,255,.05)", background: isFlagged ? "rgba(244,168,35,.06)" : "transparent", borderRadius: 6 } },
+              /*#__PURE__*/React.createElement("button", {
+                onClick: () => setFlaggedScanIds(prev => { const next = new Set(prev); isFlagged ? next.delete(t.id) : next.add(t.id); return next; }),
+                style: { background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: 0, opacity: isFlagged ? 1 : 0.25, flexShrink: 0 }
+              }, "\uD83D\uDEA9"),
+              /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: isFlagged ? "#f4a823" : "var(--text-primary)", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc),
                 /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + (env?.icon || "") + " " + (env?.name || "Other"))
               ),
-              /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-primary)" } }, "-$" + (t.amount || 0).toFixed(2))
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: isFlagged ? "#f4a823" : "var(--text-primary)", flexShrink: 0 } }, "-$" + (t.amount || 0).toFixed(2))
             );
           })
         ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
-          /*#__PURE__*/React.createElement("button", { onClick: confirmScan, style: { flex: 1, padding: "10px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Confirm & Save"),
-          /*#__PURE__*/React.createElement("button", { onClick: () => setScanResults(null), style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
+          /*#__PURE__*/React.createElement("button", { onClick: confirmScan, style: { flex: 1, padding: "10px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, flaggedScanIds.size ? "Import All (" + flaggedScanIds.size + " flagged)" : "Import All"),
+          /*#__PURE__*/React.createElement("button", { onClick: () => { setScanResults(null); setFlaggedScanIds(new Set()); }, style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
         )
       ),
 
@@ -18026,7 +18070,7 @@ function RemindersTab({ settings }) {
   const today = getToday();
   const [personal, setPersonal] = useState([]);
   const [joint, setJoint] = useState([]);
-  const [view, setView] = useState("personal");
+  const [view, setView] = useState("mine");
   const [input, setInput] = useState("");
   const [listening, setListening] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -18060,13 +18104,21 @@ function RemindersTab({ settings }) {
     r.start(); voiceRef.current = r;
   };
 
-  const makeItem = (fields, forceType) => ({
-    id: "r_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
-    title: fields.title || input.trim(), notes: fields.notes || "",
-    dueDate: fields.dueDate || "", dueTime: fields.dueTime || "",
-    type: forceType || fields.type || "personal",
-    done: false, doneAt: null, createdAt: new Date().toISOString(), googleTaskId: null
-  });
+  const makeItem = (fields, forceType) => {
+    const assignedTo = fields.assignedTo || "me";
+    // auto-route to joint if assigned to partner or both so they can see it
+    const autoType = assignedTo === "me" ? "personal" : "joint";
+    return {
+      id: "r_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+      title: fields.title || input.trim(), notes: fields.notes || "",
+      dueDate: fields.dueDate || "", dueTime: fields.dueTime || "",
+      type: forceType || fields.type || autoType,
+      urgency: fields.urgency || "medium",
+      assignedTo,
+      category: fields.category || "personal",
+      done: false, doneAt: null, createdAt: new Date().toISOString(), googleTaskId: null
+    };
+  };
 
   const handleAdd = async () => {
     if (!input.trim()) return;
@@ -18082,7 +18134,7 @@ function RemindersTab({ settings }) {
         method: "POST",
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 300,
-          messages: [{ role: "user", content: `Today is ${today}. Parse this into a reminder/note. Return ONLY valid JSON, no markdown:\n{"title":"short clear title","notes":"extra detail or empty","dueDate":"YYYY-MM-DD or empty","dueTime":"HH:MM 24h or empty","type":"personal or joint"}\nRules: type "joint" if it involves both people/household/we/us/our. Parse relative dates like "Friday","tomorrow" relative to ${today}. Keep title concise.\nInput: "${input.trim()}"` }]
+          messages: [{ role: "user", content: `Today is ${today}. Partner name: ${settings?.partnerName || "Sabrina"}. Parse this reminder. Return ONLY valid JSON, no markdown:\n{"title":"short clear title","notes":"extra detail or empty","dueDate":"YYYY-MM-DD or empty","dueTime":"HH:MM 24h or empty","type":"personal or joint","urgency":"low|medium|high","assignedTo":"me|partner|both","category":"household|health|finance|family|personal|work"}\nRules:\n- type "joint" if involves both people/household/we/us/our\n- assignedTo "partner" if mentions partner by name or says "remind her/him"\n- assignedTo "both" if says "we need to" or "both of us"\n- urgency "high" for urgent/ASAP/emergency, "low" for someday/eventually\n- category: household=chores/home, health=medical/fitness, finance=bills/money\n- Parse relative dates like "Friday","tomorrow" relative to ${today}\nInput: "${input.trim()}"` }]
         })
       });
       const data = await res.json();
@@ -18176,13 +18228,16 @@ function RemindersTab({ settings }) {
 
   const isOverdue = r => r.dueDate && r.dueDate < today && !r.done;
   const isDueToday = r => r.dueDate === today && !r.done;
-  const activePersonal = personal.filter(r => !r.done);
-  const activeJoint = joint.filter(r => !r.done);
+  const allActive = [...personal.filter(r => !r.done), ...joint.filter(r => !r.done)];
   const doneAll = [...personal.filter(r => r.done), ...joint.filter(r => r.done)].sort((a, b) => (b.doneAt || "").localeCompare(a.doneAt || ""));
-  const overdueCount = [...activePersonal, ...activeJoint].filter(isOverdue).length;
-  const dueTodayCount = [...activePersonal, ...activeJoint].filter(isDueToday).length;
+  const overdueCount = allActive.filter(isOverdue).length;
+  const dueTodayCount = allActive.filter(isDueToday).length;
   const hasGoogleToken = !!window.__google_access_token && (!window.__google_token_expiry || Date.now() < window.__google_token_expiry);
-  const displayItems = view === "personal" ? activePersonal : view === "joint" ? activeJoint : doneAll;
+  const partnerName = settings?.partnerName || "Sabrina";
+  const mineItems = allActive.filter(r => !r.assignedTo || r.assignedTo === "me");
+  const partnerItems = allActive.filter(r => r.assignedTo === "partner");
+  const bothItems = allActive.filter(r => r.assignedTo === "both");
+  const displayItems = view === "mine" ? mineItems : view === "partner" ? partnerItems : view === "both" ? bothItems : doneAll;
   const isDoneView = view === "done";
 
   const tabBtn = (id, label, count, col) => /*#__PURE__*/React.createElement("button", {
@@ -18227,8 +18282,9 @@ function RemindersTab({ settings }) {
     ),
 
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 16, background: "rgba(255,255,255,.03)", borderRadius: 10, padding: 4 } },
-      tabBtn("personal", "MINE", activePersonal.length, "#a78bfa"),
-      tabBtn("joint", "JOINT", activeJoint.length, "#60a5fa"),
+      tabBtn("mine", "MINE", mineItems.length, "#a78bfa"),
+      tabBtn("partner", partnerName.toUpperCase(), partnerItems.length, "#60a5fa"),
+      tabBtn("both", "BOTH", bothItems.length, "#fb923c"),
       tabBtn("done", "DONE", doneAll.length, "#4ade80")
     ),
 
@@ -18253,13 +18309,17 @@ function RemindersTab({ settings }) {
             style: { fontSize: 14, color: r.done ? "var(--text-muted)" : "var(--text-primary)", fontWeight: 500, textDecoration: r.done ? "line-through" : "none", wordBreak: "break-word" }
           }, r.title),
           r.notes && /*#__PURE__*/React.createElement("div", { style: { fontSize: 11, color: "var(--text-secondary)", marginTop: 3, lineHeight: 1.5 } }, r.notes),
-          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 5, flexWrap: "wrap", alignItems: "center" } },
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap", alignItems: "center" } },
+            r.urgency && r.urgency !== "medium" && /*#__PURE__*/React.createElement("span", {
+              style: { fontSize: 9, fontWeight: 800, letterSpacing: ".05em", borderRadius: 4, padding: "2px 6px", background: r.urgency === "high" ? "rgba(239,68,68,.15)" : "rgba(156,163,175,.1)", color: r.urgency === "high" ? "#ef4444" : "#9ca3af", border: r.urgency === "high" ? "1px solid rgba(239,68,68,.3)" : "1px solid rgba(156,163,175,.2)" }
+            }, r.urgency.toUpperCase()),
+            r.assignedTo && r.assignedTo !== "me" && !isDoneView && /*#__PURE__*/React.createElement("span", {
+              style: { fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "2px 6px", background: r.assignedTo === "both" ? "rgba(251,146,60,.15)" : "rgba(96,165,250,.15)", border: r.assignedTo === "both" ? "1px solid rgba(251,146,60,.3)" : "1px solid rgba(96,165,250,.25)", color: r.assignedTo === "both" ? "#fb923c" : "#60a5fa" }
+            }, r.assignedTo === "both" ? "BOTH" : "\u2192 " + partnerName.toUpperCase()),
+            r.category && r.category !== "personal" && /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "var(--text-muted)", fontWeight: 600 } }, r.category),
             r.dueDate && /*#__PURE__*/React.createElement("span", {
               style: { fontSize: 10, fontWeight: 700, letterSpacing: ".04em", color: overdue ? "#ef4444" : dueToday ? "#f4a823" : "var(--text-muted)" }
             }, overdue ? "OVERDUE \xB7 " + r.dueDate : dueToday ? "TODAY" + (r.dueTime ? " \xB7 " + r.dueTime : "") : r.dueDate + (r.dueTime ? " \xB7 " + r.dueTime : "")),
-            isJoint && !isDoneView && /*#__PURE__*/React.createElement("span", {
-              style: { fontSize: 10, background: "rgba(96,165,250,.15)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 4, padding: "1px 6px", color: "#60a5fa", fontWeight: 700 }
-            }, "JOINT"),
             r.googleTaskId && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "\u2713 Google"),
             isDoneView && r.doneAt && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Done " + r.doneAt.slice(0, 10))
           )
