@@ -2223,6 +2223,33 @@ function Morning({
     return () => { cancelled = true; };
   }, []);
 
+  // Load history log when view or selected date changes
+  useEffect(() => {
+    if (view === "history") {
+      DB.get(KEYS.log(histDate)).then(l => setHistLog(l || null));
+    }
+  }, [view, histDate]);
+
+  // Reset form fields when history log loads so we edit the selected day
+  useEffect(() => {
+    if (view !== "history") return;
+    const m = (histLog && histLog.morning) || {};
+    setWt(m.weight || "");
+    setWake(m.wakeTime || "");
+    setSl(m.sleep || 0);
+    setEn(m.energy || 0);
+    setHu(m.hunger || 0);
+    setReady(m.readiness || 0);
+    setSteps(m.steps || "");
+    setMood(m.mood || 0);
+    setGr(m.gratitude || "");
+    setIt(m.intention || "");
+    setMobility(m.mobilityChecked || {});
+    setIsExceptional(m.exceptionalDay || false);
+    setExceptionalReason(m.exceptionalReason || "");
+    setOk(false);
+  }, [histLog]);
+
   const handleAddPoolExercise = async () => {
     if (!poolForm.name.trim()) return;
     const newEx = { id: "custom_" + Date.now(), name: poolForm.name.trim(), zone: poolForm.zone, reps: poolForm.reps.trim() || "10 reps", tip: poolForm.tip.trim() || "" };
@@ -2285,12 +2312,12 @@ function Morning({
     exceptionalDay: isExceptional,
     exceptionalReason
   };
-  useAutoSave(backfill ? null : KEYS.log(getToday()), {
+  useAutoSave(backfill || isHistory ? null : KEYS.log(getToday()), {
     morning: data
-  }, !busy);
+  }, !busy && !isHistory);
   const go = async () => {
     setBusy(true);
-    const date = backfill ? backfillDate : getToday();
+    const date = backfill ? backfillDate : isHistory ? histDate : getToday();
     const existing = (await DB.get(KEYS.log(date))) || {};
     await DB.set(KEYS.log(date), {
       ...existing,
@@ -2299,9 +2326,9 @@ function Morning({
     setBusy(false);
     setOk(true);
     onSave && onSave(); // refresh allLogs so History/Calendar update
-    // Check milestones
+    // Check milestones (only for today's log)
     const stepGoalHit = parseInt(steps) >= stepGoal;
-    if (stepGoalHit && onMilestone) onMilestone(`${parseInt(steps).toLocaleString()} steps — goal hit! 💪`);
+    if (stepGoalHit && onMilestone && !isHistory) onMilestone(`${parseInt(steps).toLocaleString()} steps — goal hit! 💪`);
   };
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -2355,39 +2382,25 @@ function Morning({
     onSelectDate: d => {
       setHistDate(d);
       setHistLog(null);
-      DB.get(KEYS.log(d)).then(l => setHistLog(l || null));
     },
     allLogs: allLogsArr,
     accentColor: "#f4a823"
   }), /*#__PURE__*/React.createElement("div", {
     style: {
-      marginBottom: 6
+      padding: "9px 13px",
+      background: "rgba(244,168,35,.06)",
+      border: "1px solid rgba(244,168,35,.15)",
+      borderRadius: 10,
+      marginBottom: 16
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#60a5fa",
-      fontSize: 12,
+      color: "#f4a823",
+      fontSize: 11,
       fontWeight: 700,
-      margin: "0 0 12px"
+      margin: 0
     }
-  }, fmtMid(histDate), " \u2014 Morning Log"), /*#__PURE__*/React.createElement(MorningReadOnly, {
-    log: histLog,
-    date: histDate
-  }), histDate !== getToday() && histLog?.evening && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 16
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "#60a5fa",
-      fontSize: 12,
-      fontWeight: 700,
-      margin: "0 0 12px"
-    }
-  }, "Same day \u2014 Evening Log"), /*#__PURE__*/React.createElement(EveningReadOnly, {
-    log: histLog,
-    date: histDate
-  })))), view === "log" && ok && /*#__PURE__*/React.createElement(Card, {
+  }, "\u270f\ufe0f Editing " + fmtLong(histDate)))), ok && /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement("p", {
       style: {
         color: "#4ade80",
@@ -2421,7 +2434,7 @@ function Morning({
       fontSize: 10,
       margin: 0
     }
-  }, "Updates will overwrite. Scroll down to re-submit.")), view === "log" && /*#__PURE__*/React.createElement(React.Fragment, null, new Date().getHours() >= 10 && !todayLog?.morning && /*#__PURE__*/React.createElement("div", {
+  }, "Updates will overwrite. Scroll down to re-submit.")), (view === "log" || isHistory) && /*#__PURE__*/React.createElement(React.Fragment, null, view === "log" && new Date().getHours() >= 10 && !todayLog?.morning && /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 14,
       padding: "10px 13px",
@@ -2686,7 +2699,7 @@ function Morning({
       fontFamily: "'Syne',sans-serif",
       letterSpacing: ".05em"
     }
-  }, busy ? "SAVING..." : "LOG MORNING →"))));
+  }, busy ? "SAVING..." : isHistory ? "SAVE CHANGES \u2192" : "LOG MORNING \u2192"))));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -5055,8 +5068,9 @@ function Evening({
   const [view, setView] = useState(initialDate && initialDate !== getToday() ? "history" : "log");
   const [histDate, setHistDate] = useState(initialDate || getToday());
   const [histLog, setHistLog] = useState(null);
+  const isHistory = view === "history";
   useEffect(() => {
-    if (view === "history") {
+    if (isHistory) {
       DB.get(KEYS.log(histDate)).then(l => setHistLog(l || null));
     }
   }, [view, histDate]);
@@ -5081,6 +5095,32 @@ function Evening({
   const [glasses, setGlasses] = useState(ex.glasses || 0);
   const [busy, setBusy] = useState(false);
   const [ok, setOk] = useState(false);
+
+  // Reset form fields when history log loads so we edit the selected day
+  useEffect(() => {
+    if (!isHistory) return;
+    const e = (histLog && histLog.evening) || {};
+    setCa(e.cardio ?? false);
+    setSt(e.strength ?? false);
+    setSn(e.snack ?? null);
+    setFq(e.foodQuality || 0);
+    setFw(e.financeWin ?? false);
+    setFn(e.financeNote || "");
+    setMood(e.eveningMood || 0);
+    setMoodNote(e.moodNote || "");
+    setChoresDone(e.choresDone ?? false);
+    setChoreNote(e.choreNote || "");
+    setBedtime(e.bedtime || "");
+    setFamilyMoment(e.familyMoment || "");
+    setExceptional(e.exceptionalDay ?? false);
+    setExceptReason(e.exceptionalReason || "");
+    setDr(e.dayRating || 0);
+    setWi(e.win || "");
+    setHy(e.hydration ?? null);
+    setGlasses(e.glasses || 0);
+    setOk(false);
+  }, [histLog]);
+
   const data = {
     cardio: ca,
     strength: st,
@@ -5101,19 +5141,19 @@ function Evening({
     hydration: hy,
     glasses
   };
-  useAutoSave(KEYS.log(getToday()), {
-    evening: data,
-    ...(todayLog || {})
-  });
+  useAutoSave(isHistory ? null : KEYS.log(getToday()), {
+    evening: data
+  }, !busy && !isHistory);
   const go = async () => {
     setBusy(true);
-    const existing = (await DB.get(KEYS.log(getToday()))) || {};
-    await DB.set(KEYS.log(getToday()), {
+    const saveDate = isHistory ? histDate : getToday();
+    const existing = (await DB.get(KEYS.log(saveDate))) || {};
+    await DB.set(KEYS.log(saveDate), {
       ...existing,
       evening: data
     });
-    // Archive wins
-    if (wi.trim()) {
+    // Archive wins (only for today's log)
+    if (!isHistory && wi.trim()) {
       const arch = (await DB.get(KEYS.winsArchive())) || [];
       if (!arch.find(w => w.date === getToday())) {
         await DB.set(KEYS.winsArchive(), [{
@@ -5200,7 +5240,6 @@ function Evening({
     onSelectDate: d => {
       setHistDate(d);
       setHistLog(null);
-      DB.get(KEYS.log(d)).then(l => setHistLog(l || null));
     },
     allLogs: allLogsArr,
     accentColor: "#60a5fa"
@@ -5219,10 +5258,7 @@ function Evening({
       fontWeight: 700,
       margin: 0
     }
-  }, "Viewing " + fmtLong(histDate) + " · read only")), /*#__PURE__*/React.createElement(EveningReadOnly, {
-    log: histLog,
-    date: histDate
-  })), view === "log" && ok && /*#__PURE__*/React.createElement(Card, {
+  }, "\u270f\ufe0f Editing " + fmtLong(histDate)))), ok && /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement("p", {
       style: {
         color: "#60a5fa",
@@ -5235,7 +5271,7 @@ function Evening({
       background: "rgba(96,165,250,.06)",
       marginBottom: 16
     }
-  }), view === "log" && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Card, {
+  }), (view === "log" || isHistory) && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
       c: "Workouts Completed"
     }), /*#__PURE__*/React.createElement("div", {
@@ -5530,7 +5566,7 @@ function Evening({
       fontFamily: "'Syne',sans-serif",
       letterSpacing: ".05em"
     }
-  }, busy ? "SAVING..." : "CLOSE THE DAY →")));
+  }, busy ? "SAVING..." : isHistory ? "SAVE CHANGES \u2192" : "CLOSE THE DAY \u2192")));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18313,6 +18349,11 @@ function App() {
     } else {
       loadAll();
     }
+    // Re-fetch today's data whenever the app comes back to the foreground
+    // (handles overnight stale state — tab left open past midnight)
+    const handleVisibility = () => { if (!document.hidden) loadAll(); };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
   const loadAll = async () => {
     setLoading(true);
@@ -18505,14 +18546,14 @@ function App() {
       c: "#60a5fa"
     }]
   }, {
-    id: "history",
-    label: "HISTORY",
-    color: "#a78bfa",
-    tabs: []
-  }, {
     id: "finance",
     label: "FINANCE",
     color: "#34d399",
+    tabs: []
+  }, {
+    id: "history",
+    label: "OVERVIEW",
+    color: "#a78bfa",
     tabs: []
   }];
 
@@ -18770,6 +18811,7 @@ function App() {
     todayMealLog: todayMealLog,
     macroTargets: macroTargets
   }), tab === "morning" && /*#__PURE__*/React.createElement(Morning, {
+    key: getToday(),
     todayLog: todayLog,
     onSave: loadAll,
     settings: settings,
@@ -18785,6 +18827,7 @@ function App() {
     todayLog: todayLog,
     onSave: loadAll
   }), tab === "evening" && /*#__PURE__*/React.createElement(Evening, {
+    key: getToday(),
     todayLog: todayLog,
     onSave: loadAll,
     settings: settings,
