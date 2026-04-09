@@ -10096,8 +10096,20 @@ function App() {
         setPantryItems([]);
       }
     }
-    setSetupDone(!!sd);
-    if (st) setSettings(st);
+    if (!sd) {
+      // New user (e.g. Sabrina) — skip the onboarding wizard entirely.
+      // Auto-complete setup using their Google display name and sensible defaults.
+      const displayName = (window.__firebase_auth && window.__firebase_auth.currentUser && window.__firebase_auth.currentUser.displayName) || "";
+      const firstName = displayName.split(" ")[0] || "User";
+      const autoSettings = { ...DEFAULT_SETTINGS, name: firstName };
+      await DB.set(KEYS.settings(), autoSettings);
+      await DB.set(KEYS.setupDone(), true);
+      setSettings(autoSettings);
+      setSetupDone(true);
+    } else {
+      setSetupDone(true);
+      if (st) setSettings(st);
+    }
     if (go) setGoals(go);
     setStreak(sk || 0);
     setTasks(ch || CHORE_SEED);
