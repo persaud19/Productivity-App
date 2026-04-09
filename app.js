@@ -17422,7 +17422,19 @@ function App() {
   const [setupDone, setSetupDone] = useState(null); // null=loading
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [goals, setGoals] = useState([]);
-  const [tab, setTab] = useState("morning");
+  const [tab, setTab] = useState(() => {
+    // Restore last tab if session ended < 1 hour ago
+    try {
+      const saved = JSON.parse(localStorage.getItem("ml_last_tab") || "null");
+      if (saved && saved.tab && (Date.now() - saved.ts) < 3600000) return saved.tab;
+    } catch {}
+    // > 1 hour or no saved tab — pick by time of day
+    const h = new Date().getHours(), dow = new Date().getDay();
+    if (dow === 0) return "sunday";
+    if (h >= 18) return "evening";
+    if (h >= 5 && h < 12) return "morning";
+    return "train";
+  });
   const [editLogDate, setEditLogDate] = useState(null); // {date, section} when navigating to edit a past log
   const [todayLog, setTodayLog] = useState(null);
   const [allLogs, setAllLogs] = useState([]);
@@ -17448,27 +17460,10 @@ function App() {
   // Apply colour theme whenever it changes
   React.useEffect(() => { applyTheme(settings.theme || "dark"); }, [settings.theme]);
 
-  // Persist last-visited tab so we can restore it on return
+  // Persist last-visited tab on every change — read back via lazy useState initializer above
   useEffect(() => {
     if (tab) localStorage.setItem("ml_last_tab", JSON.stringify({ tab, ts: Date.now() }));
   }, [tab]);
-
-  // On mount: restore last tab if session ended < 1 hour ago, else use time-of-day default
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("ml_last_tab") || "null");
-      if (saved && saved.tab && (Date.now() - saved.ts) < 3600000) {
-        setTab(saved.tab);
-        return; // skip time-of-day logic — user returns to where they left off
-      }
-    } catch {}
-    // > 1 hour (or no saved tab) — pick tab by time of day
-    const h = new Date().getHours(), dow = new Date().getDay();
-    if (dow === 0) setTab("sunday");
-    else if (h >= 18) setTab("evening");
-    else if (h >= 5 && h < 12) setTab("morning");
-    else setTab("train");
-  }, []);
   useEffect(() => {
     const lnk = document.createElement("link");
     lnk.rel = "stylesheet";
