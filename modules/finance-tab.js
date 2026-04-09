@@ -1191,30 +1191,65 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
   const handleAddIncome = async () => {
     const amt = parseFloat(addIncomeForm.amount);
     if (!addIncomeForm.source.trim() || isNaN(amt) || amt <= 0) return;
-    const month = addIncomeForm.date.slice(0, 7);
-    const entry = { id: "inc_" + Date.now(), date: addIncomeForm.date, month, amount: amt, source: addIncomeForm.source.trim(), type: addIncomeForm.type };
-    const updated = [...income, entry];
-    setIncome(updated);
-    await DB.set(KEYS.financeIncome(month), updated);
+    const entryMonth = addIncomeForm.date.slice(0, 7);
+    const entry = { id: "inc_" + Date.now(), date: addIncomeForm.date, month: entryMonth, amount: amt, source: addIncomeForm.source.trim(), type: addIncomeForm.type };
+    if (entryMonth === currentMonth) {
+      // Same month — update in-memory state and save
+      const updated = [...income, entry];
+      setIncome(updated);
+      await DB.set(KEYS.financeIncome(currentMonth), updated);
+    } else {
+      // Different month — load that month's array from Firebase and append there only
+      const existing = await DB.get(KEYS.financeIncome(entryMonth)) || [];
+      await DB.set(KEYS.financeIncome(entryMonth), [...existing, entry]);
+      // Ensure the target month is in the months index
+      if (!allMonths.includes(entryMonth)) {
+        const updatedMonths = [...allMonths, entryMonth].sort();
+        setAllMonths(updatedMonths);
+        await DB.set(KEYS.financeAllMonths(), updatedMonths);
+      }
+    }
     setShowAddIncome(false);
     setAddIncomeForm({ date: getToday(), amount: "", source: "Salary", type: "salary" });
   };
 
   const handleDeleteIncome = async (id) => {
-    const updated = income.filter(i => i.id !== id);
-    setIncome(updated);
-    await DB.set(KEYS.financeIncome(currentMonth), updated);
+    const entry = income.find(i => i.id === id);
+    const entryMonth = entry?.month || entry?.date?.slice(0, 7) || currentMonth;
+    if (entryMonth === currentMonth) {
+      const updated = income.filter(i => i.id !== id);
+      setIncome(updated);
+      await DB.set(KEYS.financeIncome(currentMonth), updated);
+    } else {
+      const existing = await DB.get(KEYS.financeIncome(entryMonth)) || [];
+      await DB.set(KEYS.financeIncome(entryMonth), existing.filter(i => i.id !== id));
+    }
   };
 
   const handleEditIncome = async () => {
     if (!editingIncome) return;
     const amt = parseFloat(editIncomeForm.amount);
     if (!editIncomeForm.source.trim() || isNaN(amt) || amt <= 0) return;
-    const updated = income.map(i => i.id === editingIncome.id
-      ? { ...i, source: editIncomeForm.source.trim(), amount: amt, date: editIncomeForm.date, month: editIncomeForm.date.slice(0, 7), type: editIncomeForm.type }
-      : i);
-    setIncome(updated);
-    await DB.set(KEYS.financeIncome(currentMonth), updated);
+    const originalMonth = editingIncome.month || editingIncome.date?.slice(0, 7) || currentMonth;
+    const newMonth = editIncomeForm.date.slice(0, 7);
+    const updatedEntry = { ...editingIncome, source: editIncomeForm.source.trim(), amount: amt, date: editIncomeForm.date, month: newMonth, type: editIncomeForm.type };
+    if (originalMonth === newMonth && originalMonth === currentMonth) {
+      // Same month, in-memory update
+      const updated = income.map(i => i.id === editingIncome.id ? updatedEntry : i);
+      setIncome(updated);
+      await DB.set(KEYS.financeIncome(currentMonth), updated);
+    } else {
+      // Remove from original month
+      const origArr = originalMonth === currentMonth ? income : (await DB.get(KEYS.financeIncome(originalMonth)) || []);
+      const withoutOld = origArr.filter(i => i.id !== editingIncome.id);
+      await DB.set(KEYS.financeIncome(originalMonth), withoutOld);
+      if (originalMonth === currentMonth) setIncome(withoutOld);
+      // Add to new month
+      const newArr = newMonth === currentMonth ? withoutOld : (await DB.get(KEYS.financeIncome(newMonth)) || []);
+      const withNew = newMonth === currentMonth ? [...income.filter(i => i.id !== editingIncome.id), updatedEntry] : [...newArr, updatedEntry];
+      await DB.set(KEYS.financeIncome(newMonth), withNew);
+      if (newMonth === currentMonth) setIncome(withNew);
+    }
     setEditingIncome(null);
   };
 
