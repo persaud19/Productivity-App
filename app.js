@@ -2790,16 +2790,21 @@ function MobilityTab({ todayLog, onSave }) {
     load();
   }, []);
 
+  // Keep a ref to the latest todayLog so setMobility never needs a DB.get round-trip
+  const todayLogRef = useRef(todayLog);
+  useEffect(() => { todayLogRef.current = todayLog; }, [todayLog]);
+
   const setMobility = async (updated) => {
-    setMobilityState(typeof updated === "function" ? updated(mobility) : updated);
     const checked = typeof updated === "function" ? updated(mobility) : updated;
+    setMobilityState(checked);
     const todayDayKey = getDayKey(getToday());
     const todayIds = weekPlan?.[todayDayKey] || [];
     const dailyList = todayIds.map(id => mobilityPool.find(e => e.id === id)).filter(Boolean);
     const mobDone = dailyList.filter(e => checked[e.id]).length;
-    const existing = (await DB.get(KEYS.log(getToday()))) || {};
+    // Use the ref instead of DB.get — no round-trip, instant save
+    const existing = todayLogRef.current || {};
     await DB.set(KEYS.log(getToday()), { ...existing, morning: { ...(existing.morning || {}), mobilityChecked: checked, mobilityCount: mobDone } });
-    onSave && onSave();
+    onSave && onSave(checked, mobDone);
   };
 
   const handleAddPoolExercise = async () => {
@@ -10528,7 +10533,13 @@ function App() {
     settings: settings
   }), tab === "mobility" && /*#__PURE__*/React.createElement(MobilityTab, {
     todayLog: todayLog,
-    onSave: loadAll
+    onSave: (checked, mobDone) => {
+      // Silent patch — update todayLog state directly, no full reload
+      setTodayLog(prev => ({
+        ...prev,
+        morning: { ...((prev || {}).morning || {}), mobilityChecked: checked, mobilityCount: mobDone }
+      }));
+    }
   }), tab === "evening" && /*#__PURE__*/React.createElement(Evening, {
     key: getToday(),
     todayLog: todayLog,

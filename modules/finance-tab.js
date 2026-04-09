@@ -149,6 +149,7 @@ function applyMerchantRules(transactions, rules) {
 
 // Default envelope categories derived from actual spending data
 const FINANCE_ENVELOPES_DEFAULT = [
+  { id: "fixed_costs",     name: "Fixed Costs",       color: "#94a3b8", icon: "🏦", highlevel: "Fixed"         },
   { id: "food_drink",      name: "Food & Drink",      color: "#fb923c", icon: "🍽", highlevel: "Food"          },
   { id: "household",       name: "Household",         color: "#60a5fa", icon: "🏠", highlevel: "Household"     },
   { id: "transportation",  name: "Transportation",    color: "#f4a823", icon: "🚗", highlevel: "Transportation" },
@@ -270,6 +271,8 @@ function FinanceTab({ settings }) {
       const base64 = await new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result.split(",")[1]); r.readAsDataURL(file); });
       const mediaType = file.type || "image/jpeg";
       const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(e => `${e.id}: ${e.name}`).join(", ");
+      const todayStr = getToday(); // e.g. "2026-04-09"
+      const currentYear = todayStr.slice(0, 4);
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 45000);
       const res = await fetch("/api/claude", {
@@ -277,9 +280,10 @@ function FinanceTab({ settings }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 3000, messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-          { type: "text", text: `Extract all purchase transactions from this statement screenshot. Ignore payment rows, balance rows, and totals.
+          { type: "text", text: `Today is ${todayStr}. Extract all purchase transactions from this statement screenshot. Ignore payment rows, balance rows, and totals.
 Return ONLY a JSON array, no markdown:
 [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","card":"Amex","envelopeId":"food_drink","subCat":"Grocery"}]
+- date: use full YYYY-MM-DD format. If the statement only shows month/day without year, use ${currentYear} as the year.
 - amount: positive number
 - card: Amex, TD Visa, CIBC, PC Financial, or Unknown
 - envelopeId: best match from — ${envelopeList}
@@ -307,16 +311,30 @@ Return ONLY a JSON array, no markdown:
         const rule = merchantRules.find(r => d.includes(r.keyword.toLowerCase()));
         return rule ? rule.envelopeId : (envelopeId || "other");
       };
-      setScanResults(txns.map(t => ({
-        ...t,
-        month: (t.date || "").slice(0, 7),
-        id: txnId("scan", t.date, t.amount, t.desc),
-        isRefund: false,
-        category: "Scanned",
-        highlevel: "",
-        envelopeId: applyRules(t.desc, t.envelopeId),
-        subCat: t.subCat || ""
-      })));
+      // Sanitize date: if year is missing, empty, or looks wrong (pre-2020 or >1yr future) fix it
+      const sanitizeDate = raw => {
+        if (!raw || raw.length < 7) return `${currentYear}-${todayStr.slice(5, 7)}-01`;
+        const yr = parseInt(raw.slice(0, 4));
+        if (yr < 2020 || yr > parseInt(currentYear) + 1) {
+          // Keep month/day, correct the year
+          return `${currentYear}-${raw.slice(5)}`;
+        }
+        return raw;
+      };
+      setScanResults(txns.map(t => {
+        const cleanDate = sanitizeDate(t.date);
+        return {
+          ...t,
+          date: cleanDate,
+          month: cleanDate.slice(0, 7),
+          id: txnId("scan", cleanDate, t.amount, t.desc),
+          isRefund: false,
+          category: "Scanned",
+          highlevel: "",
+          envelopeId: applyRules(t.desc, t.envelopeId),
+          subCat: t.subCat || ""
+        };
+      }));
       setImportMsg("");
     } catch(err) {
       setImportMsg(err.name === "AbortError" ? "Scan timed out — try a smaller/clearer image." : "Scan failed: " + err.message);
