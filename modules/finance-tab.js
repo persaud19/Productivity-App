@@ -198,6 +198,8 @@ function FinanceTab({ settings }) {
   const [deduping, setDeduping] = useState(false);
   const [merchantRules, setMerchantRules] = useState(MERCHANT_RULES_SEED);
   const [showRulesTable, setShowRulesTable] = useState(false);
+  const [runningRules, setRunningRules] = useState(false);
+  const [rulesRunMsg, setRulesRunMsg] = useState("");
   const [rulePrompt, setRulePrompt] = useState(null); // {txn, suggestedName, envelopeId, subCat}
   const [ruleForm, setRuleForm] = useState({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
   const [vaguePrompt, setVaguePrompt] = useState(null); // {txn, suggestions: [{label, envelopeId, subCat}]}
@@ -844,6 +846,44 @@ Return exactly ${bRows.length} objects. No markdown.`;
     setEditingTxn(null);
   };
 
+  // Apply a set of rules across ALL historical months and update Firebase
+  const handleRunRules = async (rulesToApply) => {
+    if (!rulesToApply || rulesToApply.length === 0) return;
+    setRunningRules(true);
+    setRulesRunMsg("");
+    try {
+      const allMonths = await DB.get(KEYS.financeAllMonths()) || [];
+      let totalUpdated = 0;
+      let monthsAffected = 0;
+      await Promise.all(allMonths.map(async (m) => {
+        const txns = await DB.get(KEYS.financeTransactions(m)) || [];
+        if (txns.length === 0) return;
+        const updated = applyMerchantRules(txns, rulesToApply);
+        // Count actual changes
+        let changed = 0;
+        for (let i = 0; i < txns.length; i++) {
+          if (txns[i].envelopeId !== updated[i].envelopeId || txns[i].subCat !== updated[i].subCat) changed++;
+        }
+        if (changed > 0) {
+          await DB.set(KEYS.financeTransactions(m), updated);
+          totalUpdated += changed;
+          monthsAffected++;
+          // Refresh current month in UI if it was one of the updated months
+          if (m === currentMonth) {
+            setTransactions(updated);
+          }
+        }
+      }));
+      setRulesRunMsg(totalUpdated > 0
+        ? `✓ Updated ${totalUpdated} transaction${totalUpdated !== 1 ? "s" : ""} across ${monthsAffected} month${monthsAffected !== 1 ? "s" : ""}`
+        : "✓ No changes needed — all transactions already match rules"
+      );
+    } catch (err) {
+      setRulesRunMsg("⚠ Error running rules: " + err.message);
+    }
+    setRunningRules(false);
+  };
+
   const handleSaveRule = async () => {
     if (!ruleForm.keyword.trim()) return;
     const newRule = { id: "mr_u" + Date.now(), keyword: ruleForm.keyword.trim().toLowerCase(), displayName: ruleForm.displayName.trim() || ruleForm.keyword.trim(), envelopeId: ruleForm.envelopeId, subCat: ruleForm.subCat.trim() };
@@ -851,6 +891,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
     setMerchantRules(updated);
     await DB.set(KEYS.merchantRules(), updated);
     setRulePrompt(null);
+    // Auto-run the new rule against all historical data
+    await handleRunRules([newRule]);
   };
 
   const handleDeleteRule = async (id) => {
@@ -866,6 +908,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
     setMerchantRules(updated);
     await DB.set(KEYS.merchantRules(), updated);
     setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
+    // Auto-run the new rule against all historical data
+    await handleRunRules([newRule]);
   };
 
   // Build financial context string for Claude.
@@ -2049,12 +2093,22 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 220 }, onClick: () => setShowRulesTable(false) }),
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "#080b11", zIndex: 221, display: "flex", flexDirection: "column" } },
         // Header
-        /*#__PURE__*/React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "space-between" } },
-          /*#__PURE__*/React.createElement("div", null,
-            /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#a78bfa", margin: 0 } }, "MERCHANT RULES"),
-            /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0" } }, merchantRules.length + " rules — applied automatically on CSV import")
+        /*#__PURE__*/React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.08)" } },
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between" } },
+            /*#__PURE__*/React.createElement("div", null,
+              /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#a78bfa", margin: 0 } }, "MERCHANT RULES"),
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0" } }, merchantRules.length + " rules — applied automatically on CSV import")
+            ),
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+              /*#__PURE__*/React.createElement("button", {
+                onClick: () => { setRulesRunMsg(""); handleRunRules(merchantRules); },
+                disabled: runningRules,
+                style: { padding: "7px 14px", background: runningRules ? "rgba(167,139,250,.2)" : "rgba(167,139,250,.15)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 8, color: runningRules ? "var(--text-muted)" : "#a78bfa", fontSize: 12, fontWeight: 700, cursor: runningRules ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", whiteSpace: "nowrap" }
+              }, runningRules ? "Running…" : "⚡ Run All Rules"),
+              /*#__PURE__*/React.createElement("button", { onClick: () => { setShowRulesTable(false); setRulesRunMsg(""); }, style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 20, cursor: "pointer", lineHeight: 1 } }, "\xD7")
+            )
           ),
-          /*#__PURE__*/React.createElement("button", { onClick: () => setShowRulesTable(false), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 20, cursor: "pointer", lineHeight: 1 } }, "\xD7")
+          rulesRunMsg && /*#__PURE__*/React.createElement("p", { style: { margin: "8px 0 0", fontSize: 12, color: rulesRunMsg.startsWith("✓") ? "#4ade80" : "#ef4444", fontWeight: 600 } }, rulesRunMsg)
         ),
         // Add new rule row
         /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", background: "rgba(167,139,250,.05)" } },
