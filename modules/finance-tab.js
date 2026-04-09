@@ -1528,31 +1528,59 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
 
     // ── INCOME VIEW ─────────────────────────────────────────────────────
     view === "income" && /*#__PURE__*/React.createElement("div", null,
-      // Income header
+      // Header row — total + add button
       /*#__PURE__*/React.createElement("div", { style: { background: "rgba(74,222,128,.07)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 14, padding: "14px 16px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" } },
         /*#__PURE__*/React.createElement("div", null,
-          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#4ade80", letterSpacing: ".07em", margin: "0 0 2px" } }, "TOTAL MONEY IN"),
+          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#4ade80", letterSpacing: ".07em", margin: "0 0 2px" } }, "TOTAL MONEY IN — " + monthLabel(currentMonth).toUpperCase()),
           /*#__PURE__*/React.createElement("p", { style: { fontSize: 22, fontWeight: 800, color: "#4ade80", margin: 0, fontFamily: "'Syne',sans-serif" } }, fmt(totalIncome))
         ),
         /*#__PURE__*/React.createElement("button", { onClick: () => setShowAddIncome(true), style: { background: "#4ade80", border: "none", borderRadius: 10, padding: "10px 16px", color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
       ),
-      // Income entries list
+
+      // Entry count + sort hint
+      income.length > 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "0 0 10px" } },
+        income.length + " entr" + (income.length === 1 ? "y" : "ies") + " \xB7 tap to edit"
+      ),
+
+      // Income entries — sorted newest first
       income.length === 0
-        ? /*#__PURE__*/React.createElement("p", { style: { textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: "30px 0" } }, "No money in logged for " + monthLabel(currentMonth) + ". Tap + ADD.")
-        : income.map(inc => /*#__PURE__*/React.createElement("div", { key: inc.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "rgba(74,222,128,.04)", border: "1px solid rgba(74,222,128,.12)", borderRadius: 10, marginBottom: 8, cursor: "pointer" }, onClick: () => { setEditingIncome(inc); setEditIncomeForm({ source: inc.source || "", amount: String(inc.amount || ""), date: inc.date || getToday(), type: inc.type || "other" }); } },
-            /*#__PURE__*/React.createElement("div", null,
-              /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 600 } }, inc.source),
-              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, inc.date + " \xB7 " + (inc.type || "other"))
-            ),
-            /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
-              /*#__PURE__*/React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "#4ade80" } }, "+" + fmt(inc.amount)),
-              /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px" } }, "edit")
+        ? /*#__PURE__*/React.createElement("p", { style: { textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: "20px 0" } }, "No income logged for " + monthLabel(currentMonth) + ". Tap + ADD.")
+        : [...income].sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(inc =>
+            /*#__PURE__*/React.createElement("div", {
+              key: inc.id,
+              style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "rgba(74,222,128,.04)", border: "1px solid rgba(74,222,128,.12)", borderRadius: 10, marginBottom: 8, cursor: "pointer" },
+              onClick: () => { setEditingIncome(inc); setEditIncomeForm({ source: inc.source || "", amount: String(inc.amount || ""), date: inc.date || getToday(), type: inc.type || "other" }); }
+            },
+              /*#__PURE__*/React.createElement("div", null,
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 600 } }, inc.source),
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, inc.date + " \xB7 " + (inc.type || "other"))
+              ),
+              /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "#4ade80" } }, "+" + fmt(inc.amount)),
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", borderRadius: 4, padding: "2px 6px" } }, "edit")
+              )
             )
-          )),
+          ),
+
       // Net cash flow callout
-      totalIncome > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 16, padding: "12px 16px", background: netCashFlow >= 0 ? "rgba(74,222,128,.08)" : "rgba(239,68,68,.08)", border: `1px solid ${netCashFlow >= 0 ? "rgba(74,222,128,.2)" : "rgba(239,68,68,.2)"}`, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" } },
+      totalIncome > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 12, padding: "12px 16px", background: netCashFlow >= 0 ? "rgba(74,222,128,.08)" : "rgba(239,68,68,.08)", border: `1px solid ${netCashFlow >= 0 ? "rgba(74,222,128,.2)" : "rgba(239,68,68,.2)"}`, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" } },
         /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-secondary)", fontWeight: 700 } }, "NET CASH FLOW"),
         /*#__PURE__*/React.createElement("span", { style: { fontSize: 16, fontWeight: 800, color: netCashFlow >= 0 ? "#4ade80" : "#ef4444", fontFamily: "'Syne',sans-serif" } }, (netCashFlow >= 0 ? "+" : "") + fmt(netCashFlow))
+      ),
+
+      // Past months browser — tap any month to load it
+      allMonths.length > 1 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 20 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 10, fontWeight: 800, color: "var(--text-muted)", letterSpacing: ".08em", marginBottom: 10 } }, "ALL MONTHS"),
+        [...allMonths].sort((a, b) => b.localeCompare(a)).map(m =>
+          /*#__PURE__*/React.createElement("button", {
+            key: m,
+            onClick: () => setCurrentMonth(m),
+            style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", textAlign: "left", background: m === currentMonth ? "rgba(74,222,128,.1)" : "rgba(255,255,255,.03)", border: `1px solid ${m === currentMonth ? "rgba(74,222,128,.3)" : "rgba(255,255,255,.06)"}`, borderRadius: 8, padding: "9px 12px", marginBottom: 6, cursor: "pointer" }
+          },
+            /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: m === currentMonth ? "#4ade80" : "var(--text-secondary)", fontWeight: m === currentMonth ? 700 : 400 } }, monthLabel(m)),
+            m === currentMonth && income.length > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "#4ade80", fontWeight: 700 } }, fmt(totalIncome))
+          )
+        )
       )
     ),
 
