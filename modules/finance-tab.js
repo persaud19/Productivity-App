@@ -884,9 +884,18 @@ Return exactly ${bRows.length} objects. No markdown.`;
 
   const handleEditTxn = async (txn, newEnvelopeId, newSubCat) => {
     const subCatVal = newSubCat !== undefined ? newSubCat : (txn.subCat || "");
-    const updated = transactions.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId, subCat: subCatVal } : t);
-    setTransactions(updated);
-    await DB.set(KEYS.financeTransactions(currentMonth), updated);
+    const txnMonth = txn.month || txn.date?.slice(0, 7) || currentMonth;
+    if (txnMonth === currentMonth) {
+      // In-memory update for current month
+      const updated = transactions.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId, subCat: subCatVal } : t);
+      setTransactions(updated);
+      await DB.set(KEYS.financeTransactions(currentMonth), updated);
+    } else {
+      // Transaction belongs to a different month — load that month from Firebase
+      const existing = await DB.get(KEYS.financeTransactions(txnMonth)) || [];
+      const updated = existing.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId, subCat: subCatVal } : t);
+      await DB.set(KEYS.financeTransactions(txnMonth), updated);
+    }
     setEditingTxn(null);
     // Offer rule creation if envelope changed
     if (newEnvelopeId !== txn.envelopeId) {
@@ -899,9 +908,15 @@ Return exactly ${bRows.length} objects. No markdown.`;
   };
 
   const handleDeleteTxn = async (txn) => {
-    const updated = transactions.filter(t => t.id !== txn.id);
-    setTransactions(updated);
-    await DB.set(KEYS.financeTransactions(txn.month || currentMonth), updated);
+    const txnMonth = txn.month || txn.date?.slice(0, 7) || currentMonth;
+    if (txnMonth === currentMonth) {
+      const updated = transactions.filter(t => t.id !== txn.id);
+      setTransactions(updated);
+      await DB.set(KEYS.financeTransactions(currentMonth), updated);
+    } else {
+      const existing = await DB.get(KEYS.financeTransactions(txnMonth)) || [];
+      await DB.set(KEYS.financeTransactions(txnMonth), existing.filter(t => t.id !== txn.id));
+    }
     setEditingTxn(null);
   };
 
