@@ -321,6 +321,7 @@ const KEYS = {
   sabinaPrompts: () => `ml:sabrina:mealPrompts`,
   financeEnvelopes: month => `ml:finance:envelopes:${month}`,
   financeDefaultEnvelopes: () => `ml:finance:envelopes:default`,
+  financeEnvelopeCatalog: () => `ml:finance:envelopes:catalog`,
   financeTransactions: month => `ml:finance:txns:${month}`,
   financeAllMonths: () => `ml:finance:months`,
   financeRollover: month => `ml:finance:rollover:${month}`,

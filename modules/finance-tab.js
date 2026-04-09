@@ -169,6 +169,25 @@ const FINANCE_ENVELOPES_DEFAULT = [
 ];
 
 
+// Icon picker groups for new envelope creation
+const ICON_GROUPS = [
+  { label: "Food",     icons: ["🍽","🍕","🍔","🛒","☕","🥡","🧁","🍷","🥩","🍜"] },
+  { label: "Home",     icons: ["🏠","🛋","🔧","🧹","💡","🚿","🏡","🛏","🪴","🧺"] },
+  { label: "Transport",icons: ["🚗","✈️","🚌","⛽","🚂","🛵","🚲","🚕","🛳","🏍"] },
+  { label: "Health",   icons: ["💊","🏥","💪","🧘","🦷","🩺","🥗","🧬","🧴","❤️"] },
+  { label: "Finance",  icons: ["💰","🏦","💳","📈","💵","🪙","📉","💹","🤑","💸"] },
+  { label: "Shopping", icons: ["🛍","👗","📦","👟","🕶","💍","🧥","👜","🎒","🧣"] },
+  { label: "Fun",      icons: ["🎬","🎮","🎵","📺","🎭","🃏","🎲","🌿","⛳","🎾"] },
+  { label: "Other",    icons: ["📋","🎁","📚","💼","🎓","✨","⭐","🔑","🏆","🎯"] },
+];
+
+// Preset color palette for envelopes
+const ENV_COLORS = [
+  "#94a3b8","#fb923c","#60a5fa","#f4a823","#a78bfa","#ec4899",
+  "#f97316","#8b5cf6","#4ade80","#06b6d4","#ef4444","#22c55e",
+  "#f43f5e","#eab308","#34d399","#64748b","#e879f9","#38bdf8",
+];
+
 // FinanceTab component
 function FinanceTab({ settings }) {
   const [view, setView] = useState("envelopes"); // envelopes | transactions | summary | import
@@ -200,6 +219,10 @@ function FinanceTab({ settings }) {
   const [showRulesTable, setShowRulesTable] = useState(false);
   const [runningRules, setRunningRules] = useState(false);
   const [rulesRunMsg, setRulesRunMsg] = useState("");
+  const [envelopeCatalog, setEnvelopeCatalog] = useState(FINANCE_ENVELOPES_DEFAULT);
+  const [showManageEnvelopes, setShowManageEnvelopes] = useState(false);
+  const [newEnvForm, setNewEnvForm] = useState({ name: "", icon: "📋", color: "#6b7280", highlevel: "" });
+  const [iconGroupTab, setIconGroupTab] = useState(0);
   const [rulePrompt, setRulePrompt] = useState(null); // {txn, suggestedName, envelopeId, subCat}
   const [ruleForm, setRuleForm] = useState({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
   const [vaguePrompt, setVaguePrompt] = useState(null); // {txn, suggestions: [{label, envelopeId, subCat}]}
@@ -224,10 +247,15 @@ function FinanceTab({ settings }) {
     const rollover = await DB.get(KEYS.financeRollover(month));
     const months = await DB.get(KEYS.financeAllMonths());
 
+    // Load user's envelope catalog (custom + default, with hidden flags)
+    const catalogData = await DB.get(KEYS.financeEnvelopeCatalog());
+    const catalog = (catalogData && catalogData.length) ? catalogData : FINANCE_ENVELOPES_DEFAULT;
+    setEnvelopeCatalog(catalog);
+
     // If this month has no saved allocations, fall back to the default budget template
     const defaultEnvs = (!saved || !saved.length) ? (await DB.get(KEYS.financeDefaultEnvelopes()) || []) : [];
     const sourceEnvs = (saved && saved.length) ? saved : defaultEnvs;
-    const baseEnvelopes = FINANCE_ENVELOPES_DEFAULT.map(def => {
+    const baseEnvelopes = catalog.map(def => {
       const s = sourceEnvs.find(e => e.id === def.id);
       return { ...def, allocated: s?.allocated ?? 0 };
     });
@@ -260,6 +288,37 @@ function FinanceTab({ settings }) {
     await DB.set(KEYS.financeEnvelopes(currentMonth), updated);
   };
 
+  const saveEnvelopeCatalog = async (updated) => {
+    setEnvelopeCatalog(updated);
+    await DB.set(KEYS.financeEnvelopeCatalog(), updated);
+    // Also rebuild current month's envelopes so new/hidden envelopes take effect
+    const saved = await DB.get(KEYS.financeEnvelopes(currentMonth)) || [];
+    const newMonthEnvs = updated.map(def => {
+      const s = saved.find(e => e.id === def.id);
+      return { ...def, allocated: s?.allocated ?? 0 };
+    });
+    setEnvelopes(newMonthEnvs);
+  };
+
+  const handleAddEnvelope = async () => {
+    if (!newEnvForm.name.trim()) return;
+    const id = "env_u" + Date.now();
+    const newEnv = { id, name: newEnvForm.name.trim(), icon: newEnvForm.icon, color: newEnvForm.color, highlevel: newEnvForm.highlevel, custom: true };
+    const updated = [...envelopeCatalog, newEnv];
+    await saveEnvelopeCatalog(updated);
+    setNewEnvForm({ name: "", icon: "📋", color: "#6b7280", highlevel: "" });
+  };
+
+  const handleToggleEnvelopeVisibility = async (id) => {
+    const updated = envelopeCatalog.map(e => e.id === id ? { ...e, hidden: !e.hidden } : e);
+    await saveEnvelopeCatalog(updated);
+  };
+
+  const handleDeleteCustomEnvelope = async (id) => {
+    const updated = envelopeCatalog.filter(e => e.id !== id);
+    await saveEnvelopeCatalog(updated);
+  };
+
   const setDefaultBudget = async () => {
     await DB.set(KEYS.financeDefaultEnvelopes(), envelopes);
     setImportMsg("Default budget saved — all months without a custom budget will now use these values.");
@@ -272,7 +331,7 @@ function FinanceTab({ settings }) {
     try {
       const base64 = await new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result.split(",")[1]); r.readAsDataURL(file); });
       const mediaType = file.type || "image/jpeg";
-      const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(e => `${e.id}: ${e.name}`).join(", ");
+      const envelopeList = envelopeCatalog.map(e => `${e.id}: ${e.name}`).join(", ");
       const todayStr = getToday(); // e.g. "2026-04-09"
       const currentYear = todayStr.slice(0, 4);
       const controller = new AbortController();
@@ -626,7 +685,7 @@ Return ONLY a JSON array, no markdown:
       const rawRows = parseNormCsvRows(text).slice(0, 300);
       if (!rawRows.length) { setImportMsg("Could not parse any transactions from the file — check the format."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
 
-      const envelopeList = FINANCE_ENVELOPES_DEFAULT.map(env => `  ${env.id}: ${env.name}`).join("\n");
+      const envelopeList = envelopeCatalog.map(env => `  ${env.id}: ${env.name}`).join("\n");
 
       // Batch rows to avoid Netlify's 10-second function timeout on large CSVs
       const BATCH_SIZE = 50;
@@ -955,7 +1014,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
       // All-time by envelope
       const allByEnv = {};
       allSpending.forEach(t => { allByEnv[t.envelopeId] = (allByEnv[t.envelopeId] || 0) + (t.amount || 0); });
-      const topEnvs = FINANCE_ENVELOPES_DEFAULT.filter(e => allByEnv[e.id]).sort((a, b) => (allByEnv[b.id] || 0) - (allByEnv[a.id] || 0));
+      const topEnvs = envelopeCatalog.filter(e => allByEnv[e.id]).sort((a, b) => (allByEnv[b.id] || 0) - (allByEnv[a.id] || 0));
       ctx += `All-time by category: ${topEnvs.map(e => e.name + " $" + allByEnv[e.id].toFixed(0)).join(", ")}\n`;
 
       // All-time top 10 merchants
@@ -999,7 +1058,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
       // By envelope (skip zeros)
       const byEnv = {};
       spending.forEach(t => { byEnv[t.envelopeId] = (byEnv[t.envelopeId] || 0) + (t.amount || 0); });
-      const envLines = FINANCE_ENVELOPES_DEFAULT.filter(e => byEnv[e.id]).map(e => {
+      const envLines = envelopeCatalog.filter(e => byEnv[e.id]).map(e => {
         const budget = envs.find(ev => ev.id === e.id)?.allocated || 0;
         return `${e.name} $${byEnv[e.id].toFixed(0)}${budget > 0 ? "/" + budget.toFixed(0) : ""}`;
       });
@@ -1007,7 +1066,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
 
       // Sub-cat breakdown for all categories that have it
       const subBreakdowns = [];
-      FINANCE_ENVELOPES_DEFAULT.forEach(e => {
+      envelopeCatalog.forEach(e => {
         const subs = spending.filter(t => t.envelopeId === e.id && t.subCat);
         if (!subs.length) return;
         const bySub = {};
@@ -1333,20 +1392,24 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
         )
       ),
 
-      // Rollover button
-      allMonths.some(m => m < currentMonth) && /*#__PURE__*/React.createElement("button", {
-        onClick: computeRollover,
-        style: { background: "rgba(74,222,128,.1)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "#4ade80", fontWeight: 700, cursor: "pointer", marginBottom: 14 }
-      }, "\u21A9 Pull rollover from " + monthLabel(allMonths.filter(m=>m<currentMonth).sort().pop())),
+      // Action buttons row
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" } },
+        allMonths.some(m => m < currentMonth) && /*#__PURE__*/React.createElement("button", {
+          onClick: computeRollover,
+          style: { background: "rgba(74,222,128,.1)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "#4ade80", fontWeight: 700, cursor: "pointer" }
+        }, "\u21A9 Pull rollover from " + monthLabel(allMonths.filter(m=>m<currentMonth).sort().pop())),
+        totalAllocated > 0 && /*#__PURE__*/React.createElement("button", {
+          onClick: setDefaultBudget,
+          style: { background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "#a78bfa", fontWeight: 700, cursor: "pointer" }
+        }, "\uD83D\uDCCC Set as Default Budget"),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => setShowManageEnvelopes(true),
+          style: { background: "rgba(52,211,153,.08)", border: "1px solid rgba(52,211,153,.2)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "#34d399", fontWeight: 700, cursor: "pointer", marginLeft: "auto" }
+        }, "\u2699\uFE0F Manage Envelopes")
+      ),
 
-      // Set as default budget button
-      totalAllocated > 0 && /*#__PURE__*/React.createElement("button", {
-        onClick: setDefaultBudget,
-        style: { background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "#a78bfa", fontWeight: 700, cursor: "pointer", marginBottom: 14, marginLeft: allMonths.some(m => m < currentMonth) ? 8 : 0 }
-      }, "\uD83D\uDCCC Set as Default Budget"),
-
-      // Envelope list
-      envelopes.map(env => {
+      // Envelope list (hidden envelopes excluded from main view but still tracked)
+      envelopes.filter(env => !env.hidden).map(env => {
         const spent = spentByEnvelope[env.id] || 0;
         const rollover = rolloverIn[env.id] || 0;
         const effective = (env.allocated || 0) + rollover;
@@ -1457,7 +1520,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
                 style: { flex: 1, minWidth: 110, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "6px 8px", color: "var(--text-secondary)", fontSize: 11, outline: "none", colorScheme: "dark" }
               },
                 /*#__PURE__*/React.createElement("option", { value: "" }, "All Categories"),
-                FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+                envelopeCatalog.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
               ),
               /*#__PURE__*/React.createElement("select", {
                 value: txnFilter.sort,
@@ -1494,7 +1557,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
                 .filter(t => (!txnFilter.card || t.card === txnFilter.card) && (!txnFilter.envelopeId || t.envelopeId === txnFilter.envelopeId))
                 .sort(sortFns[txnFilter.sort] || sortFns.date_desc);
               return visible.map((t, i) => {
-                const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
+                const env = envelopeCatalog.find(e => e.id === t.envelopeId);
                 return /*#__PURE__*/React.createElement("div", {
                   key: t.id || i,
                   style: { display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", background: t.needsReview ? "rgba(244,168,35,.04)" : "rgba(255,255,255,.03)", border: t.needsReview ? "1px solid rgba(244,168,35,.25)" : "1px solid rgba(255,255,255,.06)", borderRadius: 10, marginBottom: 6 }
@@ -1782,7 +1845,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           cardResults.income.length > 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#fb923c", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "EXPENSES"),
           /*#__PURE__*/React.createElement("div", { style: { maxHeight: 200, overflowY: "auto" } },
             cardResults.expenses.slice(0, 50).map((t, i) => {
-              const env = FINANCE_ENVELOPES_DEFAULT.find(ev => ev.id === t.envelopeId);
+              const env = envelopeCatalog.find(ev => ev.id === t.envelopeId);
               const isFlagged = flaggedCardIds.has(t.id);
               return /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 6, padding: "6px 4px", borderBottom: "1px solid rgba(255,255,255,.04)", background: isFlagged ? "rgba(244,168,35,.06)" : "transparent", borderRadius: 4 } },
                 /*#__PURE__*/React.createElement("button", {
@@ -1837,7 +1900,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
         /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 10px", lineHeight: 1.5 } }, "Tap \uD83D\uDEA9 to flag any transaction that looks wrong — it will be saved but marked for review."),
         /*#__PURE__*/React.createElement("div", { style: { maxHeight: 300, overflowY: "auto", marginBottom: 12 } },
           scanResults.map((t, i) => {
-            const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === t.envelopeId);
+            const env = envelopeCatalog.find(e => e.id === t.envelopeId);
             const isFlagged = flaggedScanIds.has(t.id);
             return /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 8, padding: "7px 6px", borderBottom: "1px solid rgba(255,255,255,.05)", background: isFlagged ? "rgba(244,168,35,.06)" : "transparent", borderRadius: 6 } },
               /*#__PURE__*/React.createElement("button", {
@@ -1904,7 +1967,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
             /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
               /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CATEGORY"),
               /*#__PURE__*/React.createElement("select", { value: addTxnForm.envelopeId, onChange: e => setAddTxnForm(f => ({ ...f, envelopeId: e.target.value, subCat: "" })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
-                FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+                envelopeCatalog.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
               )
             )
           ),
@@ -1944,7 +2007,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
               onChange: e => setEditTxnForm(f => ({ ...f, envelopeId: e.target.value })),
               style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 13, outline: "none", colorScheme: "dark" }
             },
-              FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+              envelopeCatalog.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
             )
           ),
           /*#__PURE__*/React.createElement("div", null,
@@ -2072,7 +2135,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
             /*#__PURE__*/React.createElement("div", { style: { flex: 2 } },
               /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CATEGORY"),
               /*#__PURE__*/React.createElement("select", { value: ruleForm.envelopeId, onChange: e => setRuleForm(f => ({ ...f, envelopeId: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
-                FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+                envelopeCatalog.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
               )
             ),
             /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
@@ -2084,6 +2147,122 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
           /*#__PURE__*/React.createElement("button", { onClick: handleSaveRule, style: { flex: 1, padding: "12px 0", background: "#a78bfa", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE RULE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setRulePrompt(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Skip")
+        )
+      )
+    ),
+
+    // ── Manage Envelopes Modal ──────────────────────────────────────────────
+    showManageEnvelopes && /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 220 }, onClick: () => setShowManageEnvelopes(false) }),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "#080b11", zIndex: 221, display: "flex", flexDirection: "column" } },
+
+        // Header
+        /*#__PURE__*/React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 } },
+          /*#__PURE__*/React.createElement("div", null,
+            /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#34d399", margin: 0 } }, "MANAGE ENVELOPES"),
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0" } }, envelopeCatalog.length + " envelopes — toggle visibility or add new")
+          ),
+          /*#__PURE__*/React.createElement("button", { onClick: () => setShowManageEnvelopes(false), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 20, cursor: "pointer", lineHeight: 1 } }, "\xD7")
+        ),
+
+        /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto" } },
+
+          // ── ADD NEW ENVELOPE ──
+          /*#__PURE__*/React.createElement("div", { style: { padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", background: "rgba(52,211,153,.04)" } },
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#34d399", fontWeight: 800, letterSpacing: ".07em", margin: "0 0 12px", fontFamily: "'Syne',sans-serif" } }, "+ ADD NEW ENVELOPE"),
+
+            // Name + current icon preview
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 10 } },
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 24, lineHeight: 1 } }, newEnvForm.icon),
+              /*#__PURE__*/React.createElement("input", {
+                placeholder: "Envelope name…",
+                value: newEnvForm.name,
+                onChange: e => setNewEnvForm(f => ({ ...f, name: e.target.value })),
+                style: { flex: 1, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" }
+              }),
+              /*#__PURE__*/React.createElement("select", {
+                value: newEnvForm.highlevel,
+                onChange: e => setNewEnvForm(f => ({ ...f, highlevel: e.target.value })),
+                style: { width: 110, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, padding: "9px 6px", color: "var(--text-primary)", fontSize: 11, outline: "none" }
+              },
+                /*#__PURE__*/React.createElement("option", { value: "" }, "Group…"),
+                ["Fixed","Food","Household","Transportation","Reoccuring Bills","Leisure","Other"].map(g =>
+                  /*#__PURE__*/React.createElement("option", { key: g, value: g }, g)
+                )
+              )
+            ),
+
+            // Icon picker — group tabs
+            /*#__PURE__*/React.createElement("div", { style: { marginBottom: 8 } },
+              /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 4, overflowX: "auto", scrollbarWidth: "none", marginBottom: 8 } },
+                ICON_GROUPS.map((g, i) =>
+                  /*#__PURE__*/React.createElement("button", {
+                    key: g.label,
+                    onClick: () => setIconGroupTab(i),
+                    style: { padding: "4px 10px", borderRadius: 12, border: "1px solid " + (iconGroupTab === i ? "rgba(52,211,153,.5)" : "rgba(255,255,255,.1)"), background: iconGroupTab === i ? "rgba(52,211,153,.12)" : "transparent", color: iconGroupTab === i ? "#34d399" : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }
+                  }, g.label)
+                )
+              ),
+              /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 4 } },
+                ICON_GROUPS[iconGroupTab].icons.map(ic =>
+                  /*#__PURE__*/React.createElement("button", {
+                    key: ic,
+                    onClick: () => setNewEnvForm(f => ({ ...f, icon: ic })),
+                    style: { width: 38, height: 38, borderRadius: 8, border: "1px solid " + (newEnvForm.icon === ic ? "rgba(52,211,153,.6)" : "rgba(255,255,255,.08)"), background: newEnvForm.icon === ic ? "rgba(52,211,153,.15)" : "rgba(255,255,255,.03)", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }
+                  }, ic)
+                )
+              )
+            ),
+
+            // Color picker
+            /*#__PURE__*/React.createElement("div", { style: { marginBottom: 12 } },
+              /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "COLOUR"),
+              /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
+                ENV_COLORS.map(c =>
+                  /*#__PURE__*/React.createElement("button", {
+                    key: c,
+                    onClick: () => setNewEnvForm(f => ({ ...f, color: c })),
+                    style: { width: 26, height: 26, borderRadius: "50%", background: c, border: newEnvForm.color === c ? "3px solid #fff" : "2px solid transparent", cursor: "pointer", outline: "none", boxSizing: "border-box" }
+                  })
+                )
+              )
+            ),
+
+            // Add button
+            /*#__PURE__*/React.createElement("button", {
+              onClick: handleAddEnvelope,
+              disabled: !newEnvForm.name.trim(),
+              style: { width: "100%", padding: "11px 0", background: newEnvForm.name.trim() ? "#34d399" : "rgba(52,211,153,.2)", border: "none", borderRadius: 9, color: newEnvForm.name.trim() ? "#080b11" : "var(--text-muted)", fontSize: 13, fontWeight: 800, cursor: newEnvForm.name.trim() ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif" }
+            }, "+ CREATE ENVELOPE")
+          ),
+
+          // ── EXISTING ENVELOPES ──
+          /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px 6px" } },
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 10px" } }, "YOUR ENVELOPES — tap eye to hide/show")
+          ),
+          envelopeCatalog.map(env =>
+            /*#__PURE__*/React.createElement("div", {
+              key: env.id,
+              style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,.04)", opacity: env.hidden ? 0.4 : 1 }
+            },
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 18, flexShrink: 0 } }, env.icon),
+              /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: env.color, margin: 0, fontWeight: 700 } }, env.name),
+                env.highlevel && /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "1px 0 0" } }, env.highlevel)
+              ),
+              // Hide/show toggle
+              /*#__PURE__*/React.createElement("button", {
+                onClick: () => handleToggleEnvelopeVisibility(env.id),
+                title: env.hidden ? "Show" : "Hide",
+                style: { background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "5px 10px", color: env.hidden ? "var(--text-muted)" : "#34d399", fontSize: 14, cursor: "pointer", flexShrink: 0 }
+              }, env.hidden ? "👁\u200D🗨 Hidden" : "👁 Visible"),
+              // Delete button (custom envelopes only)
+              env.custom && /*#__PURE__*/React.createElement("button", {
+                onClick: () => handleDeleteCustomEnvelope(env.id),
+                style: { background: "transparent", border: "none", color: "rgba(239,68,68,.5)", fontSize: 16, cursor: "pointer", padding: "0 4px", flexShrink: 0 }
+              }, "\xD7")
+            )
+          )
         )
       )
     ),
@@ -2117,7 +2296,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
             /*#__PURE__*/React.createElement("input", { placeholder: "keyword", value: ruleForm.keyword, onChange: e => setRuleForm(f => ({ ...f, keyword: e.target.value })), style: { flex: "1 1 100px", minWidth: 80, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 9px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
             /*#__PURE__*/React.createElement("input", { placeholder: "display name", value: ruleForm.displayName, onChange: e => setRuleForm(f => ({ ...f, displayName: e.target.value })), style: { flex: "1 1 100px", minWidth: 80, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 9px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
             /*#__PURE__*/React.createElement("select", { value: ruleForm.envelopeId, onChange: e => setRuleForm(f => ({ ...f, envelopeId: e.target.value })), style: { flex: "1 1 110px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 6px", color: "var(--text-primary)", fontSize: 11, outline: "none" } },
-              FINANCE_ENVELOPES_DEFAULT.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
+              envelopeCatalog.map(e => /*#__PURE__*/React.createElement("option", { key: e.id, value: e.id }, e.icon + " " + e.name))
             ),
             /*#__PURE__*/React.createElement("div", { style: { flex: "1 1 100px", minWidth: 80 } },
               /*#__PURE__*/React.createElement(SubCatSelect, { envelopeId: ruleForm.envelopeId, value: ruleForm.subCat, onChange: v => setRuleForm(f => ({ ...f, subCat: v })), extraOpts: customSubCats[ruleForm.envelopeId] || [], onAdd: sub => handleAddSubCat(ruleForm.envelopeId, sub) })
@@ -2128,7 +2307,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
         // Rules list
         /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "0 0 40px" } },
           merchantRules.map(rule => {
-            const env = FINANCE_ENVELOPES_DEFAULT.find(e => e.id === rule.envelopeId);
+            const env = envelopeCatalog.find(e => e.id === rule.envelopeId);
             return /*#__PURE__*/React.createElement("div", { key: rule.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,.04)" } },
               /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                 /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: 0, fontWeight: 500 } }, rule.displayName || rule.keyword),
