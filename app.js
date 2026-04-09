@@ -17448,14 +17448,26 @@ function App() {
   // Apply colour theme whenever it changes
   React.useEffect(() => { applyTheme(settings.theme || "dark"); }, [settings.theme]);
 
-  // Auto-tab by time of day — maps to section sub-tabs
+  // Persist last-visited tab so we can restore it on return
   useEffect(() => {
-    const h = new Date().getHours(),
-      dow = new Date().getDay();
-    if (dow === 0) setTab("sunday"); // Sunday → PERSONAL > Sunday
-    else if (h >= 18) setTab("evening"); // Evening → PERSONAL > Evening
-    else if (h >= 5 && h < 12) setTab("morning"); // Morning → PERSONAL > Morning
-    else setTab("train"); // Midday → HEALTH > Train
+    if (tab) localStorage.setItem("ml_last_tab", JSON.stringify({ tab, ts: Date.now() }));
+  }, [tab]);
+
+  // On mount: restore last tab if session ended < 1 hour ago, else use time-of-day default
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("ml_last_tab") || "null");
+      if (saved && saved.tab && (Date.now() - saved.ts) < 3600000) {
+        setTab(saved.tab);
+        return; // skip time-of-day logic — user returns to where they left off
+      }
+    } catch {}
+    // > 1 hour (or no saved tab) — pick tab by time of day
+    const h = new Date().getHours(), dow = new Date().getDay();
+    if (dow === 0) setTab("sunday");
+    else if (h >= 18) setTab("evening");
+    else if (h >= 5 && h < 12) setTab("morning");
+    else setTab("train");
   }, []);
   useEffect(() => {
     const lnk = document.createElement("link");
