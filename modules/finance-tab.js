@@ -1468,18 +1468,48 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           ),
           // Drill-down: transactions for this envelope
           drillEnvelope === env.id && /*#__PURE__*/React.createElement("div", { style: { marginTop: 10, borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: 10 } },
-            [...transactions].filter(t => t.envelopeId === env.id && !t.isRefund).sort((a,b) => b.date.localeCompare(a.date)).map((t, i) => /*#__PURE__*/React.createElement("div", {
-              key: t.id || i,
-              style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)", cursor: "pointer" },
-              onClick: e => { e.stopPropagation(); setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }
-            },
-              /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-                /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-primary)", margin: "0 0 1px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc || t.category),
-                /*#__PURE__*/React.createElement("p", { style: { fontSize: 9, color: "var(--text-muted)", margin: 0 } }, t.date + (t.subCat ? " \xB7 " + t.subCat : "") + " \xB7 " + t.card)
-              ),
-              /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-primary)", flexShrink: 0, paddingLeft: 8 } }, "-" + fmt(t.amount))
-            )),
-            transactions.filter(t => t.envelopeId === env.id && !t.isRefund).length === 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, "No transactions yet")
+            (() => {
+              const envTxns = [...transactions].filter(t => t.envelopeId === env.id && !t.isRefund).sort((a,b) => b.date.localeCompare(a.date));
+              if (envTxns.length === 0) return /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, "No transactions yet");
+              // Group by subCat
+              const groups = {};
+              envTxns.forEach(t => {
+                const key = t.subCat && t.subCat.trim() ? t.subCat.trim() : "Uncategorized";
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(t);
+              });
+              // Sort groups: named sub-cats first (alphabetical), Uncategorized last
+              const sortedKeys = Object.keys(groups).sort((a, b) => {
+                if (a === "Uncategorized") return 1;
+                if (b === "Uncategorized") return -1;
+                return a.localeCompare(b);
+              });
+              return sortedKeys.map(subKey =>
+                /*#__PURE__*/React.createElement("div", { key: subKey, style: { marginBottom: 8 } },
+                  // Sub-cat header
+                  /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0 5px", marginBottom: 2 } },
+                    /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, fontWeight: 800, color: env.color, letterSpacing: ".07em", fontFamily: "'Syne',sans-serif", textTransform: "uppercase" } }, subKey),
+                    /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, fontWeight: 700, color: env.color } },
+                      fmt(groups[subKey].reduce((s, t) => s + (t.amount || 0), 0))
+                    )
+                  ),
+                  // Transactions in this sub-cat
+                  groups[subKey].map((t, i) =>
+                    /*#__PURE__*/React.createElement("div", {
+                      key: t.id || i,
+                      style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0 5px 8px", borderBottom: "1px solid rgba(255,255,255,.03)", cursor: "pointer" },
+                      onClick: e => { e.stopPropagation(); setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }
+                    },
+                      /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                        /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-primary)", margin: "0 0 1px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc || t.category),
+                        /*#__PURE__*/React.createElement("p", { style: { fontSize: 9, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + t.card)
+                      ),
+                      /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-primary)", flexShrink: 0, paddingLeft: 8 } }, "-" + fmt(t.amount))
+                    )
+                  )
+                )
+              );
+            })()
           )
         );
       })
