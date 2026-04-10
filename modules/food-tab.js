@@ -2660,10 +2660,7 @@
       const newMsgs = [...msgs, userMsg];
       setMsgs(newMsgs);
       setInput("");
-      if (!window.__claude_api_key) {
-        setMsgs(prev => [...prev, { role: "assistant", content: "No Claude API key set. Go to ⚙ Settings and add your key." }]);
-        return;
-      }
+      // API key lives server-side in Netlify env — no client-side key needed
       setLoading(true);
       try {
         // Build library context
@@ -2897,7 +2894,7 @@
   
     // Auto-generate macro targets when weight changes (or no targets exist)
     const generateMacroTargets = useCallback(async (weight) => {
-      if (!window.__claude_api_key || generatingTargets) return;
+      if (generatingTargets) return;
       setGeneratingTargets(true);
       try {
         const weightVal = weight || settings?.currentWeight || "unknown";
@@ -2923,7 +2920,7 @@
   
     // Auto-trigger target generation if none exist
     useEffect(() => {
-      if (!loadingFood && !macroTargets && window.__claude_api_key) {
+      if (!loadingFood && !macroTargets) {
         generateMacroTargets(null);
       }
     }, [loadingFood, macroTargets]);
@@ -3117,9 +3114,6 @@
     ),
   
     /* ── Macro target generation ── */
-    !macroTargets && !generatingTargets && !window.__claude_api_key && /*#__PURE__*/React.createElement("div", {
-      style: { background: "rgba(244,168,35,.07)", border: "1px solid rgba(244,168,35,.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#f4a823" }
-    }, "Add your Claude API key in Settings to get personalised macro targets."),
     generatingTargets && /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", color: "var(--text-muted)", fontSize: 12, marginBottom: 12 } }, "Calculating your macro targets\u2026"),
     macroTargets?.rationale && subTab === "log" && /*#__PURE__*/React.createElement("p", {
       style: { fontSize: 11, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }
