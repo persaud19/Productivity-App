@@ -335,11 +335,7 @@ function PantryAIChat({
   };
   const send = async text => {
     if (!text.trim()) return;
-    if (!window.__claude_api_key) {
-      setMessages(prev => [...prev, { role: "user", content: text }, { role: "assistant", content: "No Claude API key set. Tap the ⚙ button (bottom-right) and add your key first." }]);
-      setInput("");
-      return;
-    }
+    // API key lives server-side in Netlify env — no client-side key needed
     const userMsg = { role: "user", content: text };
     const newMsgs = [...messages, userMsg];
     setMessages(newMsgs);

@@ -9746,11 +9746,6 @@ function RemindersTab({ settings }) {
   const handleAdd = async () => {
     if (!input.trim()) return;
     const defaultType = view === "joint" ? "joint" : "personal";
-    if (!window.__claude_api_key) {
-      const item = makeItem({ title: input.trim() }, defaultType);
-      if (item.type === "joint") await saveJoint([item, ...joint]); else await savePersonal([item, ...personal]);
-      setInput(""); return;
-    }
     setAiLoading(true);
     try {
       const res = await fetch("/api/claude", {
@@ -9833,7 +9828,6 @@ function RemindersTab({ settings }) {
   };
 
   const generateSummary = async () => {
-    if (!window.__claude_api_key) { setAiSummary("Add your Claude API key in Settings first."); return; }
     const openItems = [...personal.filter(r => !r.done), ...joint.filter(r => !r.done)];
     if (!openItems.length) { setAiSummary("Nothing open \u2014 you're clear!"); return; }
     setSummaryLoading(true);
@@ -10027,11 +10021,12 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Keep API key and household ID in sync so all components can use them
+  // API calls go through the Netlify proxy (/api/claude) — key is server-side.
+  // Always set truthy so all components skip their "no API key" guard checks.
   React.useEffect(() => {
-    window.__claude_api_key = settings.claudeApiKey || "";
+    window.__claude_api_key = "proxy";
     window.__household_id = settings.householdId || "";
-  }, [settings.claudeApiKey, settings.householdId]);
+  }, [settings.householdId]);
 
   // Apply colour theme whenever it changes
   React.useEffect(() => { applyTheme(settings.theme || "dark"); }, [settings.theme]);
