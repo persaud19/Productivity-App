@@ -367,6 +367,13 @@ const KEYS = {
   hhReceipt: id => `hh:receipts:${id}`
 };
 
+// ── Master admin ──
+const MASTER_EMAIL = "ryanpersaud19@gmail.com";
+function isMaster() {
+  const auth = window.__firebase_auth;
+  return !!(auth && auth.currentUser && auth.currentUser.email && auth.currentUser.email.toLowerCase() === MASTER_EMAIL);
+}
+
 // ── Email pre-link helpers ──
 // Firebase keys can't have '.' or '@' — encode email for use as a key
 function encodeEmailKey(email) {
@@ -1316,6 +1323,76 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
   React.useEffect(() => { setLocalMeta(householdMeta); }, [householdMeta]);
 
   const isLeader = localMeta && localMeta.leaderId === window.__current_uid;
+  const masterMode = isMaster();
+
+  // ── Finance sharing toggle (leader only) ──
+  const handleToggleFinanceShare = async () => {
+    if (!isLeader) return;
+    const newVal = !(localMeta.shareFinance !== false); // default true
+    try {
+      await window.__firebase_db.ref(`households/${householdId}/meta/shareFinance`).set(newVal);
+      const updated = { ...localMeta, shareFinance: newVal };
+      setLocalMeta(updated);
+      if (onHouseholdMetaUpdate) onHouseholdMetaUpdate(updated);
+    } catch(e) {}
+  };
+
+  // ── Regenerate invite code (leader only) ──
+  const [regenMsg, setRegenMsg] = useState("");
+  const handleRegenCode = async () => {
+    if (!isLeader) return;
+    if (!window.confirm("Generate a new invite code? The old one will stop working.")) return;
+    try {
+      const newCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+      const db = window.__firebase_db;
+      // Remove old code lookup
+      if (localMeta.inviteCode) await db.ref(`householdCodes/${localMeta.inviteCode}`).remove();
+      // Write new
+      await db.ref(`householdCodes/${newCode}`).set(householdId);
+      await db.ref(`households/${householdId}/meta/inviteCode`).set(newCode);
+      const updated = { ...localMeta, inviteCode: newCode };
+      setLocalMeta(updated);
+      if (onHouseholdMetaUpdate) onHouseholdMetaUpdate(updated);
+      setRegenMsg("New code generated");
+      setTimeout(() => setRegenMsg(""), 3000);
+    } catch(e) {}
+  };
+
+  // ── Master admin state ──
+  const [showMasterPanel, setShowMasterPanel] = useState(false);
+  const [allHouseholds, setAllHouseholds] = useState([]);
+  const [masterLoading, setMasterLoading] = useState(false);
+  const [viewingHousehold, setViewingHousehold] = useState(null); // { hid, meta }
+
+  const loadAllHouseholds = async () => {
+    setMasterLoading(true);
+    try {
+      const snap = await window.__firebase_db.ref("households").once("value");
+      if (snap.exists()) {
+        const data = snap.val();
+        const list = Object.entries(data).map(([hid, val]) => ({ hid, meta: val.meta || {} }));
+        setAllHouseholds(list);
+      } else {
+        setAllHouseholds([]);
+      }
+    } catch(e) {}
+    setMasterLoading(false);
+  };
+
+  const handleOpenMaster = () => {
+    setShowMasterPanel(true);
+    loadAllHouseholds();
+  };
+
+  const handleImpersonateHousehold = (hid, meta) => {
+    setViewingHousehold({ hid, meta });
+    window.__master_viewing_household_id = hid; // read-only debug context
+  };
+
+  const handleExitImpersonate = () => {
+    setViewingHousehold(null);
+    window.__master_viewing_household_id = null;
+  };
 
   const handleInviteByEmail = async () => {
     const email = inviteEmail.trim().toLowerCase();
@@ -1542,6 +1619,39 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                 )
               ),
 
+              // ── Finance sharing toggle (leader only) ──
+              isLeader && React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.05)", marginBottom: 4 } },
+                React.createElement("div", null,
+                  React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 12, fontWeight: 700, margin: "0 0 2px" } }, "Share Finance with household"),
+                  React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, localMeta.shareFinance !== false ? "All members see shared Finance data" : "Finance is personal — members see their own only")
+                ),
+                React.createElement("div", {
+                  onClick: handleToggleFinanceShare,
+                  style: {
+                    width: 44, height: 24, borderRadius: 12, cursor: "pointer", position: "relative", flexShrink: 0,
+                    background: localMeta.shareFinance !== false ? "#34d399" : "rgba(255,255,255,.12)",
+                    transition: "background .2s"
+                  }
+                },
+                  React.createElement("div", {
+                    style: {
+                      position: "absolute", top: 3, width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                      transition: "left .2s",
+                      left: localMeta.shareFinance !== false ? 23 : 3
+                    }
+                  })
+                )
+              ),
+
+              // ── Regenerate invite code (leader only) ──
+              isLeader && React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, paddingTop: 4 } },
+                React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: 0 } }, regenMsg || "Rotate invite code to invalidate old one"),
+                React.createElement("button", {
+                  onClick: handleRegenCode,
+                  style: { background: "none", border: "1px solid rgba(255,255,255,.12)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 10, padding: "4px 10px", cursor: "pointer", whiteSpace: "nowrap" }
+                }, "🔄 New Code")
+              ),
+
               // Leave button (only for non-leaders)
               !isLeader && React.createElement("button", {
                 onClick: async () => {
@@ -1556,6 +1666,96 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
             )
           : React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, lineHeight: 1.5, margin: 0 } },
               "No household set up. Go to the HOME tab and tap \u201CSet Up Household\u201D to create or join one."
+            )
+      ),
+
+      // ── Master Admin Panel ──
+      masterMode && React.createElement("div", { style: { ...card, border: "1px solid rgba(167,139,250,.3)", background: "rgba(167,139,250,.06)", marginBottom: 14 } },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+          React.createElement("p", { style: { ...label, color: "#a78bfa", margin: 0 } }, "🔧 MASTER ADMIN"),
+          React.createElement("span", { style: { background: "#a78bfa", color: "#080b11", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4, letterSpacing: ".05em" } }, "MASTER")
+        ),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 } },
+          "Read-only access to all households for troubleshooting. No data is modified."
+        ),
+        !showMasterPanel
+          ? React.createElement("button", {
+              onClick: handleOpenMaster,
+              style: { background: "rgba(167,139,250,.15)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 8, color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "7px 14px", cursor: "pointer" }
+            }, masterLoading ? "Loading..." : "View All Households")
+          : React.createElement("div", null,
+              masterLoading && React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12 } }, "Loading households..."),
+
+              // Household being inspected
+              viewingHousehold
+                ? React.createElement("div", null,
+                    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+                      React.createElement("p", { style: { color: "#a78bfa", fontWeight: 700, fontSize: 13, margin: 0, fontFamily: "'Syne',sans-serif" } }, viewingHousehold.meta.name || viewingHousehold.hid),
+                      React.createElement("button", { onClick: handleExitImpersonate, style: { background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer" } }, "← All Households")
+                    ),
+                    React.createElement("div", { style: { background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "10px 12px", marginBottom: 8 } },
+                      React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 4px", fontWeight: 700, letterSpacing: ".05em" } }, "HOUSEHOLD ID"),
+                      React.createElement("p", { style: { fontSize: 11, color: "var(--text-secondary)", margin: 0, wordBreak: "break-all" } }, viewingHousehold.hid)
+                    ),
+                    React.createElement("div", { style: { background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "10px 12px", marginBottom: 8 } },
+                      React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 6px", fontWeight: 700, letterSpacing: ".05em" } }, "MEMBERS (" + Object.keys(viewingHousehold.meta.members || {}).length + ")"),
+                      Object.entries(viewingHousehold.meta.members || {}).map(([uid, m]) =>
+                        React.createElement("div", { key: uid, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+                          React.createElement("div", null,
+                            React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 11 } }, m.name || "—"),
+                            m.email && React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10, marginLeft: 6 } }, m.email)
+                          ),
+                          React.createElement("div", { style: { textAlign: "right" } },
+                            React.createElement("span", { style: { color: m.role === "leader" ? "#f4a823" : "var(--text-muted)", fontSize: 9, fontWeight: 700, display: "block" } }, m.role ? m.role.toUpperCase() : "MEMBER"),
+                            m.joinedAt && React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 9 } }, new Date(m.joinedAt).toLocaleDateString("en-CA"))
+                          )
+                        )
+                      )
+                    ),
+                    React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+                      React.createElement("div", { style: { background: "rgba(0,0,0,.2)", borderRadius: 6, padding: "6px 10px", flex: 1 } },
+                        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, fontWeight: 700, margin: "0 0 2px" } }, "INVITE CODE"),
+                        React.createElement("p", { style: { color: "#4ade80", fontSize: 14, fontWeight: 800, margin: 0, letterSpacing: ".15em" } }, viewingHousehold.meta.inviteCode || "—")
+                      ),
+                      React.createElement("div", { style: { background: "rgba(0,0,0,.2)", borderRadius: 6, padding: "6px 10px", flex: 1 } },
+                        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, fontWeight: 700, margin: "0 0 2px" } }, "FINANCE SHARED"),
+                        React.createElement("p", { style: { color: viewingHousehold.meta.shareFinance !== false ? "#34d399" : "#ef4444", fontSize: 12, fontWeight: 700, margin: 0 } }, viewingHousehold.meta.shareFinance !== false ? "Yes" : "No")
+                      ),
+                      React.createElement("div", { style: { background: "rgba(0,0,0,.2)", borderRadius: 6, padding: "6px 10px", flex: 1 } },
+                        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, fontWeight: 700, margin: "0 0 2px" } }, "CREATED"),
+                        React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 10, margin: 0 } }, viewingHousehold.meta.createdAt ? new Date(viewingHousehold.meta.createdAt).toLocaleDateString("en-CA") : "—")
+                      )
+                    ),
+                    viewingHousehold.meta.pendingInvites && Object.keys(viewingHousehold.meta.pendingInvites).length > 0 && React.createElement("div", { style: { marginTop: 10 } },
+                      React.createElement("p", { style: { fontSize: 10, color: "#f4a823", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "PENDING INVITES"),
+                      Object.values(viewingHousehold.meta.pendingInvites).map((inv, i) =>
+                        React.createElement("p", { key: i, style: { color: "var(--text-secondary)", fontSize: 11, margin: "2px 0" } }, inv.email)
+                      )
+                    )
+                  )
+                : React.createElement("div", null,
+                    allHouseholds.length === 0 && !masterLoading && React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12 } }, "No households found"),
+                    allHouseholds.map(({ hid, meta }) =>
+                      React.createElement("div", {
+                        key: hid,
+                        onClick: () => handleImpersonateHousehold(hid, meta),
+                        style: { background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "10px 12px", marginBottom: 8, cursor: "pointer", border: "1px solid rgba(255,255,255,.04)" }
+                      },
+                        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+                          React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 700, margin: "0 0 2px", fontFamily: "'Syne',sans-serif" } }, meta.name || hid),
+                          React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, Object.keys(meta.members || {}).length + " members")
+                        ),
+                        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } },
+                          "Leader: " + ((meta.members && meta.members[meta.leaderId] && meta.members[meta.leaderId].name) || meta.leaderId || "—") +
+                          (meta.createdAt ? " · Created " + new Date(meta.createdAt).toLocaleDateString("en-CA") : "")
+                        )
+                      )
+                    ),
+                    React.createElement("button", {
+                      onClick: loadAllHouseholds,
+                      style: { background: "none", border: "none", color: "var(--text-muted)", fontSize: 10, cursor: "pointer", marginTop: 4 }
+                    }, "↻ Refresh")
+                  )
             )
       ),
 
@@ -1821,6 +2021,8 @@ window.__ml = {
   C, CL, inp, Lbl, SectionHead,
   // Household helpers — modules use these to check household state
   getHouseholdId: () => window.__current_household_id || null,
+  getHouseholdMeta: () => window.__current_household_meta || null,
+  isMaster,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1966,7 +2168,11 @@ function App() {
         setHouseholdId(hid);
         try {
           const metaSnap = await window.__firebase_db.ref(`households/${hid}/meta`).once("value");
-          if (metaSnap.exists()) setHouseholdMeta(metaSnap.val());
+          if (metaSnap.exists()) {
+            const meta = metaSnap.val();
+            window.__current_household_meta = meta;
+            setHouseholdMeta(meta);
+          }
         } catch(e) {}
       } else {
         window.__current_household_id = null;
@@ -2245,7 +2451,7 @@ function App() {
     householdMeta: householdMeta,
     onSave: s => { setSettings(s); window.__claude_api_key = s.claudeApiKey || ""; window.__household_id = s.householdId || ""; },
     onClose: () => setShowSettings(false),
-    onHouseholdMetaUpdate: meta => setHouseholdMeta(meta)
+    onHouseholdMetaUpdate: meta => { window.__current_household_meta = meta; setHouseholdMeta(meta); }
   }), celebration && /*#__PURE__*/React.createElement(CelebrationOverlay, {
     msg: celebration,
     onDismiss: () => setCelebration(null)

@@ -9,19 +9,28 @@
   const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
   // ── Finance Key Router ──────────────────────────────────────────────────────
-  // Routes all finance KEYS to household paths when a household is active,
-  // falling back to personal paths when there is no household.
+  // Routes all finance KEYS to household paths when a household is active AND
+  // finance sharing is enabled (shareFinance !== false).
+  // Falls back to personal paths when there is no household, or sharing is off.
+  function useHHFinance() {
+    // Read shareFinance flag live from window so toggle takes effect immediately on reload
+    const hid = window.__current_household_id;
+    if (!hid) return false;
+    // __current_household_meta is set by app.js after loadAll
+    const meta = window.__current_household_meta || {};
+    return meta.shareFinance !== false; // default true
+  }
   const FK = {
-    envelopes:        m  => window.__current_household_id ? KEYS.hhFinanceEnvelopes(m)        : KEYS.financeEnvelopes(m),
-    defaultEnvelopes: () => window.__current_household_id ? KEYS.hhFinanceDefaultEnvelopes()  : KEYS.financeDefaultEnvelopes(),
-    envelopeCatalog:  () => window.__current_household_id ? KEYS.hhFinanceEnvelopeCatalog()   : KEYS.financeEnvelopeCatalog(),
-    transactions:     m  => window.__current_household_id ? KEYS.hhFinanceTransactions(m)     : KEYS.financeTransactions(m),
-    allMonths:        () => window.__current_household_id ? KEYS.hhFinanceAllMonths()          : KEYS.financeAllMonths(),
-    rollover:         m  => window.__current_household_id ? KEYS.hhFinanceRollover(m)          : KEYS.financeRollover(m),
-    income:           m  => window.__current_household_id ? KEYS.hhFinanceIncome(m)            : KEYS.financeIncome(m),
-    merchantRules:    () => window.__current_household_id ? KEYS.hhMerchantRules()             : KEYS.merchantRules(),
-    customSubCats:    () => window.__current_household_id ? KEYS.hhCustomSubCats()             : KEYS.customSubCats(),
-    receipt:          id => window.__current_household_id ? KEYS.hhReceipt(id)                 : KEYS.receipt(id),
+    envelopes:        m  => useHHFinance() ? KEYS.hhFinanceEnvelopes(m)        : KEYS.financeEnvelopes(m),
+    defaultEnvelopes: () => useHHFinance() ? KEYS.hhFinanceDefaultEnvelopes()  : KEYS.financeDefaultEnvelopes(),
+    envelopeCatalog:  () => useHHFinance() ? KEYS.hhFinanceEnvelopeCatalog()   : KEYS.financeEnvelopeCatalog(),
+    transactions:     m  => useHHFinance() ? KEYS.hhFinanceTransactions(m)     : KEYS.financeTransactions(m),
+    allMonths:        () => useHHFinance() ? KEYS.hhFinanceAllMonths()          : KEYS.financeAllMonths(),
+    rollover:         m  => useHHFinance() ? KEYS.hhFinanceRollover(m)          : KEYS.financeRollover(m),
+    income:           m  => useHHFinance() ? KEYS.hhFinanceIncome(m)            : KEYS.financeIncome(m),
+    merchantRules:    () => useHHFinance() ? KEYS.hhMerchantRules()             : KEYS.merchantRules(),
+    customSubCats:    () => useHHFinance() ? KEYS.hhCustomSubCats()             : KEYS.customSubCats(),
+    receipt:          id => useHHFinance() ? KEYS.hhReceipt(id)                 : KEYS.receipt(id),
   };
 
 const SUBCATEGORY_OPTIONS = {
@@ -1393,6 +1402,14 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 10, padding: "10px 14px", margin: "12px 13px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }
     },
       /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "#60a5fa", margin: 0 } }, "\uD83C\uDFE0 Set up a household to share finances with your family"),
+      /*#__PURE__*/React.createElement("button", { onClick: () => setDismissedHouseholdBanner(true), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", padding: "0 4px" } }, "\u00D7")
+    ),
+
+    // Finance-sharing-off banner — shown when household exists but shareFinance is false
+    window.__current_household_id && (window.__current_household_meta || {}).shareFinance === false && !dismissedHouseholdBanner && /*#__PURE__*/React.createElement("div", {
+      style: { background: "rgba(244,168,35,.06)", border: "1px solid rgba(244,168,35,.2)", borderRadius: 10, padding: "10px 14px", margin: "12px 13px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }
+    },
+      /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "#f4a823", margin: 0 } }, "\uD83D\uDCB0 Showing your personal finance data — household Finance sharing is off"),
       /*#__PURE__*/React.createElement("button", { onClick: () => setDismissedHouseholdBanner(true), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", padding: "0 4px" } }, "\u00D7")
     ),
 
