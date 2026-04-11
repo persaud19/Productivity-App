@@ -2023,6 +2023,20 @@ window.__ml = {
   getHouseholdId: () => window.__current_household_id || null,
   getHouseholdMeta: () => window.__current_household_meta || null,
   isMaster,
+  // Returns the display name(s) of the OTHER household members (not the current user).
+  // With 2 members → "Sabrina". With 3+ → "Sabrina, Marcus". Falls back to settings.partnerName.
+  getPartnerName: (settingsObj) => {
+    const meta = window.__current_household_meta;
+    if (meta && meta.members) {
+      const uid = window.__current_uid;
+      const others = Object.entries(meta.members)
+        .filter(([id]) => id !== uid)
+        .map(([, m]) => m.name || "Member")
+        .filter(Boolean);
+      if (others.length > 0) return others.join(", ");
+    }
+    return (settingsObj && settingsObj.partnerName) || "Partner";
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2522,7 +2536,7 @@ function App() {
       fontWeight: activeUser === "partner" ? 700 : 400,
       cursor: "pointer"
     }
-  }, settings.partnerName)), streak > 0 && /*#__PURE__*/React.createElement("div", {
+  }, window.__ml.getPartnerName(settings))), streak > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "right"
     }

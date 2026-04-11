@@ -1035,7 +1035,9 @@ Return exactly ${bRows.length} objects. No markdown.`;
       return { month: m, txns, inc, envs };
     }));
 
-    let ctx = `FINANCIAL DATA — Ryan & Sabrina Persaud\nGenerated: ${getToday()}\n`;
+    const userName = settings?.name || "User";
+    const partnerNameCtx = window.__ml.getPartnerName(settings);
+    let ctx = `FINANCIAL DATA — ${userName} & ${partnerNameCtx}\nGenerated: ${getToday()}\n`;
     ctx += `Data range: ${monthsToLoad[monthsToLoad.length - 1]} to ${monthsToLoad[0]} (${monthsToLoad.length} month${monthsToLoad.length !== 1 ? "s" : ""})\n\n`;
 
     // ── All-time summary (full mode only) ──────────────────────────────
@@ -1139,7 +1141,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
         method: "POST", signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1200,
-          messages: [{ role: "user", content: `You are a personal financial coach for Ryan and Sabrina Persaud (a Canadian couple). Analyze their spending data and write a concise Monthly Financial Brief.
+          messages: [{ role: "user", content: `You are a personal financial coach for ${settings?.name || "the user"} and ${window.__ml.getPartnerName(settings)} (a Canadian couple). Analyze their spending data and write a concise Monthly Financial Brief.
 
 ${ctx}
 
@@ -1184,7 +1186,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 900,
-          system: `You are a personal financial coach for Ryan and Sabrina Persaud (Canadian couple). You have their COMPLETE financial history below — every month of data available. Answer questions using ONLY this data. Always cite specific months and dollar amounts. Be direct, specific, and actionable. Never give generic advice — every answer must reference their actual numbers.\n\n${ctx}`,
+          system: `You are a personal financial coach for ${settings?.name || "the user"} and ${window.__ml.getPartnerName(settings)} (Canadian household). You have their COMPLETE financial history below — every month of data available. Answer questions using ONLY this data. Always cite specific months and dollar amounts. Be direct, specific, and actionable. Never give generic advice — every answer must reference their actual numbers.\n\n${ctx}`,
           messages: newMessages.slice(-10).map(m => ({ role: m.role, content: m.content }))
         })
       });

@@ -33,7 +33,7 @@ function TasksTab({
   const [editTask, setEditTask] = useState(null);
   const [doneDateState, setDoneDateState] = useState(getToday());
   const myName = settings?.name || "Ryan";
-  const partnerName = settings?.partnerName || "Sabrina";
+  const partnerName = window.__ml.getPartnerName(settings);
   const saveTasks = async updated => {
     setTasks(updated);
     await DB.set(window.__current_household_id ? KEYS.hhChores() : KEYS.chores(), updated);
@@ -821,7 +821,7 @@ function RemindersTab({ settings }) {
         method: "POST",
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 300,
-          messages: [{ role: "user", content: `Today is ${today}. Partner name: ${settings?.partnerName || "Sabrina"}. Parse this reminder. Return ONLY valid JSON, no markdown:\n{"title":"short clear title","notes":"extra detail or empty","dueDate":"YYYY-MM-DD or empty","dueTime":"HH:MM 24h or empty","type":"personal or joint","urgency":"low|medium|high","assignedTo":"me|partner|both","category":"household|health|finance|family|personal|work"}\nRules:\n- type "joint" if involves both people/household/we/us/our\n- assignedTo "partner" if mentions partner by name or says "remind her/him"\n- assignedTo "both" if says "we need to" or "both of us"\n- urgency "high" for urgent/ASAP/emergency, "low" for someday/eventually\n- category: household=chores/home, health=medical/fitness, finance=bills/money\n- Parse relative dates like "Friday","tomorrow" relative to ${today}\nInput: "${input.trim()}"` }]
+          messages: [{ role: "user", content: `Today is ${today}. Partner name: ${window.__ml.getPartnerName(settings)}. Parse this reminder. Return ONLY valid JSON, no markdown:\n{"title":"short clear title","notes":"extra detail or empty","dueDate":"YYYY-MM-DD or empty","dueTime":"HH:MM 24h or empty","type":"personal or joint","urgency":"low|medium|high","assignedTo":"me|partner|both","category":"household|health|finance|family|personal|work"}\nRules:\n- type "joint" if involves both people/household/we/us/our\n- assignedTo "partner" if mentions partner by name or says "remind her/him"\n- assignedTo "both" if says "we need to" or "both of us"\n- urgency "high" for urgent/ASAP/emergency, "low" for someday/eventually\n- category: household=chores/home, health=medical/fitness, finance=bills/money\n- Parse relative dates like "Friday","tomorrow" relative to ${today}\nInput: "${input.trim()}"` }]
         })
       });
       const data = await res.json();
@@ -919,7 +919,7 @@ function RemindersTab({ settings }) {
   const overdueCount = allActive.filter(isOverdue).length;
   const dueTodayCount = allActive.filter(isDueToday).length;
   const hasGoogleToken = !!window.__google_access_token && (!window.__google_token_expiry || Date.now() < window.__google_token_expiry);
-  const partnerName = settings?.partnerName || "Sabrina";
+  const partnerName = window.__ml.getPartnerName(settings);
   const mineItems = allActive.filter(r => !r.assignedTo || r.assignedTo === "me");
   const partnerItems = allActive.filter(r => r.assignedTo === "partner");
   const bothItems = allActive.filter(r => r.assignedTo === "both");
