@@ -2881,7 +2881,7 @@
         const lib = await DB.get(KEYS.mealLibrary());
         setMealLibrary(Array.isArray(lib) ? lib : []);
         // Sabrina prompts (only for partner view)
-        const sp = await DB.get(KEYS.sabinaPrompts());
+        const sp = await DB.get(KEYS.partnerMealPrompts());
         const validPrompts = (sp || []).filter(p => {
           const age = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);
           return age <= 3 && !p.answered;
@@ -2899,7 +2899,7 @@
       try {
         const weightVal = weight || settings?.currentWeight || "unknown";
         const goal = settings?.weightGoal ? `target weight ${settings.weightGoal}lbs` : settings?.primaryGoal || "general fitness";
-        const age = settings?.age || 32;
+        const age = settings?.age || "unknown";
         const res = await fetch("/api/claude", {
           method: "POST",
           body: JSON.stringify({
@@ -2953,7 +2953,7 @@
   
       // Queue Sabrina prompt (only if Ryan is logging, not partner)
       if (!isPartner) {
-        const prompts = await DB.get(KEYS.sabinaPrompts()) || [];
+        const prompts = await DB.get(KEYS.partnerMealPrompts()) || [];
         const newPrompt = {
           id: "sp_" + Date.now(),
           slot, meal: mealData.name, calories: mealData.calories, protein: mealData.protein,
@@ -2964,7 +2964,7 @@
           const age = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);
           return age <= 3 && !p.answered;
         });
-        await DB.set(KEYS.sabinaPrompts(), [newPrompt, ...cleaned]);
+        await DB.set(KEYS.partnerMealPrompts(), [newPrompt, ...cleaned]);
       }
       setOpenSlot(null);
     };
@@ -2980,9 +2980,9 @@
         await saveMealLog(updated);
       }
       // Mark prompt answered
-      const allPrompts = await DB.get(KEYS.sabinaPrompts()) || [];
+      const allPrompts = await DB.get(KEYS.partnerMealPrompts()) || [];
       const updatedPrompts = allPrompts.map(p => p.id === prompt.id ? { ...p, answered: true } : p);
-      await DB.set(KEYS.sabinaPrompts(), updatedPrompts);
+      await DB.set(KEYS.partnerMealPrompts(), updatedPrompts);
       const remaining = sabrinaPrompts.filter(p => p.id !== prompt.id);
       setSabrinaPrompts(remaining);
       setActiveSabrinaPrompt(remaining.length > 0 ? remaining[0] : null);

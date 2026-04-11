@@ -332,7 +332,11 @@ const KEYS = {
   mealLog: date => `ml:meallog:${date}`,
   macroTargets: () => `ml:macro:targets`,
   mealLibrary: () => `ml:meal:library`,
-  sabinaPrompts: () => `ml:sabrina:mealPrompts`,
+  partnerMealPrompts: () => {
+    // Use the partner's UID if known; fall back to a generic shared key so data is never lost
+    const partnerUid = window.__current_partner_uid || "partner";
+    return `ml:partner:${partnerUid}:mealPrompts`;
+  },
   financeEnvelopes: month => `ml:finance:envelopes:${month}`,
   financeDefaultEnvelopes: () => `ml:finance:envelopes:default`,
   financeEnvelopeCatalog: () => `ml:finance:envelopes:catalog`,
@@ -478,33 +482,34 @@ const DEFAULT_SETTINGS = {
   name: "",
   partnerName: "",
   sonName: "",
-  weightGoal: 180,
-  weightStart: 210,
-  weightDeadline: "2026-12-31",
+  age: "",
+  weightGoal: "",
+  weightStart: "",
+  weightDeadline: "",
   stepGoal: 10000,
   sleepGoal: 7.5,
-  loanBalance: 113000,
-  loanStart: 113000,
-  loanDeadline: "2026-12-31",
-  savingsTarget: 20000,
-  savingsCurrent: 20000,
-  uid: "ryan",
-  partnerUid: "sabrina",
+  loanBalance: "",
+  loanStart: "",
+  loanDeadline: "",
+  savingsTarget: "",
+  savingsCurrent: "",
+  uid: "",
+  partnerUid: "",
   claudeApiKey: "",
   householdId: "",
   theme: "dark"
 };
 const DEFAULT_GOALS = {
-  weightGoal: 180,
-  weightStart: 210,
-  weightDeadline: "2026-12-31",
+  weightGoal: "",
+  weightStart: "",
+  weightDeadline: "",
   stepGoal: 10000,
   sleepGoal: 7.5,
-  loanBalance: 113000,
+  loanBalance: "",
   loanTarget: 0,
-  loanDeadline: "2026-12-31",
-  savingsTarget: 20000,
-  savingsCurrent: 20000
+  loanDeadline: "",
+  savingsTarget: "",
+  savingsCurrent: ""
 };
 
 
@@ -1314,6 +1319,12 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
   const [msg, setMsg] = useState("");
   const [theme, setTheme] = useState(settings.theme || "dark");
 
+  // ── Profile fields ──
+  const [profileName, setProfileName] = useState(settings.name || "");
+  const [profilePartner, setProfilePartner] = useState(settings.partnerName || "");
+  const [profileSon, setProfileSon] = useState(settings.sonName || "");
+  const [profileAge, setProfileAge] = useState(settings.age || "");
+
   // ── Household invite-by-email state (leader only) ──
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
@@ -1461,8 +1472,22 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
 
   const save = async () => {
     setSaving(true);
-    const updated = { ...settings, claudeApiKey: apiKey.trim(), theme };
+    const updated = {
+      ...settings,
+      claudeApiKey: apiKey.trim(),
+      theme,
+      name: profileName.trim() || settings.name,
+      partnerName: profilePartner.trim(),
+      sonName: profileSon.trim(),
+      age: profileAge ? parseInt(profileAge) : ""
+    };
     await DB.set(KEYS.settings(), updated);
+    // If name changed, also update household member record so others see the new name
+    if (householdId && updated.name && updated.name !== settings.name) {
+      try {
+        await window.__firebase_db.ref(`households/${householdId}/meta/members/${window.__current_uid}/name`).set(updated.name);
+      } catch(e) {}
+    }
     onSave(updated);
     setMsg("Saved.");
     setSaving(false);
@@ -1483,6 +1508,55 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 } },
         React.createElement("p", { style: { color: "#e2e5ed", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, margin: 0, letterSpacing: ".05em" } }, "SETTINGS"),
         React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", color: "var(--text-secondary)", fontSize: 20, cursor: "pointer", padding: 0 } }, "✕")
+      ),
+
+      // ── Profile ──
+      React.createElement("div", { style: card },
+        React.createElement("p", { style: { ...label, color: "#f4a823" } }, "YOUR PROFILE"),
+        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 } },
+          React.createElement("div", null,
+            React.createElement("p", { style: { ...label, marginBottom: 4 } }, "YOUR NAME"),
+            React.createElement("input", {
+              value: profileName,
+              onChange: e => setProfileName(e.target.value),
+              placeholder: "First name",
+              style: { ...inp }
+            })
+          ),
+          React.createElement("div", null,
+            React.createElement("p", { style: { ...label, marginBottom: 4 } }, "AGE"),
+            React.createElement("input", {
+              type: "number",
+              value: profileAge,
+              onChange: e => setProfileAge(e.target.value),
+              placeholder: "e.g. 30",
+              style: { ...inp }
+            })
+          )
+        ),
+        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } },
+          React.createElement("div", null,
+            React.createElement("p", { style: { ...label, marginBottom: 4 } }, "PARTNER'S NAME"),
+            React.createElement("input", {
+              value: profilePartner,
+              onChange: e => setProfilePartner(e.target.value),
+              placeholder: "Partner's first name",
+              style: { ...inp }
+            })
+          ),
+          React.createElement("div", null,
+            React.createElement("p", { style: { ...label, marginBottom: 4 } }, "KID'S NAME"),
+            React.createElement("input", {
+              value: profileSon,
+              onChange: e => setProfileSon(e.target.value),
+              placeholder: "Optional",
+              style: { ...inp }
+            })
+          )
+        ),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "8px 0 0", lineHeight: 1.5 } },
+          "Partner name is used as a fallback when no household is connected."
+        )
       ),
 
       // ── Claude API Key ──
@@ -1961,7 +2035,7 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
       React.createElement("div", { style: { ...cardStyle, marginBottom: 16 } },
         React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "HOUSEHOLD NAME"),
         React.createElement("input", {
-          placeholder: "e.g. The Persaud House",
+          placeholder: "e.g. The Smith Household",
           value: householdName,
           onChange: e => { setHouseholdName(e.target.value); setError(""); },
           style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, padding: "10px 12px", color: "var(--text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" }
@@ -2186,6 +2260,10 @@ function App() {
             const meta = metaSnap.val();
             window.__current_household_meta = meta;
             setHouseholdMeta(meta);
+            // Set partner UID for food-tab / meal prompts key routing
+            const uid = window.__current_uid;
+            const otherUids = Object.keys(meta.members || {}).filter(id => id !== uid);
+            window.__current_partner_uid = otherUids[0] || null;
           }
         } catch(e) {}
       } else {
@@ -2720,8 +2798,8 @@ function App() {
     initialDate: editLogDate?.section === "evening" ? editLogDate.date : null,
     onInitialDateConsumed: () => setEditLogDate(null)
   }), tab === "food" && /*#__PURE__*/React.createElement(window.FoodTab, {
-    uid: settings.uid || "ryan",
-    partnerUid: settings.partnerUid || "sabrina",
+    uid: window.__current_uid || settings.uid || "",
+    partnerUid: window.__current_partner_uid || settings.partnerUid || "",
     activeUser: activeUser,
     pantryItemsFromApp: pantryItems,
     settings: settings
