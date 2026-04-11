@@ -9,19 +9,28 @@
   const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
   // ── Finance Key Router ──────────────────────────────────────────────────────
-  // Routes all finance KEYS to household paths when a household is active,
-  // falling back to personal paths when there is no household.
+  // Routes all finance KEYS to household paths when a household is active AND
+  // finance sharing is enabled (shareFinance !== false).
+  // Falls back to personal paths when there is no household, or sharing is off.
+  function useHHFinance() {
+    // Read shareFinance flag live from window so toggle takes effect immediately on reload
+    const hid = window.__current_household_id;
+    if (!hid) return false;
+    // __current_household_meta is set by app.js after loadAll
+    const meta = window.__current_household_meta || {};
+    return meta.shareFinance !== false; // default true
+  }
   const FK = {
-    envelopes:        m  => window.__current_household_id ? KEYS.hhFinanceEnvelopes(m)        : KEYS.financeEnvelopes(m),
-    defaultEnvelopes: () => window.__current_household_id ? KEYS.hhFinanceDefaultEnvelopes()  : KEYS.financeDefaultEnvelopes(),
-    envelopeCatalog:  () => window.__current_household_id ? KEYS.hhFinanceEnvelopeCatalog()   : KEYS.financeEnvelopeCatalog(),
-    transactions:     m  => window.__current_household_id ? KEYS.hhFinanceTransactions(m)     : KEYS.financeTransactions(m),
-    allMonths:        () => window.__current_household_id ? KEYS.hhFinanceAllMonths()          : KEYS.financeAllMonths(),
-    rollover:         m  => window.__current_household_id ? KEYS.hhFinanceRollover(m)          : KEYS.financeRollover(m),
-    income:           m  => window.__current_household_id ? KEYS.hhFinanceIncome(m)            : KEYS.financeIncome(m),
-    merchantRules:    () => window.__current_household_id ? KEYS.hhMerchantRules()             : KEYS.merchantRules(),
-    customSubCats:    () => window.__current_household_id ? KEYS.hhCustomSubCats()             : KEYS.customSubCats(),
-    receipt:          id => window.__current_household_id ? KEYS.hhReceipt(id)                 : KEYS.receipt(id),
+    envelopes:        m  => useHHFinance() ? KEYS.hhFinanceEnvelopes(m)        : KEYS.financeEnvelopes(m),
+    defaultEnvelopes: () => useHHFinance() ? KEYS.hhFinanceDefaultEnvelopes()  : KEYS.financeDefaultEnvelopes(),
+    envelopeCatalog:  () => useHHFinance() ? KEYS.hhFinanceEnvelopeCatalog()   : KEYS.financeEnvelopeCatalog(),
+    transactions:     m  => useHHFinance() ? KEYS.hhFinanceTransactions(m)     : KEYS.financeTransactions(m),
+    allMonths:        () => useHHFinance() ? KEYS.hhFinanceAllMonths()          : KEYS.financeAllMonths(),
+    rollover:         m  => useHHFinance() ? KEYS.hhFinanceRollover(m)          : KEYS.financeRollover(m),
+    income:           m  => useHHFinance() ? KEYS.hhFinanceIncome(m)            : KEYS.financeIncome(m),
+    merchantRules:    () => useHHFinance() ? KEYS.hhMerchantRules()             : KEYS.merchantRules(),
+    customSubCats:    () => useHHFinance() ? KEYS.hhCustomSubCats()             : KEYS.customSubCats(),
+    receipt:          id => useHHFinance() ? KEYS.hhReceipt(id)                 : KEYS.receipt(id),
   };
 
 const SUBCATEGORY_OPTIONS = {
@@ -205,7 +214,7 @@ const ENV_COLORS = [
 ];
 
 // FinanceTab component
-function FinanceTab({ settings }) {
+function FinanceTab({ settings, householdId }) {
   const [view, setView] = useState("envelopes"); // envelopes | transactions | summary | import
   const [currentMonth, setCurrentMonth] = useState(() => getToday().slice(0, 7));
   const [envelopes, setEnvelopes] = useState([]); // [{ ...default, allocated: 0 }]
@@ -289,7 +298,9 @@ function FinanceTab({ settings }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadMonth(currentMonth); }, [currentMonth, loadMonth]);
+  // Re-load when month changes OR when household is connected (resolves race condition
+  // where Finance loads before loadAll() has set window.__current_household_id)
+  useEffect(() => { loadMonth(currentMonth); }, [currentMonth, householdId, loadMonth]);
 
   // Load receipt data when a transaction with a linked receipt is opened
   useEffect(() => {
@@ -734,7 +745,7 @@ Return a JSON array — one entry per row, same order, no extras:
 - idx: row number from list above
 - type: INCOME | EXPENSE | SKIP
 - envelopeId: from list below (EXPENSE only, else "")
-- source: for INCOME, infer a short source name (e.g. "Ryan Persaud Payroll", "EI Benefit")
+- source: for INCOME, infer a short source name (e.g. "Payroll", "EI Benefit", "Freelance")
 - subCat: short sub-category or ""
 Envelopes:
 ${envelopeList}
@@ -1026,7 +1037,9 @@ Return exactly ${bRows.length} objects. No markdown.`;
       return { month: m, txns, inc, envs };
     }));
 
-    let ctx = `FINANCIAL DATA — Ryan & Sabrina Persaud\nGenerated: ${getToday()}\n`;
+    const userName = settings?.name || "User";
+    const partnerNameCtx = window.__ml.getPartnerName(settings);
+    let ctx = `FINANCIAL DATA — ${userName} & ${partnerNameCtx}\nGenerated: ${getToday()}\n`;
     ctx += `Data range: ${monthsToLoad[monthsToLoad.length - 1]} to ${monthsToLoad[0]} (${monthsToLoad.length} month${monthsToLoad.length !== 1 ? "s" : ""})\n\n`;
 
     // ── All-time summary (full mode only) ──────────────────────────────
@@ -1130,7 +1143,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
         method: "POST", signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1200,
-          messages: [{ role: "user", content: `You are a personal financial coach for Ryan and Sabrina Persaud (a Canadian couple). Analyze their spending data and write a concise Monthly Financial Brief.
+          messages: [{ role: "user", content: `You are a personal financial coach for ${settings?.name || "the user"} and ${window.__ml.getPartnerName(settings)} (a Canadian couple). Analyze their spending data and write a concise Monthly Financial Brief.
 
 ${ctx}
 
@@ -1175,7 +1188,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 900,
-          system: `You are a personal financial coach for Ryan and Sabrina Persaud (Canadian couple). You have their COMPLETE financial history below — every month of data available. Answer questions using ONLY this data. Always cite specific months and dollar amounts. Be direct, specific, and actionable. Never give generic advice — every answer must reference their actual numbers.\n\n${ctx}`,
+          system: `You are a personal financial coach for ${settings?.name || "the user"} and ${window.__ml.getPartnerName(settings)} (Canadian household). You have their COMPLETE financial history below — every month of data available. Answer questions using ONLY this data. Always cite specific months and dollar amounts. Be direct, specific, and actionable. Never give generic advice — every answer must reference their actual numbers.\n\n${ctx}`,
           messages: newMessages.slice(-10).map(m => ({ role: m.role, content: m.content }))
         })
       });
@@ -1393,6 +1406,14 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 10, padding: "10px 14px", margin: "12px 13px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }
     },
       /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "#60a5fa", margin: 0 } }, "\uD83C\uDFE0 Set up a household to share finances with your family"),
+      /*#__PURE__*/React.createElement("button", { onClick: () => setDismissedHouseholdBanner(true), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", padding: "0 4px" } }, "\u00D7")
+    ),
+
+    // Finance-sharing-off banner — shown when household exists but shareFinance is false
+    window.__current_household_id && (window.__current_household_meta || {}).shareFinance === false && !dismissedHouseholdBanner && /*#__PURE__*/React.createElement("div", {
+      style: { background: "rgba(244,168,35,.06)", border: "1px solid rgba(244,168,35,.2)", borderRadius: 10, padding: "10px 14px", margin: "12px 13px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }
+    },
+      /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "#f4a823", margin: 0 } }, "\uD83D\uDCB0 Showing your personal finance data — household Finance sharing is off"),
       /*#__PURE__*/React.createElement("button", { onClick: () => setDismissedHouseholdBanner(true), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", padding: "0 4px" } }, "\u00D7")
     ),
 
@@ -2157,7 +2178,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SOURCE"),
-            /*#__PURE__*/React.createElement("input", { value: editIncomeForm.source, onChange: e => setEditIncomeForm(f => ({ ...f, source: e.target.value })), placeholder: "e.g. Ryan Salary, EI Benefit", style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" } })
+            /*#__PURE__*/React.createElement("input", { value: editIncomeForm.source, onChange: e => setEditIncomeForm(f => ({ ...f, source: e.target.value })), placeholder: "e.g. Salary, EI Benefit", style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" } })
           ),
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
             /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
@@ -2204,7 +2225,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           ),
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SOURCE"),
-            /*#__PURE__*/React.createElement("input", { placeholder: "e.g. Ryan Salary, Freelance", value: addIncomeForm.source, onChange: e => setAddIncomeForm(f => ({ ...f, source: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } })
+            /*#__PURE__*/React.createElement("input", { placeholder: "e.g. Salary, Freelance", value: addIncomeForm.source, onChange: e => setAddIncomeForm(f => ({ ...f, source: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } })
           ),
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "TYPE"),

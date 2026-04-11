@@ -7,6 +7,17 @@
   const GOAL_CATEGORY_META = window.GOAL_CATEGORY_META;
   const GOAL_TEMPLATES = window.GOAL_TEMPLATES;
 
+  // ── Shared components from app.js ──
+  // These are defined in app.js global scope and must be pulled in explicitly
+  // inside this IIFE so they're accessible without window. prefix.
+  const ProgBar = window.ProgBar;
+  const StatCell = window.StatCell;
+  const fmtDateFull = window.fmtDateFull;
+
+  // ── Recharts ──
+  const { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
+          ResponsiveContainer, ReferenceLine, CartesianGrid } = window.Recharts || {};
+
 // MORNING TAB
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -517,7 +528,7 @@ function Morning({
   const todayIds = weekPlan?.[todayDayKey] || [];
   const dailyList = todayIds.map(id => mobilityPool.find(e => e.id === id)).filter(Boolean);
   const mobDone = dailyList.filter(e => mobility[e.id]).length;
-  const gap = wt ? (parseFloat(wt) - (settings?.weightGoal || 180)).toFixed(1) : null;
+  const gap = (wt && settings?.weightGoal) ? (parseFloat(wt) - parseFloat(settings.weightGoal)).toFixed(1) : null;
   const stepGoal = settings?.stepGoal || 10000;
   const stepPct = steps ? Math.min(100, Math.round(parseInt(steps) / stepGoal * 100)) : 0;
 
@@ -733,7 +744,7 @@ function Morning({
       type: "number",
       value: wt,
       onChange: e => setWt(e.target.value),
-      placeholder: String(settings?.weightStart || 210),
+      placeholder: settings?.weightStart ? String(settings.weightStart) : "lbs",
       style: {
         ...inp,
         width: 88
@@ -752,7 +763,7 @@ function Morning({
         fontSize: 10,
         margin: 0
       }
-    }, "from ", settings?.weightGoal || 180, " lb goal"))))
+    }, settings?.weightGoal ? "from " + settings.weightGoal + " lb goal" : "set a weight goal in Goals"))))
   }), /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
       c: "Wake-up Time"
@@ -1269,7 +1280,7 @@ function Evening({
     c: "#ef4444"
   }];
   const sonName = settings?.sonName || "your son";
-  const partnerName = settings?.partnerName || "Sabrina";
+  const partnerName = window.__ml.getPartnerName(settings);
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
@@ -2448,7 +2459,7 @@ function SundayBrief({
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
-          system: `You are Ryan's accountability partner. Ryan: 32, married to ${settings?.partnerName || "Sabrina"}, father of ${settings?.sonName || "a young son"}, High D/I personality, former athlete, 7 Pillars life framework.\n\nWrite a 5-line Sunday accountability brief:\n- Line 1 (Result): Biggest result with specific numbers.\n- Line 2 (Gap): The real gap — identify the data pattern, be direct, no softening.\n- Line 3 (Win): Something specific that went well this week.\n- Line 4 (Focus): The gap reframed as one concrete action for next week.\n- Line 5 (Close): One short sentence that lands. No fluff.\n\nIf previous weeks data is provided, reference trends across weeks — not just this week.\nTone: Direct, warm, no lectures, no guilt trips. Ryan responds to honesty and specific wins.`,
+          system: `You are ${settings?.name || "the user"}'s accountability partner. ${settings?.name || "User"} lives with ${window.__ml.getPartnerName(settings)}${settings?.sonName ? " and " + settings.sonName : ""}, follows a 7 Pillars life framework.\n\nWrite a 5-line Sunday accountability brief:\n- Line 1 (Result): Biggest result with specific numbers.\n- Line 2 (Gap): The real gap — identify the data pattern, be direct, no softening.\n- Line 3 (Win): Something specific that went well this week.\n- Line 4 (Focus): The gap reframed as one concrete action for next week.\n- Line 5 (Close): One short sentence that lands. No fluff.\n\nIf previous weeks data is provided, reference trends across weeks — not just this week.\nTone: Direct, warm, no lectures, no guilt trips. Be honest and reference specific wins.`,
           messages: [{
             role: "user",
             content: `Data:\n\n${ctx}\n\nWrite the 5-line brief.`
@@ -3642,7 +3653,7 @@ function Sunday({
       type: "number",
       value: financeBalance,
       onChange: e => setFinanceBalance(e.target.value),
-      placeholder: settings?.loanBalance || "113000",
+      placeholder: settings?.loanBalance ? String(settings.loanBalance) : "e.g. 50000",
       style: {
         ...inp,
         fontSize: 13
@@ -3663,7 +3674,7 @@ function Sunday({
       type: "number",
       value: financeSavings,
       onChange: e => setFinanceSavings(e.target.value),
-      placeholder: settings?.savingsCurrent || "20000",
+      placeholder: settings?.savingsCurrent ? String(settings.savingsCurrent) : "e.g. 10000",
       style: {
         ...inp,
         fontSize: 13
