@@ -2842,8 +2842,8 @@
     pantryItemsFromApp = []
   }) {
     const today = getToday();
-    const userName = settings?.name || "Ryan";
-    const partnerName = settings?.partnerName || "Sabrina";
+    const userName = settings?.name || "Me";
+    const partnerName = window.__ml.getPartnerName(settings);
     const isPartner = activeUser === "partner";
     const [subTab, setSubTab] = useState("log");
     const [pantryItems, setPantryItems] = useState(pantryItemsFromApp || []);
@@ -3095,7 +3095,7 @@
     /* ── MacroBar always visible at top ── */
     /*#__PURE__*/React.createElement(MacroBar, { logged: dailyLogged, targets: macroTargets }),
   
-    /* ── Sabrina prompt (partner view) ── */
+    /* ── Partner meal prompt (partner view) ── */
     activeSabrinaPrompt && isPartner && /*#__PURE__*/React.createElement("div", {
       style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }
     },

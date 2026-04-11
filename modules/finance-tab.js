@@ -743,7 +743,7 @@ Return a JSON array — one entry per row, same order, no extras:
 - idx: row number from list above
 - type: INCOME | EXPENSE | SKIP
 - envelopeId: from list below (EXPENSE only, else "")
-- source: for INCOME, infer a short source name (e.g. "Ryan Persaud Payroll", "EI Benefit")
+- source: for INCOME, infer a short source name (e.g. "Payroll", "EI Benefit", "Freelance")
 - subCat: short sub-category or ""
 Envelopes:
 ${envelopeList}
@@ -2176,7 +2176,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SOURCE"),
-            /*#__PURE__*/React.createElement("input", { value: editIncomeForm.source, onChange: e => setEditIncomeForm(f => ({ ...f, source: e.target.value })), placeholder: "e.g. Ryan Salary, EI Benefit", style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" } })
+            /*#__PURE__*/React.createElement("input", { value: editIncomeForm.source, onChange: e => setEditIncomeForm(f => ({ ...f, source: e.target.value })), placeholder: "e.g. Salary, EI Benefit", style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box" } })
           ),
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
             /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
@@ -2223,7 +2223,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
           ),
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SOURCE"),
-            /*#__PURE__*/React.createElement("input", { placeholder: "e.g. Ryan Salary, Freelance", value: addIncomeForm.source, onChange: e => setAddIncomeForm(f => ({ ...f, source: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } })
+            /*#__PURE__*/React.createElement("input", { placeholder: "e.g. Salary, Freelance", value: addIncomeForm.source, onChange: e => setAddIncomeForm(f => ({ ...f, source: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" } })
           ),
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "TYPE"),

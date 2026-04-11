@@ -115,7 +115,7 @@ function AuthGate({
       margin: "0 0 28px",
       lineHeight: 1.6
     }
-  }, "Ryan and Sabrina each have their own separate data, history, and reports."), error && /*#__PURE__*/React.createElement("p", {
+  }, "Each user has their own separate data, history, and reports."), error && /*#__PURE__*/React.createElement("p", {
     style: {
       color: "#ef4444",
       fontSize: 11,
@@ -475,8 +475,8 @@ function applyTheme(name) {
 }
 
 const DEFAULT_SETTINGS = {
-  name: "Ryan",
-  partnerName: "Sabrina",
+  name: "",
+  partnerName: "",
   sonName: "",
   weightGoal: 180,
   weightStart: 210,
@@ -1506,7 +1506,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       React.createElement("div", { style: card },
         React.createElement("p", { style: { ...label, color: "#f472b6" } }, "COLOUR THEME"),
         React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 12px", lineHeight: 1.5 } },
-          "Dark is the default. Light is Sabrina\u2019s bright Pinterest-style theme."
+          "Dark is the default. Light is a bright Pinterest-style theme."
         ),
         React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } },
           ["dark", "light"].map(t =>
@@ -1539,7 +1539,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
               }, t === "dark" ? "Dark" : "Light"),
               React.createElement("p", {
                 style: { color: "var(--text-muted)", fontSize: 9, margin: "3px 0 0" }
-              }, t === "dark" ? "Ryan's default" : "Sabrina's pick")
+              }, t === "dark" ? "Dark mode" : "Light mode")
             )
           )
         )

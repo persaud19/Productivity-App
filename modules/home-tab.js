@@ -32,7 +32,7 @@ function TasksTab({
   const [doneTask, setDoneTask] = useState(null);
   const [editTask, setEditTask] = useState(null);
   const [doneDateState, setDoneDateState] = useState(getToday());
-  const myName = settings?.name || "Ryan";
+  const myName = settings?.name || "Me";
   const partnerName = window.__ml.getPartnerName(settings);
   const saveTasks = async updated => {
     setTasks(updated);
