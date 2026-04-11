@@ -2841,7 +2841,7 @@ function App() {
     settings: settings,
     allSundays: allSundays,
     choreTasks: tasks
-  ), tab === "history" && /*#__PURE__*/React.createElement(window.HistoryBrowser, {
+  }), tab === "history" && /*#__PURE__*/React.createElement(window.HistoryBrowser, {
     allLogs: allLogs,
     allSundays: allSundays,
     settings: settings,

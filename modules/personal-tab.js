@@ -18,6 +18,9 @@
   const { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
           ResponsiveContainer, ReferenceLine, CartesianGrid } = window.Recharts || {};
 
+  // ── Mobility zone colours (defined in data/mobility-exercises.js) ──
+  const ZONE_COLORS = window.ZONE_COLORS || {};
+
 // MORNING TAB
 // ─────────────────────────────────────────────────────────────────────────────
 
