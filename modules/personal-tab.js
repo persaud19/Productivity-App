@@ -7,6 +7,17 @@
   const GOAL_CATEGORY_META = window.GOAL_CATEGORY_META;
   const GOAL_TEMPLATES = window.GOAL_TEMPLATES;
 
+  // ── Shared components from app.js ──
+  // These are defined in app.js global scope and must be pulled in explicitly
+  // inside this IIFE so they're accessible without window. prefix.
+  const ProgBar = window.ProgBar;
+  const StatCell = window.StatCell;
+  const fmtDateFull = window.fmtDateFull;
+
+  // ── Recharts ──
+  const { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
+          ResponsiveContainer, ReferenceLine, CartesianGrid } = window.Recharts || {};
+
 // MORNING TAB
 // ─────────────────────────────────────────────────────────────────────────────
 

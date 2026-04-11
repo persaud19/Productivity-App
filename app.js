@@ -710,6 +710,11 @@ const StatCell = ({
   }
 }, sub));
 
+// ── Export shared components so modules can pull them in via window ──
+window.ProgBar = ProgBar;
+window.StatCell = StatCell;
+window.fmtDateFull = fmtDateFull;
+
 // Celebration overlay — fires for milestones
 function CelebrationOverlay({
   msg,
