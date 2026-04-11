@@ -155,6 +155,76 @@ KEYS.winsArchive()       // ml:wins:all        → daily wins log
 - Home tab (Chores) and Finance tab are intended to be shared eventually
   (not yet implemented — future: shared household Firebase node)
 
+## 🏗️ MAJOR ARCHITECTURE ROADMAP — HIGH PRIORITY
+> Ryan flagged 2026-04-09. Full design agreed, build NOT started. Do not begin without re-reading this section.
+
+### Multi-User Household / Homegroup System
+
+**3-tier role model:**
+| Role | Who | Can Do |
+|---|---|---|
+| Master | ryanpersaud19@gmail.com (hardcoded email check) | Read/troubleshoot any household |
+| Homegroup Leader | Creates the group | Add/remove members, toggle Finance sharing |
+| Member | Invited users | Contribute to shared tabs, view shared data |
+
+**Max 6 users per household.**
+
+**What's shared vs personal:**
+- HOME (Chores + Pantry) → always shared at household level
+- FINANCE → shared, but Homegroup Leader can toggle off per household
+- Morning, Evening, Goals, Sunday, Train, Food → always personal per-user
+
+**Firebase structure:**
+```
+households/<householdId>/
+  meta/
+    name, leaderId, createdAt
+    inviteCode: "X7K2M9"
+    shareFinance: true
+    members: { <uid>: { name, email, role, joinedAt } }
+  ml/
+    chores/
+    food/pantry/
+    finance/ (txns, envelopes, income, months, merchant_rules, etc.)
+
+users/<uid>/
+  householdId: "abc123"
+  pendingHousehold: "abc123"   ← set when leader pre-links email before member signs up
+  ml/
+    log/, goals/, train/, week/, settings/   ← all personal, unchanged
+```
+
+**DB routing (new `hh:` prefix):**
+- `ml:xxx` → `users/<uid>/ml/xxx` (personal, unchanged)
+- `hh:xxx` → `households/<householdId>/ml/xxx` (shared)
+- `window.__current_household_id` set at login alongside `window.__current_uid`
+
+**Invite system (Phase 2):**
+- Leader generates 6-char invite code (e.g. "X7K2M9")
+- Leader can also pre-link a member's email before they sign in
+- New user enters code OR signs in with pre-linked email → auto-joins household
+
+**Solo mode (no household yet):**
+- HOME + Finance fall back to `users/<uid>/ml/...` (existing behaviour, nothing breaks)
+- Prompt to create or join a household appears in settings
+
+**Migration (Ryan's data → household on creation):**
+1. Read all of `users/<ryan_uid>/ml/chores`, `food/pantry`, all finance keys
+2. Write to `households/<hid>/ml/...`
+3. Set `users/<ryan_uid>/householdId = <hid>`
+4. Original data stays as backup — app reads new path going forward
+
+**Two open questions Ryan still needs to answer before build starts:**
+1. Finance in solo mode — still works before joining a household, or household-only?
+2. New member with no household — empty HOME/Finance tabs, or blocked with "Join a household" prompt?
+
+**Build phases:**
+- Phase 1: DB layer `hh:` routing + household KEYS + HouseholdSetup component + migration
+- Phase 2: Invite code + email pre-link + member join flow
+- Phase 3: Finance sharing toggle + member management + master admin view
+
+---
+
 ## 🚀 NEXT LEVEL FEATURE — HIGH PRIORITY
 > Ryan flagged this 2026-04-09 as a top priority for the next major Finance upgrade.
 
