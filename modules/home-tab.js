@@ -36,7 +36,7 @@ function TasksTab({
   const partnerName = settings?.partnerName || "Sabrina";
   const saveTasks = async updated => {
     setTasks(updated);
-    await DB.set(KEYS.chores(), updated);
+    await DB.set(window.__current_household_id ? KEYS.hhChores() : KEYS.chores(), updated);
   };
   const handleDone = async () => {
     if (!doneTask) return;

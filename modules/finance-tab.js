@@ -8,6 +8,22 @@
   const { DB, KEYS, getToday, fmtDate, fmtLong, addDays, daysBetween, getSundayKey, callClaude, C, CL, inp, Lbl, SectionHead } = window.__ml;
   const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
+  // ── Finance Key Router ──────────────────────────────────────────────────────
+  // Routes all finance KEYS to household paths when a household is active,
+  // falling back to personal paths when there is no household.
+  const FK = {
+    envelopes:        m  => window.__current_household_id ? KEYS.hhFinanceEnvelopes(m)        : KEYS.financeEnvelopes(m),
+    defaultEnvelopes: () => window.__current_household_id ? KEYS.hhFinanceDefaultEnvelopes()  : KEYS.financeDefaultEnvelopes(),
+    envelopeCatalog:  () => window.__current_household_id ? KEYS.hhFinanceEnvelopeCatalog()   : KEYS.financeEnvelopeCatalog(),
+    transactions:     m  => window.__current_household_id ? KEYS.hhFinanceTransactions(m)     : KEYS.financeTransactions(m),
+    allMonths:        () => window.__current_household_id ? KEYS.hhFinanceAllMonths()          : KEYS.financeAllMonths(),
+    rollover:         m  => window.__current_household_id ? KEYS.hhFinanceRollover(m)          : KEYS.financeRollover(m),
+    income:           m  => window.__current_household_id ? KEYS.hhFinanceIncome(m)            : KEYS.financeIncome(m),
+    merchantRules:    () => window.__current_household_id ? KEYS.hhMerchantRules()             : KEYS.merchantRules(),
+    customSubCats:    () => window.__current_household_id ? KEYS.hhCustomSubCats()             : KEYS.customSubCats(),
+    receipt:          id => window.__current_household_id ? KEYS.hhReceipt(id)                 : KEYS.receipt(id),
+  };
+
 const SUBCATEGORY_OPTIONS = {
   food_drink:     ["Coffee", "Fast Food", "Restaurant", "Grocery", "Alcohol", "Catering", "Entertaining", "Hosting", "Meal Kit", "Gift"],
   household:      ["Costco", "Home & Garden", "TJX", "Dollarama", "Walmart", "Electronics", "Medical", "Water Softener", "Makeup", "Gift", "Tax"],
@@ -231,6 +247,7 @@ function FinanceTab({ settings }) {
   const [editingIncome, setEditingIncome] = useState(null);
   const [editIncomeForm, setEditIncomeForm] = useState({ source: "", amount: "", date: "", type: "other" });
   const [customSubCats, setCustomSubCats] = useState({});
+  const [dismissedHouseholdBanner, setDismissedHouseholdBanner] = useState(false);
   const [coachReport, setCoachReport] = useState("");
   const [coachLoading, setCoachLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
@@ -242,26 +259,26 @@ function FinanceTab({ settings }) {
 
   const loadMonth = useCallback(async (month) => {
     setLoading(true);
-    const saved = await DB.get(KEYS.financeEnvelopes(month));
-    const txns = await DB.get(KEYS.financeTransactions(month));
-    const rollover = await DB.get(KEYS.financeRollover(month));
-    const months = await DB.get(KEYS.financeAllMonths());
+    const saved = await DB.get(FK.envelopes(month));
+    const txns = await DB.get(FK.transactions(month));
+    const rollover = await DB.get(FK.rollover(month));
+    const months = await DB.get(FK.allMonths());
 
     // Load user's envelope catalog (custom + default, with hidden flags)
-    const catalogData = await DB.get(KEYS.financeEnvelopeCatalog());
+    const catalogData = await DB.get(FK.envelopeCatalog());
     const catalog = (catalogData && catalogData.length) ? catalogData : FINANCE_ENVELOPES_DEFAULT;
     setEnvelopeCatalog(catalog);
 
     // If this month has no saved allocations, fall back to the default budget template
-    const defaultEnvs = (!saved || !saved.length) ? (await DB.get(KEYS.financeDefaultEnvelopes()) || []) : [];
+    const defaultEnvs = (!saved || !saved.length) ? (await DB.get(FK.defaultEnvelopes()) || []) : [];
     const sourceEnvs = (saved && saved.length) ? saved : defaultEnvs;
     const baseEnvelopes = catalog.map(def => {
       const s = sourceEnvs.find(e => e.id === def.id);
       return { ...def, allocated: s?.allocated ?? 0 };
     });
-    const incomeData = await DB.get(KEYS.financeIncome(month));
-    const rulesData = await DB.get(KEYS.merchantRules());
-    const customSubData = await DB.get(KEYS.customSubCats());
+    const incomeData = await DB.get(FK.income(month));
+    const rulesData = await DB.get(FK.merchantRules());
+    const customSubData = await DB.get(FK.customSubCats());
     setEnvelopes(baseEnvelopes);
     setTransactions(Array.isArray(txns) ? txns : []);
     setRolloverIn(rollover || {});
@@ -277,7 +294,7 @@ function FinanceTab({ settings }) {
   // Load receipt data when a transaction with a linked receipt is opened
   useEffect(() => {
     if (editingTxn?.receiptId) {
-      DB.get(KEYS.receipt(editingTxn.receiptId)).then(r => setTxnReceiptData(r || null));
+      DB.get(FK.receipt(editingTxn.receiptId)).then(r => setTxnReceiptData(r || null));
     } else {
       setTxnReceiptData(null);
     }
@@ -285,14 +302,14 @@ function FinanceTab({ settings }) {
 
   const saveEnvelopes = async (updated) => {
     setEnvelopes(updated);
-    await DB.set(KEYS.financeEnvelopes(currentMonth), updated);
+    await DB.set(FK.envelopes(currentMonth), updated);
   };
 
   const saveEnvelopeCatalog = async (updated) => {
     setEnvelopeCatalog(updated);
-    await DB.set(KEYS.financeEnvelopeCatalog(), updated);
+    await DB.set(FK.envelopeCatalog(), updated);
     // Also rebuild current month's envelopes so new/hidden envelopes take effect
-    const saved = await DB.get(KEYS.financeEnvelopes(currentMonth)) || [];
+    const saved = await DB.get(FK.envelopes(currentMonth)) || [];
     const newMonthEnvs = updated.map(def => {
       const s = saved.find(e => e.id === def.id);
       return { ...def, allocated: s?.allocated ?? 0 };
@@ -320,7 +337,7 @@ function FinanceTab({ settings }) {
   };
 
   const setDefaultBudget = async () => {
-    await DB.set(KEYS.financeDefaultEnvelopes(), envelopes);
+    await DB.set(FK.defaultEnvelopes(), envelopes);
     setImportMsg("Default budget saved — all months without a custom budget will now use these values.");
   };
 
@@ -413,12 +430,12 @@ Return ONLY a JSON array, no markdown:
       byMonth[txn.month].push(txn);
     });
     for (const m of Object.keys(byMonth)) {
-      const existing = await DB.get(KEYS.financeTransactions(m)) || [];
+      const existing = await DB.get(FK.transactions(m)) || [];
       const ids = new Set(existing.map(t => t.id));
-      await DB.set(KEYS.financeTransactions(m), [...existing, ...byMonth[m].filter(t => !ids.has(t.id))]);
+      await DB.set(FK.transactions(m), [...existing, ...byMonth[m].filter(t => !ids.has(t.id))]);
     }
     const months = [...new Set([...allMonths, ...Object.keys(byMonth)])].sort();
-    await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
+    await DB.set(FK.allMonths(), months); setAllMonths(months);
     setScanResults(null);
     const flagCount = flaggedScanIds.size;
     setFlaggedScanIds(new Set());
@@ -809,11 +826,11 @@ Return exactly ${bRows.length} objects. No markdown.`;
     setDeduping(true);
     setImportMsg("");
     try {
-      const months = await DB.get(KEYS.financeAllMonths()) || [];
+      const months = await DB.get(FK.allMonths()) || [];
       let totalRemoved = 0;
       for (const m of months) {
         // Dedupe transactions
-        const txns = await DB.get(KEYS.financeTransactions(m)) || [];
+        const txns = await DB.get(FK.transactions(m)) || [];
         const seenIds = new Set();
         const clean = txns.filter(t => {
           if (!t.id || seenIds.has(t.id)) return false;
@@ -821,10 +838,10 @@ Return exactly ${bRows.length} objects. No markdown.`;
         });
         if (clean.length < txns.length) {
           totalRemoved += txns.length - clean.length;
-          await DB.set(KEYS.financeTransactions(m), clean);
+          await DB.set(FK.transactions(m), clean);
         }
         // Dedupe income
-        const inc = await DB.get(KEYS.financeIncome(m)) || [];
+        const inc = await DB.get(FK.income(m)) || [];
         const seenInc = new Set();
         const cleanInc = inc.filter(i => {
           if (!i.id || seenInc.has(i.id)) return false;
@@ -832,7 +849,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
         });
         if (cleanInc.length < inc.length) {
           totalRemoved += inc.length - cleanInc.length;
-          await DB.set(KEYS.financeIncome(m), cleanInc);
+          await DB.set(FK.income(m), cleanInc);
         }
       }
       setImportMsg(totalRemoved > 0 ? `Removed ${totalRemoved} duplicate${totalRemoved !== 1 ? "s" : ""} across ${months.length} months.` : `No duplicates found across ${months.length} months — all clean.`);
@@ -853,13 +870,13 @@ Return exactly ${bRows.length} objects. No markdown.`;
       const byMonth = {};
       ruled.forEach(t => { if (!byMonth[t.month]) byMonth[t.month] = []; byMonth[t.month].push(t); });
       for (const m of Object.keys(byMonth)) {
-        const existing = await DB.get(KEYS.financeTransactions(m)) || [];
+        const existing = await DB.get(FK.transactions(m)) || [];
         const ids = new Set(existing.map(t => t.id));
-        await DB.set(KEYS.financeTransactions(m), [...existing, ...byMonth[m].map(t => ({ ...t, needsReview: flaggedCardIds.has(t.id) })).filter(t => !ids.has(t.id))]);
+        await DB.set(FK.transactions(m), [...existing, ...byMonth[m].map(t => ({ ...t, needsReview: flaggedCardIds.has(t.id) })).filter(t => !ids.has(t.id))]);
       }
       setFlaggedCardIds(new Set());
       const months = [...new Set([...allMonths, ...Object.keys(byMonth)])].sort();
-      await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
+      await DB.set(FK.allMonths(), months); setAllMonths(months);
       const ruleCount = ruled.filter(t => t._ruleApplied).length;
       const msg = `Saved ${ruled.length} expense${ruled.length !== 1 ? "s" : ""}${ruleCount ? " (" + ruleCount + " matched rules)" : ""}`;
       setImportMsg(incItems.length ? msg + " + " + incItems.length + " income entries from " + label + "." : msg + " from " + label + ".");
@@ -870,9 +887,9 @@ Return exactly ${bRows.length} objects. No markdown.`;
       for (const inc of incItems) {
         const m = inc.month;
         if (!m) continue;
-        const existing = await DB.get(KEYS.financeIncome(m)) || [];
+        const existing = await DB.get(FK.income(m)) || [];
         const ids = new Set(existing.map(i => i.id));
-        if (!ids.has(inc.id)) await DB.set(KEYS.financeIncome(m), [...existing, inc]);
+        if (!ids.has(inc.id)) await DB.set(FK.income(m), [...existing, inc]);
       }
       if (!expenses.length) setImportMsg(`Saved ${incItems.length} income entries from ${label}.`);
     }
@@ -889,12 +906,12 @@ Return exactly ${bRows.length} objects. No markdown.`;
       // In-memory update for current month
       const updated = transactions.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId, subCat: subCatVal } : t);
       setTransactions(updated);
-      await DB.set(KEYS.financeTransactions(currentMonth), updated);
+      await DB.set(FK.transactions(currentMonth), updated);
     } else {
       // Transaction belongs to a different month — load that month from Firebase
-      const existing = await DB.get(KEYS.financeTransactions(txnMonth)) || [];
+      const existing = await DB.get(FK.transactions(txnMonth)) || [];
       const updated = existing.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId, subCat: subCatVal } : t);
-      await DB.set(KEYS.financeTransactions(txnMonth), updated);
+      await DB.set(FK.transactions(txnMonth), updated);
     }
     setEditingTxn(null);
     // Offer rule creation if envelope changed
@@ -912,10 +929,10 @@ Return exactly ${bRows.length} objects. No markdown.`;
     if (txnMonth === currentMonth) {
       const updated = transactions.filter(t => t.id !== txn.id);
       setTransactions(updated);
-      await DB.set(KEYS.financeTransactions(currentMonth), updated);
+      await DB.set(FK.transactions(currentMonth), updated);
     } else {
-      const existing = await DB.get(KEYS.financeTransactions(txnMonth)) || [];
-      await DB.set(KEYS.financeTransactions(txnMonth), existing.filter(t => t.id !== txn.id));
+      const existing = await DB.get(FK.transactions(txnMonth)) || [];
+      await DB.set(FK.transactions(txnMonth), existing.filter(t => t.id !== txn.id));
     }
     setEditingTxn(null);
   };
@@ -926,11 +943,11 @@ Return exactly ${bRows.length} objects. No markdown.`;
     setRunningRules(true);
     setRulesRunMsg("");
     try {
-      const allMonths = await DB.get(KEYS.financeAllMonths()) || [];
+      const allMonths = await DB.get(FK.allMonths()) || [];
       let totalUpdated = 0;
       let monthsAffected = 0;
       await Promise.all(allMonths.map(async (m) => {
-        const txns = await DB.get(KEYS.financeTransactions(m)) || [];
+        const txns = await DB.get(FK.transactions(m)) || [];
         if (txns.length === 0) return;
         const updated = applyMerchantRules(txns, rulesToApply);
         // Count actual changes
@@ -939,7 +956,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
           if (txns[i].envelopeId !== updated[i].envelopeId || txns[i].subCat !== updated[i].subCat) changed++;
         }
         if (changed > 0) {
-          await DB.set(KEYS.financeTransactions(m), updated);
+          await DB.set(FK.transactions(m), updated);
           totalUpdated += changed;
           monthsAffected++;
           // Refresh current month in UI if it was one of the updated months
@@ -963,7 +980,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
     const newRule = { id: "mr_u" + Date.now(), keyword: ruleForm.keyword.trim().toLowerCase(), displayName: ruleForm.displayName.trim() || ruleForm.keyword.trim(), envelopeId: ruleForm.envelopeId, subCat: ruleForm.subCat.trim() };
     const updated = [...merchantRules.filter(r => r.keyword !== newRule.keyword), newRule];
     setMerchantRules(updated);
-    await DB.set(KEYS.merchantRules(), updated);
+    await DB.set(FK.merchantRules(), updated);
     setRulePrompt(null);
     // Auto-run the new rule against all historical data
     await handleRunRules([newRule]);
@@ -972,7 +989,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
   const handleDeleteRule = async (id) => {
     const updated = merchantRules.filter(r => r.id !== id);
     setMerchantRules(updated);
-    await DB.set(KEYS.merchantRules(), updated);
+    await DB.set(FK.merchantRules(), updated);
   };
 
   const handleAddRule = async () => {
@@ -980,7 +997,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
     const newRule = { id: "mr_u" + Date.now(), keyword: ruleForm.keyword.trim().toLowerCase(), displayName: ruleForm.displayName.trim() || ruleForm.keyword.trim(), envelopeId: ruleForm.envelopeId, subCat: ruleForm.subCat.trim() };
     const updated = [...merchantRules.filter(r => r.keyword !== newRule.keyword), newRule];
     setMerchantRules(updated);
-    await DB.set(KEYS.merchantRules(), updated);
+    await DB.set(FK.merchantRules(), updated);
     setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
     // Auto-run the new rule against all historical data
     await handleRunRules([newRule]);
@@ -998,14 +1015,14 @@ Return exactly ${bRows.length} objects. No markdown.`;
 
     let monthsToLoad = recentMonths;
     if (full) {
-      const saved = await DB.get(KEYS.financeAllMonths()) || [];
+      const saved = await DB.get(FK.allMonths()) || [];
       monthsToLoad = [...new Set([...saved, ...recentMonths])].sort().reverse(); // newest first
     }
 
     const monthData = await Promise.all(monthsToLoad.map(async m => {
-      const txns = await DB.get(KEYS.financeTransactions(m)) || [];
-      const inc  = await DB.get(KEYS.financeIncome(m))       || [];
-      const envs = await DB.get(KEYS.financeEnvelopes(m))    || [];
+      const txns = await DB.get(FK.transactions(m)) || [];
+      const inc  = await DB.get(FK.income(m))       || [];
+      const envs = await DB.get(FK.envelopes(m))    || [];
       return { month: m, txns, inc, envs };
     }));
 
@@ -1187,19 +1204,19 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
     if (existing.includes(newSubCat)) return;
     const updated = { ...customSubCats, [envelopeId]: [...existing, newSubCat] };
     setCustomSubCats(updated);
-    await DB.set(KEYS.customSubCats(), updated);
+    await DB.set(FK.customSubCats(), updated);
   };
 
   // Resolve a vague merchant: user picks one of the 3 suggestions
   const handleVaguePick = async (txn, pick) => {
     const updated = transactions.map(t => t.id === txn.id ? { ...t, envelopeId: pick.envelopeId, subCat: pick.subCat } : t);
     setTransactions(updated);
-    await DB.set(KEYS.financeTransactions(currentMonth), updated);
+    await DB.set(FK.transactions(currentMonth), updated);
     // Also save as a rule
     const newRule = { id: "mr_u" + Date.now(), keyword: pick.keyword.toLowerCase(), displayName: pick.label, envelopeId: pick.envelopeId, subCat: pick.subCat };
     const updatedRules = [...merchantRules.filter(r => r.keyword !== newRule.keyword), newRule];
     setMerchantRules(updatedRules);
-    await DB.set(KEYS.merchantRules(), updatedRules);
+    await DB.set(FK.merchantRules(), updatedRules);
     setVaguePrompt(null);
   };
 
@@ -1212,16 +1229,16 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       // Same month — update in-memory state and save
       const updated = [...income, entry];
       setIncome(updated);
-      await DB.set(KEYS.financeIncome(currentMonth), updated);
+      await DB.set(FK.income(currentMonth), updated);
     } else {
       // Different month — load that month's array from Firebase and append there only
-      const existing = await DB.get(KEYS.financeIncome(entryMonth)) || [];
-      await DB.set(KEYS.financeIncome(entryMonth), [...existing, entry]);
+      const existing = await DB.get(FK.income(entryMonth)) || [];
+      await DB.set(FK.income(entryMonth), [...existing, entry]);
       // Ensure the target month is in the months index
       if (!allMonths.includes(entryMonth)) {
         const updatedMonths = [...allMonths, entryMonth].sort();
         setAllMonths(updatedMonths);
-        await DB.set(KEYS.financeAllMonths(), updatedMonths);
+        await DB.set(FK.allMonths(), updatedMonths);
       }
     }
     setShowAddIncome(false);
@@ -1234,10 +1251,10 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
     if (entryMonth === currentMonth) {
       const updated = income.filter(i => i.id !== id);
       setIncome(updated);
-      await DB.set(KEYS.financeIncome(currentMonth), updated);
+      await DB.set(FK.income(currentMonth), updated);
     } else {
-      const existing = await DB.get(KEYS.financeIncome(entryMonth)) || [];
-      await DB.set(KEYS.financeIncome(entryMonth), existing.filter(i => i.id !== id));
+      const existing = await DB.get(FK.income(entryMonth)) || [];
+      await DB.set(FK.income(entryMonth), existing.filter(i => i.id !== id));
     }
   };
 
@@ -1252,17 +1269,17 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       // Same month, in-memory update
       const updated = income.map(i => i.id === editingIncome.id ? updatedEntry : i);
       setIncome(updated);
-      await DB.set(KEYS.financeIncome(currentMonth), updated);
+      await DB.set(FK.income(currentMonth), updated);
     } else {
       // Remove from original month
-      const origArr = originalMonth === currentMonth ? income : (await DB.get(KEYS.financeIncome(originalMonth)) || []);
+      const origArr = originalMonth === currentMonth ? income : (await DB.get(FK.income(originalMonth)) || []);
       const withoutOld = origArr.filter(i => i.id !== editingIncome.id);
-      await DB.set(KEYS.financeIncome(originalMonth), withoutOld);
+      await DB.set(FK.income(originalMonth), withoutOld);
       if (originalMonth === currentMonth) setIncome(withoutOld);
       // Add to new month
-      const newArr = newMonth === currentMonth ? withoutOld : (await DB.get(KEYS.financeIncome(newMonth)) || []);
+      const newArr = newMonth === currentMonth ? withoutOld : (await DB.get(FK.income(newMonth)) || []);
       const withNew = newMonth === currentMonth ? [...income.filter(i => i.id !== editingIncome.id), updatedEntry] : [...newArr, updatedEntry];
-      await DB.set(KEYS.financeIncome(newMonth), withNew);
+      await DB.set(FK.income(newMonth), withNew);
       if (newMonth === currentMonth) setIncome(withNew);
     }
     setEditingIncome(null);
@@ -1276,9 +1293,9 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
     const txn = { id: "moved_" + Date.now(), date: inc.date, month: inc.month || inc.date.slice(0, 7), amount: inc.amount, desc: inc.source, isRefund: false, card: "Bank", category: "Bank", envelopeId: "other", subCat: "", highlevel: "" };
     const updInc = income.filter(i => i.id !== inc.id);
     setIncome(updInc);
-    await DB.set(KEYS.financeIncome(currentMonth), updInc);
-    const existingTxns = await DB.get(KEYS.financeTransactions(txn.month)) || [];
-    await DB.set(KEYS.financeTransactions(txn.month), [...existingTxns, txn]);
+    await DB.set(FK.income(currentMonth), updInc);
+    const existingTxns = await DB.get(FK.transactions(txn.month)) || [];
+    await DB.set(FK.transactions(txn.month), [...existingTxns, txn]);
     setTransactions(prev => [...prev, txn]);
     setEditingIncome(null);
     setView("transactions");
@@ -1292,9 +1309,9 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
     const inc = { id: "moved_" + Date.now(), date: t.date, month: t.month || t.date.slice(0, 7), amount: t.amount, source: t.desc || "Income", type: "other", desc: t.desc || "" };
     const updTxns = transactions.filter(x => x.id !== t.id);
     setTransactions(updTxns);
-    await DB.set(KEYS.financeTransactions(t.month || currentMonth), updTxns);
-    const existingInc = await DB.get(KEYS.financeIncome(inc.month)) || [];
-    await DB.set(KEYS.financeIncome(inc.month), [...existingInc, inc]);
+    await DB.set(FK.transactions(t.month || currentMonth), updTxns);
+    const existingInc = await DB.get(FK.income(inc.month)) || [];
+    await DB.set(FK.income(inc.month), [...existingInc, inc]);
     setIncome(prev => [...prev, inc]);
     setEditingTxn(null);
     setView("income");
@@ -1305,10 +1322,10 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
     if (!addTxnForm.desc.trim() || isNaN(amt) || amt <= 0) return;
     const month = addTxnForm.date.slice(0, 7);
     const txn = { id: "manual_" + Date.now(), date: addTxnForm.date, month, card: addTxnForm.card, amount: amt, isRefund: false, category: "Manual", subCat: addTxnForm.subCat || "", desc: addTxnForm.desc.trim(), highlevel: "", envelopeId: addTxnForm.envelopeId };
-    const existing = await DB.get(KEYS.financeTransactions(month)) || [];
-    await DB.set(KEYS.financeTransactions(month), [...existing, txn]);
+    const existing = await DB.get(FK.transactions(month)) || [];
+    await DB.set(FK.transactions(month), [...existing, txn]);
     const months = [...new Set([...allMonths, month])].sort();
-    await DB.set(KEYS.financeAllMonths(), months); setAllMonths(months);
+    await DB.set(FK.allMonths(), months); setAllMonths(months);
     setShowAddTxn(false); setAddTxnForm({ date: getToday(), amount: "", desc: "", card: "Amex", envelopeId: "food_drink", subCat: "" });
     await loadMonth(currentMonth);
   };
@@ -1335,8 +1352,8 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
     const months = allMonths.filter(m => m < currentMonth).sort();
     if (!months.length) return;
     const prevMonth = months[months.length - 1];
-    const prevEnv = await DB.get(KEYS.financeEnvelopes(prevMonth)) || [];
-    const prevTxns = await DB.get(KEYS.financeTransactions(prevMonth)) || [];
+    const prevEnv = await DB.get(FK.envelopes(prevMonth)) || [];
+    const prevTxns = await DB.get(FK.transactions(prevMonth)) || [];
     const prevSpent = {};
     prevTxns.forEach(t => { if (!t.isRefund) prevSpent[t.envelopeId] = (prevSpent[t.envelopeId] || 0) + t.amount; });
     const rollover = {};
@@ -1345,7 +1362,7 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
       if (unspent > 0) rollover[e.id] = Math.round(unspent * 100) / 100;
     });
     setRolloverIn(rollover);
-    await DB.set(KEYS.financeRollover(currentMonth), rollover);
+    await DB.set(FK.rollover(currentMonth), rollover);
   };
 
   const monthLabel = m => new Date(m + "-15").toLocaleDateString("en-CA", { month: "long", year: "numeric" });
@@ -1370,6 +1387,14 @@ Be direct, specific (use their real numbers), and conversational. Not a list of 
   if (loading) return /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: 13 } }, "Loading...");
 
   return /*#__PURE__*/React.createElement("div", null,
+
+    // Solo-mode banner — dismissable, shown when no household is set up
+    !window.__current_household_id && !dismissedHouseholdBanner && /*#__PURE__*/React.createElement("div", {
+      style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 10, padding: "10px 14px", margin: "12px 13px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }
+    },
+      /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "#60a5fa", margin: 0 } }, "\uD83C\uDFE0 Set up a household to share finances with your family"),
+      /*#__PURE__*/React.createElement("button", { onClick: () => setDismissedHouseholdBanner(true), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", padding: "0 4px" } }, "\u00D7")
+    ),
 
     // Header
     /*#__PURE__*/React.createElement("div", { style: { marginBottom: 16 } },
