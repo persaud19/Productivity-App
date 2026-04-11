@@ -2842,7 +2842,8 @@ function App() {
     settings: settings,
     onEditLog: (date, section) => { setEditLogDate({ date, section }); setTab(section === "evening" ? "evening" : "morning"); }
   }), tab === "finance" && /*#__PURE__*/React.createElement(window.FinanceTab, {
-    settings: settings
+    settings: settings,
+    householdId: householdId
   })), /*#__PURE__*/React.createElement("button", {
     onClick: handleExport,
     style: {

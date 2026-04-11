@@ -214,7 +214,7 @@ const ENV_COLORS = [
 ];
 
 // FinanceTab component
-function FinanceTab({ settings }) {
+function FinanceTab({ settings, householdId }) {
   const [view, setView] = useState("envelopes"); // envelopes | transactions | summary | import
   const [currentMonth, setCurrentMonth] = useState(() => getToday().slice(0, 7));
   const [envelopes, setEnvelopes] = useState([]); // [{ ...default, allocated: 0 }]
@@ -298,7 +298,9 @@ function FinanceTab({ settings }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadMonth(currentMonth); }, [currentMonth, loadMonth]);
+  // Re-load when month changes OR when household is connected (resolves race condition
+  // where Finance loads before loadAll() has set window.__current_household_id)
+  useEffect(() => { loadMonth(currentMonth); }, [currentMonth, householdId, loadMonth]);
 
   // Load receipt data when a transaction with a linked receipt is opened
   useEffect(() => {
