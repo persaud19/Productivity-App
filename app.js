@@ -367,6 +367,15 @@ const KEYS = {
   hhReceipt: id => `hh:receipts:${id}`
 };
 
+// ── Email pre-link helpers ──
+// Firebase keys can't have '.' or '@' — encode email for use as a key
+function encodeEmailKey(email) {
+  return email.toLowerCase().replace(/\./g, '__dot__').replace(/@/g, '__at__');
+}
+function decodeEmailKey(key) {
+  return key.replace(/__dot__/g, '.').replace(/__at__/g, '@');
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DATE UTILS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1292,11 +1301,86 @@ const CHORE_SEED = window.CHORE_SEED;
 // ─────────────────────────────────────────────────────────────────────────────
 // SETTINGS MODAL — API key + household setup
 // ─────────────────────────────────────────────────────────────────────────────
-function SettingsModal({ settings, onSave, onClose, householdId, householdMeta }) {
+function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, onHouseholdMetaUpdate }) {
   const [apiKey, setApiKey] = useState(settings.claudeApiKey || "");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [theme, setTheme] = useState(settings.theme || "dark");
+
+  // ── Household invite-by-email state (leader only) ──
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteMsg, setInviteMsg] = useState("");
+  const [inviting, setInviting] = useState(false);
+  // Local copy of meta so we can refresh pending invites / members without closing modal
+  const [localMeta, setLocalMeta] = useState(householdMeta);
+  React.useEffect(() => { setLocalMeta(householdMeta); }, [householdMeta]);
+
+  const isLeader = localMeta && localMeta.leaderId === window.__current_uid;
+
+  const handleInviteByEmail = async () => {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email || !email.includes("@")) { setInviteMsg("Enter a valid email address"); return; }
+    setInviting(true);
+    setInviteMsg("");
+    try {
+      const db = window.__firebase_db;
+      const encoded = encodeEmailKey(email);
+      // Check if already a member
+      const members = localMeta.members || {};
+      const alreadyMember = Object.values(members).some(m => m.email && m.email.toLowerCase() === email);
+      if (alreadyMember) { setInviteMsg("This email is already a member"); setInviting(false); return; }
+      // Write lookup index
+      await db.ref(`householdEmailLinks/${encoded}`).set(householdId);
+      // Write into household meta pending invites
+      await db.ref(`households/${householdId}/meta/pendingInvites/${encoded}`).set({
+        email,
+        invitedAt: new Date().toISOString()
+      });
+      // Refresh local meta
+      const snap = await db.ref(`households/${householdId}/meta`).once("value");
+      if (snap.exists()) {
+        const updated = snap.val();
+        setLocalMeta(updated);
+        if (onHouseholdMetaUpdate) onHouseholdMetaUpdate(updated);
+      }
+      setInviteEmail("");
+      setInviteMsg("✓ " + email + " will auto-join next time they sign in");
+    } catch(e) {
+      setInviteMsg("Error: " + e.message);
+    }
+    setInviting(false);
+  };
+
+  const handleRevokeInvite = async (encoded) => {
+    try {
+      const db = window.__firebase_db;
+      await db.ref(`householdEmailLinks/${encoded}`).remove();
+      await db.ref(`households/${householdId}/meta/pendingInvites/${encoded}`).remove();
+      const snap = await db.ref(`households/${householdId}/meta`).once("value");
+      if (snap.exists()) {
+        const updated = snap.val();
+        setLocalMeta(updated);
+        if (onHouseholdMetaUpdate) onHouseholdMetaUpdate(updated);
+      }
+    } catch(e) {}
+  };
+
+  const handleRemoveMember = async (uid, memberName) => {
+    if (!window.confirm(`Remove ${memberName || "this member"} from the household?`)) return;
+    try {
+      const db = window.__firebase_db;
+      // Remove from household members
+      await db.ref(`households/${householdId}/meta/members/${uid}`).remove();
+      // Clear their householdId so they return to solo mode
+      await db.ref(`users/${uid}/householdId`).remove();
+      const snap = await db.ref(`households/${householdId}/meta`).once("value");
+      if (snap.exists()) {
+        const updated = snap.val();
+        setLocalMeta(updated);
+        if (onHouseholdMetaUpdate) onHouseholdMetaUpdate(updated);
+      }
+    } catch(e) {}
+  };
 
   const save = async () => {
     setSaving(true);
@@ -1388,29 +1472,78 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta }
       React.createElement("div", { style: card },
         React.createElement("p", { style: { ...label, color: "#60a5fa" } }, "HOUSEHOLD"),
 
-        householdId && householdMeta
+        householdId && localMeta
           ? React.createElement("div", null,
               // Active household info
               React.createElement("div", { style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 8, padding: "12px 14px", marginBottom: 12 } },
                 React.createElement("p", { style: { color: "#60a5fa", fontSize: 11, margin: "0 0 2px", fontWeight: 700, letterSpacing: ".05em" } }, "ACTIVE HOUSEHOLD"),
-                React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 17, fontWeight: 800, margin: "2px 0 6px", fontFamily: "'Syne',sans-serif" } }, householdMeta.name || householdId),
-                householdMeta.inviteCode && React.createElement("div", null,
+                React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 17, fontWeight: 800, margin: "2px 0 6px", fontFamily: "'Syne',sans-serif" } }, localMeta.name || householdId),
+                localMeta.inviteCode && React.createElement("div", null,
                   React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "0 0 4px", letterSpacing: ".04em" } }, "INVITE CODE — share with your household"),
-                  React.createElement("p", { style: { color: "#4ade80", fontSize: 22, fontWeight: 800, margin: 0, fontFamily: "'Syne',sans-serif", letterSpacing: ".2em" } }, householdMeta.inviteCode)
+                  React.createElement("p", { style: { color: "#4ade80", fontSize: 22, fontWeight: 800, margin: 0, fontFamily: "'Syne',sans-serif", letterSpacing: ".2em" } }, localMeta.inviteCode)
                 )
               ),
+
               // Member list
-              householdMeta.members && React.createElement("div", { style: { marginBottom: 12 } },
+              localMeta.members && React.createElement("div", { style: { marginBottom: 12 } },
                 React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "MEMBERS"),
-                Object.entries(householdMeta.members).map(([uid, m]) =>
-                  React.createElement("div", { key: uid, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
-                    React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12 } }, m.name || "Member"),
-                    React.createElement("span", { style: { color: m.role === "leader" ? "#f4a823" : "var(--text-muted)", fontSize: 10, fontWeight: 700 } }, m.role === "leader" ? "LEADER" : "MEMBER")
+                Object.entries(localMeta.members).map(([memUid, m]) =>
+                  React.createElement("div", { key: memUid, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+                    React.createElement("div", null,
+                      React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12 } }, m.name || "Member"),
+                      m.email && React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10, marginLeft: 6 } }, m.email)
+                    ),
+                    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+                      React.createElement("span", { style: { color: m.role === "leader" ? "#f4a823" : "var(--text-muted)", fontSize: 10, fontWeight: 700 } }, m.role === "leader" ? "LEADER" : "MEMBER"),
+                      // Leader can remove members (but not themselves)
+                      isLeader && memUid !== window.__current_uid && React.createElement("button", {
+                        onClick: () => handleRemoveMember(memUid, m.name),
+                        style: { background: "none", border: "none", color: "#ef4444", fontSize: 13, cursor: "pointer", padding: "0 2px", lineHeight: 1 }
+                      }, "✕")
+                    )
                   )
                 )
               ),
+
+              // ── Leader: Invite by Email ──
+              isLeader && React.createElement("div", { style: { marginBottom: 12 } },
+                React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "INVITE BY EMAIL"),
+                React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 } },
+                  "Pre-link someone\u2019s email. They\u2019ll auto-join the household the next time they sign in \u2014 no code needed."
+                ),
+                React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
+                  React.createElement("input", {
+                    type: "email",
+                    placeholder: "email@example.com",
+                    value: inviteEmail,
+                    onChange: e => { setInviteEmail(e.target.value); setInviteMsg(""); },
+                    style: { flex: 1, background: "var(--card-bg-2)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, color: "var(--text-primary)", fontSize: 12, padding: "8px 10px", outline: "none", fontFamily: "'DM Sans',sans-serif" }
+                  }),
+                  React.createElement("button", {
+                    onClick: handleInviteByEmail,
+                    disabled: inviting || !inviteEmail.trim(),
+                    style: { background: inviteEmail.trim() ? "#4ade80" : "rgba(74,222,128,.15)", border: "none", borderRadius: 8, color: inviteEmail.trim() ? "#080b11" : "var(--text-muted)", fontSize: 11, fontWeight: 800, padding: "8px 14px", cursor: inviteEmail.trim() ? "pointer" : "not-allowed", whiteSpace: "nowrap", fontFamily: "'Syne',sans-serif" }
+                  }, inviting ? "..." : "PRE-LINK")
+                ),
+                inviteMsg && React.createElement("p", { style: { color: inviteMsg.startsWith("✓") ? "#4ade80" : "#ef4444", fontSize: 11, margin: "0 0 10px" } }, inviteMsg),
+
+                // Pending invites list
+                localMeta.pendingInvites && Object.keys(localMeta.pendingInvites).length > 0 && React.createElement("div", null,
+                  React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "PENDING — AWAITING SIGN-IN"),
+                  Object.entries(localMeta.pendingInvites).map(([encoded, inv]) =>
+                    React.createElement("div", { key: encoded, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+                      React.createElement("span", { style: { color: "#f4a823", fontSize: 11 } }, inv.email || decodeEmailKey(encoded)),
+                      React.createElement("button", {
+                        onClick: () => handleRevokeInvite(encoded),
+                        style: { background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", padding: "0 2px" }
+                      }, "✕")
+                    )
+                  )
+                )
+              ),
+
               // Leave button (only for non-leaders)
-              householdMeta.leaderId !== window.__current_uid && React.createElement("button", {
+              !isLeader && React.createElement("button", {
                 onClick: async () => {
                   if (!window.confirm("Leave household? Your personal data is unaffected.")) return;
                   await window.__firebase_db.ref(`users/${window.__current_uid}/householdId`).remove();
@@ -1650,7 +1783,9 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
     React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
       React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0 } }, "\u2190 Back"),
       React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#4ade80", margin: "0 0 6px" } }, "\uD83D\uDD11 Join a Household"),
-      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 20px" } }, "Ask your household leader for the 6-character invite code."),
+      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 20px", lineHeight: 1.6 } },
+        "Enter the 6-character invite code from your household leader. Or if your leader pre-linked your email, just sign out and back in \u2014 you\u2019ll be added automatically."
+      ),
       React.createElement("div", { style: { ...cardStyle, marginBottom: 16 } },
         React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "INVITE CODE"),
         React.createElement("input", {
@@ -1837,6 +1972,47 @@ function App() {
         window.__current_household_id = null;
         setHouseholdId(null);
         setHouseholdMeta(null);
+
+        // ── Phase 2: email pre-link auto-join ──
+        // If the leader pre-linked this user's email, auto-join their household
+        try {
+          const auth = window.__firebase_auth;
+          const userEmail = auth && auth.currentUser && auth.currentUser.email;
+          if (userEmail) {
+            const encodedEmail = encodeEmailKey(userEmail);
+            const linkSnap = await window.__firebase_db.ref(`householdEmailLinks/${encodedEmail}`).once("value");
+            if (linkSnap.exists()) {
+              const pendingHid = linkSnap.val();
+              const metaSnap = await window.__firebase_db.ref(`households/${pendingHid}/meta`).once("value");
+              if (metaSnap.exists()) {
+                const pendingMeta = metaSnap.val();
+                const memberCount = Object.keys(pendingMeta.members || {}).length;
+                if (memberCount < 6) {
+                  const uid = window.__current_uid;
+                  const displayName = (auth.currentUser && auth.currentUser.displayName) || "Member";
+                  // Add as member
+                  await window.__firebase_db.ref(`households/${pendingHid}/meta/members/${uid}`).set({
+                    name: displayName,
+                    email: userEmail.toLowerCase(),
+                    role: "member",
+                    joinedAt: new Date().toISOString()
+                  });
+                  // Set householdId on user profile
+                  await window.__firebase_db.ref(`users/${uid}/householdId`).set(pendingHid);
+                  // Remove consumed email link + pending invite entry
+                  await window.__firebase_db.ref(`householdEmailLinks/${encodedEmail}`).remove();
+                  await window.__firebase_db.ref(`households/${pendingHid}/meta/pendingInvites/${encodedEmail}`).remove();
+                  // Activate household
+                  window.__current_household_id = pendingHid;
+                  setHouseholdId(pendingHid);
+                  // Reload updated meta (now includes us as member)
+                  const updatedSnap = await window.__firebase_db.ref(`households/${pendingHid}/meta`).once("value");
+                  if (updatedSnap.exists()) setHouseholdMeta(updatedSnap.val());
+                }
+              }
+            }
+          }
+        } catch(e) {}
       }
     } catch(e) {}
 
@@ -2068,7 +2244,8 @@ function App() {
     householdId: householdId,
     householdMeta: householdMeta,
     onSave: s => { setSettings(s); window.__claude_api_key = s.claudeApiKey || ""; window.__household_id = s.householdId || ""; },
-    onClose: () => setShowSettings(false)
+    onClose: () => setShowSettings(false),
+    onHouseholdMetaUpdate: meta => setHouseholdMeta(meta)
   }), celebration && /*#__PURE__*/React.createElement(CelebrationOverlay, {
     msg: celebration,
     onDismiss: () => setCelebration(null)
