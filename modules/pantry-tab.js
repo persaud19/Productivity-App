@@ -1339,7 +1339,7 @@ function PantryTab({
       }
     });
     setPantryItems(merged);
-    await DB.set(KEYS.pantry(), merged);
+    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), merged);
     setMode("list");
   };
   const addOneItem = async item => { await addItems([item]); };
@@ -1366,7 +1366,7 @@ function PantryTab({
       if (c.minQty !== undefined) existing.minQty = Math.max(0, parseFloat(c.minQty));
     });
     setPantryItems(merged);
-    await DB.set(KEYS.pantry(), merged);
+    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), merged);
     setMode("list");
   };
   if (mode === "chat") return /*#__PURE__*/React.createElement("div", {
@@ -1897,14 +1897,14 @@ function PantryEditor({
       // Delete
       const updated = pantryItems.filter(p => p.id !== editItem.id);
       setPantryItems(updated);
-      await DB.set(KEYS.pantry(), updated);
+      await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
       setEditItem(null);
       return;
     }
     const exists = pantryItems.find(p => p.id === item.id);
     const updated = exists ? pantryItems.map(p => p.id === item.id ? item : p) : [...pantryItems, item];
     setPantryItems(updated);
-    await DB.set(KEYS.pantry(), updated);
+    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
     setEditItem(null);
     setIsNew(false);
   };
@@ -1912,13 +1912,13 @@ function PantryEditor({
     const newQty = Math.max(0, parseFloat(item.qty || 0) + delta);
     const updated = pantryItems.map(p => p.id === item.id ? { ...p, qty: newQty } : p);
     setPantryItems(updated);
-    await DB.set(KEYS.pantry(), updated);
+    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
   };
   const toggleEssential = async item => {
     const isNowArchived = item.essential !== false; // currently essential → archive it
     const updated = pantryItems.map(p => p.id === item.id ? { ...p, essential: !isNowArchived } : p);
     setPantryItems(updated);
-    await DB.set(KEYS.pantry(), updated);
+    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
   };
   const [showArchived, setShowArchived] = useState(false);
   const handleAddAllToGrocery = () => {

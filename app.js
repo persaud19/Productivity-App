@@ -179,12 +179,26 @@ const UserContext = React.createContext(null);
 const useUser = () => React.useContext(UserContext);
 const DB = (() => {
   // Firebase path helpers — convert key like "ml:log:2026-03-22" to "users/<uid>/ml/log/2026-03-22"
-  // Shared household keys (food + chores) are routed to "households/<id>/..." when a household is active
-  const SHARED_KEY_PREFIXES = ["ml/food/", "ml/chores", "ml/reminders/joint", "ml/finance/", "ml/mobility/"];
+  // hh: prefix → households/<householdId>/ml/<rest>
+  // up: prefix → users/<uid>/<rest>  (no ml/ namespace — for profile-level fields like householdId)
   const toPath = k => {
     const uid = window.__current_uid;
+    // hh: prefix — household shared data
+    if (k.startsWith("hh:")) {
+      const hid = window.__current_household_id;
+      if (!hid) throw new Error("No household ID — user has not joined a household");
+      const subPath = k.slice(3).replace(/:/g, "/");
+      return `households/${hid}/ml/${subPath}`;
+    }
+    // up: prefix — user profile data (sits directly under users/<uid>/, no ml/ namespace)
+    if (k.startsWith("up:")) {
+      const subPath = k.slice(3).replace(/:/g, "/");
+      return uid ? `users/${uid}/${subPath}` : subPath;
+    }
+    // legacy household routing for old ml/food/, ml/chores, ml/finance/ keys
     const base = k.replace(/:/g, "/");
     const householdId = window.__household_id;
+    const SHARED_KEY_PREFIXES = ["ml/food/", "ml/chores", "ml/reminders/joint", "ml/finance/", "ml/mobility/"];
     if (householdId && SHARED_KEY_PREFIXES.some(p => base.startsWith(p))) {
       return `households/${householdId}/${base}`;
     }
@@ -332,7 +346,25 @@ const KEYS = {
   goalHabitLog: id => `ml:goals:habit:${id}`,
   goalProgressLog: id => `ml:goals:progress:${id}`,
   mobilityPool: () => `ml:mobility:pool`,
-  mobilityWeek: monday => `ml:mobility:week:${monday}`
+  mobilityWeek: monday => `ml:mobility:week:${monday}`,
+
+  // ── User profile (up: prefix — stored at users/<uid>/xxx, no ml namespace) ──
+  userHouseholdId: () => `up:householdId`,
+
+  // ── Household shared paths (hh: prefix — stored at households/<hid>/ml/xxx) ──
+  hhChores: () => `hh:chores`,
+  hhPantry: () => `hh:food:pantry`,
+  hhFinanceEnvelopes: month => `hh:finance:envelopes:${month}`,
+  hhFinanceDefaultEnvelopes: () => `hh:finance:envelopes:default`,
+  hhFinanceEnvelopeCatalog: () => `hh:finance:envelopes:catalog`,
+  hhFinanceTransactions: month => `hh:finance:txns:${month}`,
+  hhFinanceAllMonths: () => `hh:finance:months`,
+  hhFinanceRollover: month => `hh:finance:rollover:${month}`,
+  hhFinanceIncome: month => `hh:finance:income:${month}`,
+  hhMerchantRules: () => `hh:finance:merchant_rules`,
+  hhCustomSubCats: () => `hh:finance:custom_subcats`,
+  hhFinanceCoach: () => `hh:finance:coach`,
+  hhReceipt: id => `hh:receipts:${id}`
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1260,55 +1292,20 @@ const CHORE_SEED = window.CHORE_SEED;
 // ─────────────────────────────────────────────────────────────────────────────
 // SETTINGS MODAL — API key + household setup
 // ─────────────────────────────────────────────────────────────────────────────
-function SettingsModal({ settings, onSave, onClose }) {
+function SettingsModal({ settings, onSave, onClose, householdId, householdMeta }) {
   const [apiKey, setApiKey] = useState(settings.claudeApiKey || "");
-  const [householdId, setHouseholdId] = useState(settings.householdId || "");
-  const [joinCode, setJoinCode] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
-  const [migrateStatus, setMigrateStatus] = useState("");
   const [theme, setTheme] = useState(settings.theme || "dark");
 
   const save = async () => {
     setSaving(true);
-    const updated = { ...settings, claudeApiKey: apiKey.trim(), householdId: householdId.trim(), theme };
+    const updated = { ...settings, claudeApiKey: apiKey.trim(), theme };
     await DB.set(KEYS.settings(), updated);
     onSave(updated);
     setMsg("Saved.");
     setSaving(false);
     setTimeout(() => { setMsg(""); onClose(); }, 800);
-  };
-
-  const createHousehold = async () => {
-    const id = Math.random().toString(36).slice(2, 8).toUpperCase();
-    setMigrateStatus("Creating household and migrating your data...");
-    // Migrate existing personal pantry + chores to shared household path
-    try {
-      const pantry = await DB.get(KEYS.pantry());
-      const chores = await DB.get(KEYS.chores());
-      const customMeals = await DB.get(KEYS.customMeals());
-      if (window.__firebase_db) {
-        const base = `households/${id}/ml`;
-        if (pantry) await window.__firebase_db.ref(`${base}/food/pantry`).set(pantry);
-        if (chores) await window.__firebase_db.ref(`${base}/chores`).set(chores);
-        if (customMeals) await window.__firebase_db.ref(`${base}/food/custommeal`).set(customMeals);
-      }
-    } catch(e) { /* migration best-effort */ }
-    setHouseholdId(id);
-    setMigrateStatus("Done! Your household code is: " + id);
-  };
-
-  const joinHousehold = () => {
-    const code = joinCode.trim().toUpperCase();
-    if (code.length < 4) return;
-    setHouseholdId(code);
-    setMigrateStatus("Joined household " + code + ". Save to activate.");
-  };
-
-  const leaveHousehold = () => {
-    setHouseholdId("");
-    setJoinCode("");
-    setMigrateStatus("Left household. Your data is now personal.");
   };
 
   const card = { background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, padding: "16px 18px", marginBottom: 14 };
@@ -1390,29 +1387,43 @@ function SettingsModal({ settings, onSave, onClose }) {
       // ── Household ──
       React.createElement("div", { style: card },
         React.createElement("p", { style: { ...label, color: "#60a5fa" } }, "HOUSEHOLD"),
-        React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 12px", lineHeight: 1.5 } },
-          "Link your account with " + (settings.partnerName || "your partner") + " to share Pantry, Meals, and Chores."
-        ),
 
-        householdId
+        householdId && householdMeta
           ? React.createElement("div", null,
-              React.createElement("div", { style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 8, padding: "10px 14px", marginBottom: 10 } },
-                React.createElement("p", { style: { color: "#60a5fa", fontSize: 11, margin: "0 0 2px", fontWeight: 700 } }, "Active Household"),
-                React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 18, fontWeight: 800, margin: 0, fontFamily: "'Syne',sans-serif", letterSpacing: ".1em" } }, householdId),
-                React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 10, margin: "4px 0 0" } }, "Share this code with " + (settings.partnerName || "your partner") + " so they can join.")
+              // Active household info
+              React.createElement("div", { style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 8, padding: "12px 14px", marginBottom: 12 } },
+                React.createElement("p", { style: { color: "#60a5fa", fontSize: 11, margin: "0 0 2px", fontWeight: 700, letterSpacing: ".05em" } }, "ACTIVE HOUSEHOLD"),
+                React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 17, fontWeight: 800, margin: "2px 0 6px", fontFamily: "'Syne',sans-serif" } }, householdMeta.name || householdId),
+                householdMeta.inviteCode && React.createElement("div", null,
+                  React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "0 0 4px", letterSpacing: ".04em" } }, "INVITE CODE — share with your household"),
+                  React.createElement("p", { style: { color: "#4ade80", fontSize: 22, fontWeight: 800, margin: 0, fontFamily: "'Syne',sans-serif", letterSpacing: ".2em" } }, householdMeta.inviteCode)
+                )
               ),
-              React.createElement("button", { onClick: leaveHousehold, style: { background: "none", border: "1px solid rgba(239,68,68,.3)", borderRadius: 7, color: "#ef4444", fontSize: 11, padding: "6px 14px", cursor: "pointer" } }, "Leave Household")
+              // Member list
+              householdMeta.members && React.createElement("div", { style: { marginBottom: 12 } },
+                React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "MEMBERS"),
+                Object.entries(householdMeta.members).map(([uid, m]) =>
+                  React.createElement("div", { key: uid, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+                    React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12 } }, m.name || "Member"),
+                    React.createElement("span", { style: { color: m.role === "leader" ? "#f4a823" : "var(--text-muted)", fontSize: 10, fontWeight: 700 } }, m.role === "leader" ? "LEADER" : "MEMBER")
+                  )
+                )
+              ),
+              // Leave button (only for non-leaders)
+              householdMeta.leaderId !== window.__current_uid && React.createElement("button", {
+                onClick: async () => {
+                  if (!window.confirm("Leave household? Your personal data is unaffected.")) return;
+                  await window.__firebase_db.ref(`users/${window.__current_uid}/householdId`).remove();
+                  window.__current_household_id = null;
+                  onClose();
+                  window.location.reload();
+                },
+                style: { background: "none", border: "1px solid rgba(239,68,68,.3)", borderRadius: 7, color: "#ef4444", fontSize: 11, padding: "6px 14px", cursor: "pointer" }
+              }, "Leave Household")
             )
-          : React.createElement("div", null,
-              React.createElement("button", { onClick: createHousehold, style: { width: "100%", background: "rgba(96,165,250,.1)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 8, color: "#60a5fa", fontSize: 12, fontWeight: 700, padding: "10px", cursor: "pointer", marginBottom: 10 } }, "Create Household (you go first)"),
-              React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, textAlign: "center", margin: "0 0 10px" } }, "— or —"),
-              React.createElement("div", { style: { display: "flex", gap: 8 } },
-                React.createElement("input", { value: joinCode, onChange: e => setJoinCode(e.target.value.toUpperCase()), placeholder: "Enter code (e.g. AB3X9K)", style: { ...inp, flex: 1 }, maxLength: 8 }),
-                React.createElement("button", { onClick: joinHousehold, style: { background: "rgba(96,165,250,.1)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 8, color: "#60a5fa", fontSize: 12, fontWeight: 700, padding: "0 14px", cursor: "pointer", whiteSpace: "nowrap" } }, "Join")
-              )
-            ),
-
-        migrateStatus && React.createElement("p", { style: { color: "#4ade80", fontSize: 11, margin: "10px 0 0" } }, migrateStatus)
+          : React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, lineHeight: 1.5, margin: 0 } },
+              "No household set up. Go to the HOME tab and tap \u201CSet Up Household\u201D to create or join one."
+            )
       ),
 
       // ── Save ──
@@ -1430,6 +1441,237 @@ function SettingsModal({ settings, onSave, onClose }) {
 
 // RemindersTab — extracted to modules/home-tab.js
 
+// ─────────────────────────────────────────────────────────────────────────────
+// HOUSEHOLD JOIN PROMPT — shown in HOME tab when user has no household
+// ─────────────────────────────────────────────────────────────────────────────
+function HouseholdJoinPrompt({ onSetup }) {
+  return React.createElement("div", { style: { padding: "40px 24px", textAlign: "center" } },
+    React.createElement("div", { style: { fontSize: 48, marginBottom: 16 } }, "\uD83C\uDFE0"),
+    React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#60a5fa", margin: "0 0 8px" } }, "Join a Household"),
+    React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px", lineHeight: 1.6 } }, "Tasks, pantry, and reminders are shared with your household. Set up or join one to get started."),
+    React.createElement("button", { onClick: onSetup, style: { padding: "14px 28px", background: "#60a5fa", border: "none", borderRadius: 10, color: "#080b11", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Set Up Household \u2192")
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HOUSEHOLD SETUP — create or join a household (full-screen flow)
+// ─────────────────────────────────────────────────────────────────────────────
+function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
+  const [view, setView] = useState("choose"); // choose | create | join
+  const [householdName, setHouseholdName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [error, setError] = useState("");
+  const [migrating, setMigrating] = useState(false);
+  const [migrateMsg, setMigrateMsg] = useState("");
+
+  const generateCode = () => Math.random().toString(36).substr(2, 6).toUpperCase();
+
+  const createHousehold = async () => {
+    if (!householdName.trim()) { setError("Enter a household name"); return; }
+    setMigrating(true);
+    setMigrateMsg("Creating household...");
+    try {
+      const hid = "hh_" + Date.now();
+      const code = generateCode();
+      const uid = window.__current_uid;
+      const db = window.__firebase_db;
+
+      // 1. Write household meta directly (DB layer hh: not usable until hid is set)
+      const meta = {
+        name: householdName.trim(),
+        leaderId: uid,
+        inviteCode: code,
+        shareFinance: true,
+        createdAt: new Date().toISOString(),
+        members: {
+          [uid]: {
+            name: (currentUser && currentUser.displayName) || "Leader",
+            email: (currentUser && currentUser.email) || "",
+            role: "leader",
+            joinedAt: new Date().toISOString()
+          }
+        }
+      };
+      await db.ref(`households/${hid}/meta`).set(meta);
+
+      // 2. Write invite code lookup index
+      await db.ref(`householdCodes/${code}`).set(hid);
+
+      // 3. Set householdId on current user profile (direct write — up: not ready yet)
+      await db.ref(`users/${uid}/householdId`).set(hid);
+
+      // 4. Activate hh: routing
+      window.__current_household_id = hid;
+
+      // 5. Migrate existing personal data to household paths
+      setMigrateMsg("Migrating your data...");
+
+      if (allPersonalData && allPersonalData.chores && allPersonalData.chores.length > 0) {
+        await DB.set(KEYS.hhChores(), allPersonalData.chores);
+      }
+      if (allPersonalData && allPersonalData.pantryItems && allPersonalData.pantryItems.length > 0) {
+        setMigrateMsg("Migrating pantry...");
+        await DB.set(KEYS.hhPantry(), allPersonalData.pantryItems);
+      }
+      if (allPersonalData && allPersonalData.financeMonths && allPersonalData.financeMonths.length > 0) {
+        setMigrateMsg("Migrating " + allPersonalData.financeMonths.length + " months of finance data...");
+        const monthList = allPersonalData.financeMonths.map(m => m.month);
+        await DB.set(KEYS.hhFinanceAllMonths(), monthList);
+        for (const m of allPersonalData.financeMonths) {
+          if (m.txns && m.txns.length)     await DB.set(KEYS.hhFinanceTransactions(m.month), m.txns);
+          if (m.income && m.income.length)  await DB.set(KEYS.hhFinanceIncome(m.month), m.income);
+          if (m.envelopes && m.envelopes.length) await DB.set(KEYS.hhFinanceEnvelopes(m.month), m.envelopes);
+          if (m.rollover)                   await DB.set(KEYS.hhFinanceRollover(m.month), m.rollover);
+        }
+        if (allPersonalData.merchantRules)    await DB.set(KEYS.hhMerchantRules(), allPersonalData.merchantRules);
+        if (allPersonalData.customSubCats)    await DB.set(KEYS.hhCustomSubCats(), allPersonalData.customSubCats);
+        if (allPersonalData.envelopeCatalog)  await DB.set(KEYS.hhFinanceEnvelopeCatalog(), allPersonalData.envelopeCatalog);
+        if (allPersonalData.defaultEnvelopes) await DB.set(KEYS.hhFinanceDefaultEnvelopes(), allPersonalData.defaultEnvelopes);
+      }
+
+      setMigrateMsg("Done!");
+      onComplete(hid, meta);
+    } catch (e) {
+      setError("Error creating household: " + e.message);
+      setMigrating(false);
+    }
+  };
+
+  const joinHousehold = async () => {
+    const code = inviteCode.trim().toUpperCase();
+    if (code.length !== 6) { setError("Enter the 6-character invite code"); return; }
+    setError("");
+    try {
+      const db = window.__firebase_db;
+      const uid = window.__current_uid;
+
+      // Look up invite code
+      const snap = await db.ref(`householdCodes/${code}`).once("value");
+      if (!snap.exists()) { setError("Invalid invite code — check with your household leader"); return; }
+      const hid = snap.val();
+
+      // Load meta, check member limit
+      const metaSnap = await db.ref(`households/${hid}/meta`).once("value");
+      if (!metaSnap.exists()) { setError("Household not found"); return; }
+      const meta = metaSnap.val();
+      const memberCount = Object.keys(meta.members || {}).length;
+      if (memberCount >= 6) { setError("This household is full (max 6 members)"); return; }
+
+      // Add this user as a member
+      const auth = window.__firebase_auth;
+      await db.ref(`households/${hid}/meta/members/${uid}`).set({
+        name: (auth && auth.currentUser && auth.currentUser.displayName) || "Member",
+        email: (auth && auth.currentUser && auth.currentUser.email) || "",
+        role: "member",
+        joinedAt: new Date().toISOString()
+      });
+
+      // Set householdId on user profile
+      await db.ref(`users/${uid}/householdId`).set(hid);
+      window.__current_household_id = hid;
+
+      onComplete(hid, { ...meta, members: { ...(meta.members || {}), [uid]: { role: "member" } } });
+    } catch (e) {
+      setError("Error joining household: " + e.message);
+    }
+  };
+
+  // ── Migrating spinner ──
+  if (migrating) return React.createElement("div", {
+    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, padding: 24 }
+  },
+    React.createElement("div", { style: { width: 40, height: 40, border: "3px solid rgba(96,165,250,.2)", borderTopColor: "#60a5fa", borderRadius: "50%", animation: "spin 1s linear infinite" } }),
+    React.createElement("p", { style: { color: "#60a5fa", fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13 } }, migrateMsg),
+    error && React.createElement("p", { style: { color: "#ef4444", fontSize: 12 } }, error)
+  );
+
+  const cardStyle = { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: 20 };
+
+  // ── Choose view ──
+  if (view === "choose") return React.createElement("div", {
+    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
+  },
+    React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
+      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#60a5fa", margin: "0 0 6px" } }, "\uD83C\uDFE0 Set Up Your Household"),
+      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 28px", lineHeight: 1.5 } },
+        "Create a household to share tasks, pantry, and finances with your family. Or join an existing one with an invite code."
+      ),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
+        React.createElement("button", {
+          onClick: () => setView("create"),
+          style: { padding: "16px 20px", background: "rgba(96,165,250,.12)", border: "1px solid rgba(96,165,250,.3)", borderRadius: 12, color: "#60a5fa", fontSize: 14, fontWeight: 800, cursor: "pointer", textAlign: "left", fontFamily: "'Syne',sans-serif" }
+        },
+          React.createElement("div", null, "\uD83C\uDFD7 Create a Household"),
+          React.createElement("div", { style: { fontSize: 11, fontWeight: 400, color: "var(--text-muted)", marginTop: 4 } }, "Start a new household and invite your family")
+        ),
+        React.createElement("button", {
+          onClick: () => setView("join"),
+          style: { padding: "16px 20px", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 12, color: "#4ade80", fontSize: 14, fontWeight: 800, cursor: "pointer", textAlign: "left", fontFamily: "'Syne',sans-serif" }
+        },
+          React.createElement("div", null, "\uD83D\uDD11 Join with Invite Code"),
+          React.createElement("div", { style: { fontSize: 11, fontWeight: 400, color: "var(--text-muted)", marginTop: 4 } }, "Enter the 6-character code from your household leader")
+        )
+      )
+    )
+  );
+
+  // ── Create view ──
+  if (view === "create") return React.createElement("div", {
+    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
+  },
+    React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
+      React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0 } }, "\u2190 Back"),
+      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#60a5fa", margin: "0 0 6px" } }, "\uD83C\uDFD7 Create Household"),
+      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 20px", lineHeight: 1.5 } },
+        "Your existing tasks, pantry, and finance data will be migrated to the new household. Nothing will be lost."
+      ),
+      React.createElement("div", { style: { ...cardStyle, marginBottom: 16 } },
+        React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "HOUSEHOLD NAME"),
+        React.createElement("input", {
+          placeholder: "e.g. The Persaud House",
+          value: householdName,
+          onChange: e => { setHouseholdName(e.target.value); setError(""); },
+          style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, padding: "10px 12px", color: "var(--text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" }
+        })
+      ),
+      error && React.createElement("p", { style: { color: "#ef4444", fontSize: 12, marginBottom: 12 } }, error),
+      React.createElement("button", {
+        onClick: createHousehold,
+        disabled: !householdName.trim(),
+        style: { width: "100%", padding: "14px 0", background: householdName.trim() ? "#60a5fa" : "rgba(96,165,250,.2)", border: "none", borderRadius: 10, color: householdName.trim() ? "#080b11" : "var(--text-muted)", fontSize: 14, fontWeight: 800, cursor: householdName.trim() ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif" }
+      }, "CREATE & MIGRATE DATA \u2192")
+    )
+  );
+
+  // ── Join view ──
+  if (view === "join") return React.createElement("div", {
+    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
+  },
+    React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
+      React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0 } }, "\u2190 Back"),
+      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#4ade80", margin: "0 0 6px" } }, "\uD83D\uDD11 Join a Household"),
+      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 20px" } }, "Ask your household leader for the 6-character invite code."),
+      React.createElement("div", { style: { ...cardStyle, marginBottom: 16 } },
+        React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "INVITE CODE"),
+        React.createElement("input", {
+          placeholder: "e.g. X7K2M9",
+          value: inviteCode,
+          onChange: e => { setInviteCode(e.target.value.toUpperCase()); setError(""); },
+          maxLength: 6,
+          style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, padding: "10px 12px", color: "var(--text-primary)", fontSize: 18, fontWeight: 800, outline: "none", letterSpacing: ".15em", boxSizing: "border-box", textTransform: "uppercase", fontFamily: "'Syne',sans-serif" }
+        })
+      ),
+      error && React.createElement("p", { style: { color: "#ef4444", fontSize: 12, marginBottom: 12 } }, error),
+      React.createElement("button", {
+        onClick: joinHousehold,
+        disabled: inviteCode.trim().length !== 6,
+        style: { width: "100%", padding: "14px 0", background: inviteCode.trim().length === 6 ? "#4ade80" : "rgba(74,222,128,.2)", border: "none", borderRadius: 10, color: inviteCode.trim().length === 6 ? "#080b11" : "var(--text-muted)", fontSize: 14, fontWeight: 800, cursor: inviteCode.trim().length === 6 ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif" }
+      }, "JOIN HOUSEHOLD \u2192")
+    )
+  );
+
+  return null;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHARED MODULE BRIDGE
@@ -1442,6 +1684,8 @@ window.__ml = {
   callClaude,
   useAutoSave, getMondayOfWeek, getDayKey, ALL_EXERCISES,
   C, CL, inp, Lbl, SectionHead,
+  // Household helpers — modules use these to check household state
+  getHouseholdId: () => window.__current_household_id || null,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1484,6 +1728,10 @@ function App() {
   const [activeUser, setActiveUser] = useState("self"); // self | partner
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [householdId, setHouseholdId] = useState(null);
+  const [householdMeta, setHouseholdMeta] = useState(null);
+  const [showHouseholdSetup, setShowHouseholdSetup] = useState(false);
+  const [personalDataForMigration, setPersonalDataForMigration] = useState(null);
 
   // API calls go through the Netlify proxy (/api/claude) — key is server-side.
   // Always set truthy so all components skip their "no API key" guard checks.
@@ -1574,6 +1822,23 @@ function App() {
     setStreak(sk || 0);
     setTasks(ch || CHORE_SEED);
     setAllSundays(as || []);
+
+    // Load household membership
+    try {
+      const hid = await DB.get(KEYS.userHouseholdId());
+      if (hid) {
+        window.__current_household_id = hid;
+        setHouseholdId(hid);
+        try {
+          const metaSnap = await window.__firebase_db.ref(`households/${hid}/meta`).once("value");
+          if (metaSnap.exists()) setHouseholdMeta(metaSnap.val());
+        } catch(e) {}
+      } else {
+        window.__current_household_id = null;
+        setHouseholdId(null);
+        setHouseholdMeta(null);
+      }
+    } catch(e) {}
 
     // Load today's log
     const td = await DB.get(KEYS.log(getToday()));
@@ -1669,6 +1934,31 @@ function App() {
     return daysBetween(getToday(), nd) < 0;
   }).length;
 
+  // Collect personal data for migration when user creates a household
+  const getPersonalDataForMigration = async () => {
+    const chores = tasks;
+    const pantryItemsSnap = pantryItems;
+    const months = (await DB.get(KEYS.financeAllMonths())) || [];
+    const financeMonths = await Promise.all(months.map(async m => ({
+      month: m,
+      txns: (await DB.get(KEYS.financeTransactions(m))) || [],
+      income: (await DB.get(KEYS.financeIncome(m))) || [],
+      envelopes: (await DB.get(KEYS.financeEnvelopes(m))) || [],
+      rollover: (await DB.get(KEYS.financeRollover(m))) || null
+    })));
+    const merchantRules = await DB.get(KEYS.merchantRules());
+    const customSubCats = await DB.get(KEYS.customSubCats());
+    const envelopeCatalog = await DB.get(KEYS.financeEnvelopeCatalog());
+    const defaultEnvelopes = await DB.get(KEYS.financeDefaultEnvelopes());
+    return { chores, pantryItems: pantryItemsSnap, financeMonths, merchantRules, customSubCats, envelopeCatalog, defaultEnvelopes };
+  };
+
+  const handleShowHouseholdSetup = async () => {
+    const data = await getPersonalDataForMigration();
+    setPersonalDataForMigration(data);
+    setShowHouseholdSetup(true);
+  };
+
   // ── Section + sub-tab nav structure ────────────────────────────────────────
   const NAV = [{
     id: "personal",
@@ -1752,6 +2042,18 @@ function App() {
       letterSpacing: ".1em"
     }
   }, "LOADING...");
+  // Full-screen household setup flow
+  if (showHouseholdSetup) return /*#__PURE__*/React.createElement(HouseholdSetup, {
+    currentUser: window.__firebase_auth && window.__firebase_auth.currentUser,
+    allPersonalData: personalDataForMigration,
+    onComplete: (hid, meta) => {
+      setHouseholdId(hid);
+      setHouseholdMeta(meta);
+      setShowHouseholdSetup(false);
+      setPersonalDataForMigration(null);
+      loadAll();
+    }
+  });
   return /*#__PURE__*/React.createElement("div", {
     style: {
       minHeight: "100vh",
@@ -1763,6 +2065,8 @@ function App() {
     }
   }, showSettings && /*#__PURE__*/React.createElement(SettingsModal, {
     settings: settings,
+    householdId: householdId,
+    householdMeta: householdMeta,
     onSave: s => { setSettings(s); window.__claude_api_key = s.claudeApiKey || ""; window.__household_id = s.householdId || ""; },
     onClose: () => setShowSettings(false)
   }), celebration && /*#__PURE__*/React.createElement(CelebrationOverlay, {
@@ -2024,16 +2328,28 @@ function App() {
     activeUser: activeUser,
     pantryItemsFromApp: pantryItems,
     settings: settings
-  }), tab === "chores" && /*#__PURE__*/React.createElement(window.TasksTab, {
-    tasks: tasks,
-    setTasks: setTasks,
-    settings: settings,
-    activeUser: activeUser
-  }), tab === "pantry" && /*#__PURE__*/React.createElement(window.PantryTab, {
-    pantryItems: pantryItems,
-    setPantryItems: setPantryItems,
-    onAddToGrocery: () => {}
-  }), tab === "goals" && /*#__PURE__*/React.createElement(window.Goals, {
+  }), tab === "chores" && (
+    householdId
+      ? /*#__PURE__*/React.createElement(window.TasksTab, {
+          tasks: tasks,
+          setTasks: setTasks,
+          settings: settings,
+          activeUser: activeUser
+        })
+      : /*#__PURE__*/React.createElement(HouseholdJoinPrompt, { onSetup: handleShowHouseholdSetup })
+  ), tab === "pantry" && (
+    householdId
+      ? /*#__PURE__*/React.createElement(window.PantryTab, {
+          pantryItems: pantryItems,
+          setPantryItems: setPantryItems,
+          onAddToGrocery: () => {}
+        })
+      : /*#__PURE__*/React.createElement(HouseholdJoinPrompt, { onSetup: handleShowHouseholdSetup })
+  ), tab === "reminders" && (
+    householdId
+      ? /*#__PURE__*/React.createElement(window.RemindersTab, { settings: settings })
+      : /*#__PURE__*/React.createElement(HouseholdJoinPrompt, { onSetup: handleShowHouseholdSetup })
+  ), tab === "goals" && /*#__PURE__*/React.createElement(window.Goals, {
     goals: goals,
     onSaveGoals: handleSaveGoals,
     allLogs: allLogs,
@@ -2045,9 +2361,7 @@ function App() {
     settings: settings,
     allSundays: allSundays,
     choreTasks: tasks
-  }), tab === "reminders" && /*#__PURE__*/React.createElement(window.RemindersTab, {
-    settings: settings
-  }), tab === "history" && /*#__PURE__*/React.createElement(window.HistoryBrowser, {
+  ), tab === "history" && /*#__PURE__*/React.createElement(window.HistoryBrowser, {
     allLogs: allLogs,
     allSundays: allSundays,
     settings: settings,
