@@ -2681,7 +2681,26 @@ function Sunday({
   const [childMilestonesMap, setChildMilestonesMap] = useState({}); // { childId: [milestone...] }
   const [newMilestoneMap, setNewMilestoneMap] = useState({});       // { childId: "typing..." }
   const [addingMsFor, setAddingMsFor] = useState(null);             // childId currently expanding add row
-  const [sundayOpts, setSundayOpts] = useState({ showFaith: true, showReading: true, showChildren: true });
+  const [sundayOpts, setSundayOpts] = useState({ showFaith: true, showReading: true, showChildren: true, showWorkout: false, showMentalHealth: false, showHabits: false });
+  // Workout Notes state
+  const [woTrainingQuality, setWoTrainingQuality] = useState(0);
+  const [woBestSession, setWoBestSession] = useState("");
+  const [woBodyFeel, setWoBodyFeel] = useState("");
+  const [woBlocked, setWoBlocked] = useState("");
+  const [woNextFocus, setWoNextFocus] = useState("");
+  // Mental Health state
+  const [mhAnxiety, setMhAnxiety] = useState(0);
+  const [mhRegulation, setMhRegulation] = useState(0);
+  const [mhConnection, setMhConnection] = useState(0);
+  const [mhPractices, setMhPractices] = useState({ therapy: false, journaling: false, meditation: false, exercise: false });
+  const [mhHelped, setMhHelped] = useState("");
+  const [mhHardest, setMhHardest] = useState("");
+  // Habit reflection state
+  const [habitGoals, setHabitGoals] = useState([]);
+  const [habitLogsWeek, setHabitLogsWeek] = useState({});
+  const [habitHardest, setHabitHardest] = useState("");
+  const [habitAdjust, setHabitAdjust] = useState("");
+  const [habitConsistency, setHabitConsistency] = useState(0);
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
   const [ok, setOk] = useState(false);
@@ -2719,6 +2738,42 @@ function Sunday({
       setChildMilestonesMap(map);
       const opts = await DB.get(KEYS.sundayOptions());
       if (opts) setSundayOpts(prev => ({ ...prev, ...opts }));
+
+      // Load workout notes
+      const wn2 = await DB.get(KEYS.workoutNotes(sunKey));
+      if (wn2) {
+        setWoTrainingQuality(wn2.trainingQuality || 0);
+        setWoBestSession(wn2.bestSession || "");
+        setWoBodyFeel(wn2.bodyFeel || "");
+        setWoBlocked(wn2.blocked || "");
+        setWoNextFocus(wn2.nextFocus || "");
+      }
+      // Load mental health
+      const mh = await DB.get(KEYS.mentalHealth(sunKey));
+      if (mh) {
+        setMhAnxiety(mh.anxiety || 0);
+        setMhRegulation(mh.regulation || 0);
+        setMhConnection(mh.connection || 0);
+        setMhPractices(mh.practices || { therapy: false, journaling: false, meditation: false, exercise: false });
+        setMhHelped(mh.helped || "");
+        setMhHardest(mh.hardest || "");
+      }
+      // Load habit reflection
+      const hr = await DB.get(KEYS.habitReflection(sunKey));
+      if (hr) {
+        setHabitHardest(hr.hardest || "");
+        setHabitAdjust(hr.adjust || "");
+        setHabitConsistency(hr.consistency || 0);
+      }
+      // Load active habit goals + this week's logs for habit tracker
+      const allGoals = await DB.get(KEYS.goals()) || [];
+      const habitGs = allGoals.filter(g => g.type === "habit");
+      setHabitGoals(habitGs);
+      const hlMap = {};
+      for (const g of habitGs) {
+        hlMap[g.id] = await DB.get(KEYS.goalHabitLog(g.id)) || {};
+      }
+      setHabitLogsWeek(hlMap);
     })();
   }, []);
   const reviewData = {
@@ -2732,7 +2787,14 @@ function Sunday({
     faithScripture,
     faithMoment
   };
+  // Module data saved separately (not in weekReview — keeps it clean)
+  const workoutNotesData = { trainingQuality: woTrainingQuality, bestSession: woBestSession, bodyFeel: woBodyFeel, blocked: woBlocked, nextFocus: woNextFocus };
+  const mentalHealthData = { anxiety: mhAnxiety, regulation: mhRegulation, connection: mhConnection, practices: mhPractices, helped: mhHelped, hardest: mhHardest };
+  const habitReflectionData = { hardest: habitHardest, adjust: habitAdjust, consistency: habitConsistency };
   useAutoSave(KEYS.weekReview(sunKey), reviewData);
+  useAutoSave(KEYS.workoutNotes(sunKey), workoutNotesData);
+  useAutoSave(KEYS.mentalHealth(sunKey), mentalHealthData);
+  useAutoSave(KEYS.habitReflection(sunKey), habitReflectionData);
   const go = async () => {
     setBusy(true);
     await DB.set(KEYS.weekReview(sunKey), {
@@ -3019,7 +3081,7 @@ function Sunday({
     style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }
   }, /*#__PURE__*/React.createElement(Lbl, { c: "At a Glance" }),
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 5 } },
-      [[...getChildren(settings).length > 0 ? [["showChildren", "👶 Kids"]] : [], ["showFaith", "💜 Faith"], ["showReading", "📚 Reading"]]].flat().map(([key, label]) =>
+      [[...getChildren(settings).length > 0 ? [["showChildren", "👶 Kids"]] : [], ["showFaith", "💜 Faith"], ["showReading", "📚 Reading"], ["showWorkout", "🏋️ Training"], ["showMentalHealth", "🧠 Mind"], ["showHabits", "🌱 Habits"]]].flat().map(([key, label]) =>
         /*#__PURE__*/React.createElement("button", {
           key: key,
           onClick: () => toggleSundayOpt(key),
@@ -3667,6 +3729,110 @@ function Sunday({
     s: {
       marginBottom: 12
     }
+  }), sundayOpts.showWorkout && /*#__PURE__*/React.createElement(Card, {
+    ch: /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+        /*#__PURE__*/React.createElement(Lbl, { c: "Training Notes" }),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 10 } },
+          /*#__PURE__*/React.createElement("span", { style: { color: "#fb923c", fontSize: 11, fontWeight: 700 } }, ca + "/" + wk.length + " cardio"),
+          /*#__PURE__*/React.createElement("span", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700 } }, st + "/" + wk.length + " strength")
+        )
+      ),
+      /*#__PURE__*/React.createElement("div", { style: { marginBottom: 12 } },
+        /*#__PURE__*/React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 6px" } }, "Training Quality This Week"),
+        /*#__PURE__*/React.createElement(Dots, { val: woTrainingQuality, set: setWoTrainingQuality, col: "#fb923c", sz: 22 })
+      ),
+      /*#__PURE__*/React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "Best Session / Highlight"),
+      /*#__PURE__*/React.createElement("input", { type: "text", value: woBestSession, onChange: e => setWoBestSession(e.target.value), placeholder: "e.g. 5km run PR, hit 225lb squat, full mobility flow...", style: { ...inp, marginBottom: 10, fontSize: 13 } }),
+      /*#__PURE__*/React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "How Did Your Body Feel? (soreness, energy, recovery)"),
+      /*#__PURE__*/React.createElement("textarea", { value: woBodyFeel, onChange: e => setWoBodyFeel(e.target.value), placeholder: "e.g. Left knee tight Monday, energy was high by Wednesday, sleeping well...", style: { ...inp, resize: "none", minHeight: 60, fontSize: 13, lineHeight: 1.6, marginBottom: 10 }, rows: 2 }),
+      /*#__PURE__*/React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "What Held Training Back? (skip if nothing)"),
+      /*#__PURE__*/React.createElement("input", { type: "text", value: woBlocked, onChange: e => setWoBlocked(e.target.value), placeholder: "e.g. Time, motivation dip, travel, minor injury...", style: { ...inp, marginBottom: 10, fontSize: 13 } }),
+      /*#__PURE__*/React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "Next Week's Training Focus"),
+      /*#__PURE__*/React.createElement("input", { type: "text", value: woNextFocus, onChange: e => setWoNextFocus(e.target.value), placeholder: "e.g. Prioritise strength, hit 4 sessions, fix sleep first...", style: { ...inp, fontSize: 13 } })
+    ),
+    s: { marginBottom: 12 }
+  }), sundayOpts.showMentalHealth && /*#__PURE__*/React.createElement(Card, {
+    ch: /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement(Lbl, { c: "Mental Health Check-in" }),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "0 0 14px", lineHeight: 1.5 } }, "Your internal weather this week. No judgement — just honest."),
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 } },
+        [
+          ["Anxiety / Stress Level", mhAnxiety, setMhAnxiety, "#ef4444", "1 = calm · 5 = overwhelmed"],
+          ["Emotional Regulation", mhRegulation, setMhRegulation, "#60a5fa", "1 = reactive · 5 = handled everything well"],
+          ["Social Connection", mhConnection, setMhConnection, "#a78bfa", "1 = isolated · 5 = deeply connected"]
+        ].map(([lbl, val, set, col, hint]) =>
+          /*#__PURE__*/React.createElement("div", { key: lbl },
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 } },
+              /*#__PURE__*/React.createElement("p", { style: { color: "#9ca3af", fontSize: 12, margin: 0 } }, lbl),
+              /*#__PURE__*/React.createElement("p", { style: { color: "#4b5563", fontSize: 10, margin: 0 } }, hint)
+            ),
+            /*#__PURE__*/React.createElement(Dots, { val: val, set: set, col: col, sz: 22 })
+          )
+        )
+      ),
+      /*#__PURE__*/React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 8px" } }, "Practices This Week"),
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 14 } },
+        [["therapy", "Therapy"], ["journaling", "Journaling"], ["meditation", "Meditation"], ["exercise", "Exercise as therapy"]].map(([k, label]) =>
+          /*#__PURE__*/React.createElement("button", {
+            key: k,
+            onClick: () => setMhPractices(prev => ({ ...prev, [k]: !prev[k] })),
+            style: { padding: "6px 12px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, background: mhPractices[k] ? "rgba(74,222,128,.2)" : "rgba(255,255,255,.05)", color: mhPractices[k] ? "#4ade80" : "#374151" }
+          }, (mhPractices[k] ? "✓ " : "") + label)
+        )
+      ),
+      /*#__PURE__*/React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "What Helped Your Mental State Most"),
+      /*#__PURE__*/React.createElement("input", { type: "text", value: mhHelped, onChange: e => setMhHelped(e.target.value), placeholder: "e.g. Morning walk, talking to Sabrina, finishing a project...", style: { ...inp, marginBottom: 10, fontSize: 13 } }),
+      /*#__PURE__*/React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "What Was Hardest Mentally This Week"),
+      /*#__PURE__*/React.createElement("input", { type: "text", value: mhHardest, onChange: e => setMhHardest(e.target.value), placeholder: "e.g. Work pressure, argument Tuesday, feeling behind...", style: { ...inp, fontSize: 13 } })
+    ),
+    s: { marginBottom: 12 }
+  }), sundayOpts.showHabits && /*#__PURE__*/React.createElement(Card, {
+    ch: /*#__PURE__*/React.createElement(React.Fragment, null,
+      /*#__PURE__*/React.createElement(Lbl, { c: "Habit Tracker Summary" }),
+      habitGoals.length === 0
+        ? /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: 0 } }, "No active habit goals yet. Add some in the Goals tab to track them here.")
+        : /*#__PURE__*/React.createElement(React.Fragment, null,
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 } },
+              habitGoals.map(g => {
+                const log = habitLogsWeek[g.id] || {};
+                const monday = getMondayOfWeek(getToday());
+                const weekDates2 = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+                const done = weekDates2.filter(d => log[d]).length;
+                const pct = Math.round(done / 7 * 100);
+                const barCol = pct >= 80 ? "#4ade80" : pct >= 50 ? "#f4a823" : "#ef4444";
+                return /*#__PURE__*/React.createElement("div", { key: g.id, style: { padding: "10px 12px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10 } },
+                  /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+                    /*#__PURE__*/React.createElement("p", { style: { color: "#c9ccd4", fontSize: 13, fontWeight: 600, margin: 0 } }, g.label),
+                    /*#__PURE__*/React.createElement("p", { style: { color: barCol, fontSize: 12, fontWeight: 800, margin: 0, fontFamily: "'Syne',sans-serif" } }, done + "/7 days")
+                  ),
+                  /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 3 } },
+                    weekDates2.map((d, i) =>
+                      /*#__PURE__*/React.createElement("div", {
+                        key: i,
+                        title: d,
+                        style: { flex: 1, height: 6, borderRadius: 3, background: log[d] ? barCol : "rgba(255,255,255,.06)" }
+                      })
+                    )
+                  ),
+                  /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 3 } },
+                    /*#__PURE__*/React.createElement("span", { style: { color: "#374151", fontSize: 9 } }, "Mon"),
+                    /*#__PURE__*/React.createElement("span", { style: { color: "#374151", fontSize: 9 } }, "Sun")
+                  )
+                );
+              })
+            ),
+            /*#__PURE__*/React.createElement("div", { style: { marginBottom: 12 } },
+              /*#__PURE__*/React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 6px" } }, "Overall Habit Consistency Feeling"),
+              /*#__PURE__*/React.createElement(Dots, { val: habitConsistency, set: setHabitConsistency, col: "#4ade80", sz: 22 })
+            ),
+            /*#__PURE__*/React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "Hardest Habit to Keep This Week"),
+            /*#__PURE__*/React.createElement("input", { type: "text", value: habitHardest, onChange: e => setHabitHardest(e.target.value), placeholder: "Which habit broke down and why?", style: { ...inp, marginBottom: 10, fontSize: 13 } }),
+            /*#__PURE__*/React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "One Habit Adjustment for Next Week"),
+            /*#__PURE__*/React.createElement("input", { type: "text", value: habitAdjust, onChange: e => setHabitAdjust(e.target.value), placeholder: "e.g. Move meditation to morning, reduce target to 5/7...", style: { ...inp, fontSize: 13 } })
+          )
+    ),
+    s: { marginBottom: 12 }
   }), sundayOpts.showChildren && getChildren(settings).map(child =>
     /*#__PURE__*/React.createElement(Card, {
       key: child.id,
@@ -3751,11 +3917,11 @@ function Sunday({
       { key: "showChildren", icon: "👶", title: "Children & Milestones", desc: "Track life moments for each child. Supports multiple kids.", active: sundayOpts.showChildren && getChildren(settings).length > 0, missing: getChildren(settings).length === 0, hint: "Add children in Settings → Profile to unlock" },
       { key: "showFaith", icon: "💜", title: "Faith & Reflection", desc: "A scripture, a felt moment, and anything on your heart.", active: sundayOpts.showFaith, hint: "Toggle on with the pill above" },
       { key: "showReading", icon: "📚", title: "Reading Log", desc: "Book title, pages read, and a voice-dictated reflection.", active: sundayOpts.showReading, hint: "Toggle on with the pill above" },
-      { key: null, icon: "🏋️", title: "Workout Notes", desc: "A weekly free-text reflection on training quality and how your body felt.", active: false, hint: "Coming soon" },
+      { key: "showWorkout", icon: "🏋️", title: "Training Notes", desc: "Quality rating, best session, body feel, blockers, and next week's focus.", active: sundayOpts.showWorkout, hint: "Toggle on with the pill above" },
       { key: null, icon: "💤", title: "Sleep Journal", desc: "Track sleep quality trends across weeks, not just nightly hours.", active: false, hint: "Coming soon" },
-      { key: null, icon: "🧠", title: "Mental Health Check-in", desc: "Anxiety level, emotional regulation, and one coping win.", active: false, hint: "Coming soon" },
+      { key: "showMentalHealth", icon: "🧠", title: "Mental Health Check-in", desc: "Anxiety, emotional regulation, social connection, practices done this week.", active: sundayOpts.showMentalHealth, hint: "Toggle on with the pill above" },
       { key: null, icon: "📸", title: "Photo Memory", desc: "Attach one photo each week — a visual timeline of your life.", active: false, hint: "Coming soon" },
-      { key: null, icon: "🌱", title: "Habit Tracker Summary", desc: "See which daily habits held vs broke down this week.", active: false, hint: "Tied to Goals habit mode — coming soon" },
+      { key: "showHabits", icon: "🌱", title: "Habit Tracker Summary", desc: "Auto-reads your active habit goals. See completion bars + add a reflection.", active: sundayOpts.showHabits, hint: habitGoals.length === 0 ? "Add habit-type goals in Goals tab first" : "Toggle on with the pill above" },
       { key: null, icon: "🤝", title: "Relationship Score", desc: "Rate key relationships weekly: partner, family, friendships.", active: false, hint: "Coming soon" },
     ];
     const inactive = recs.filter(r => !r.active);
