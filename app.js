@@ -1999,29 +1999,34 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
 
   const cardStyle = { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: 20 };
 
+  // Shared input style — explicit hex values to prevent browser autofill colour overrides on mobile
+  const hhInp = { width: "100%", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 10, padding: "12px 14px", color: "#e2e5ed", WebkitTextFillColor: "#e2e5ed", fontSize: 15, outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans',sans-serif" };
+  const hhLabel = { fontSize: 11, color: "#8a96a8", fontWeight: 700, letterSpacing: ".07em", margin: "0 0 8px", display: "block", fontFamily: "'Syne',sans-serif" };
+  const hhCard = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 14, padding: "18px 20px", marginBottom: 16 };
+
   // ── Choose view ──
   if (view === "choose") return React.createElement("div", {
-    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
+    style: { minHeight: "100vh", background: "#080b11", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
   },
     React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
-      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#60a5fa", margin: "0 0 6px" } }, "\uD83C\uDFE0 Set Up Your Household"),
-      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 28px", lineHeight: 1.5 } },
+      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#60a5fa", margin: "0 0 8px" } }, "\uD83C\uDFE0 Set Up Your Household"),
+      React.createElement("p", { style: { color: "#8a96a8", fontSize: 13, margin: "0 0 28px", lineHeight: 1.6 } },
         "Create a household to share tasks, pantry, and finances with your family. Or join an existing one with an invite code."
       ),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
         React.createElement("button", {
           onClick: () => setView("create"),
-          style: { padding: "16px 20px", background: "rgba(96,165,250,.12)", border: "1px solid rgba(96,165,250,.3)", borderRadius: 12, color: "#60a5fa", fontSize: 14, fontWeight: 800, cursor: "pointer", textAlign: "left", fontFamily: "'Syne',sans-serif" }
+          style: { padding: "18px 20px", background: "rgba(96,165,250,.12)", border: "1px solid rgba(96,165,250,.3)", borderRadius: 12, color: "#60a5fa", fontSize: 14, fontWeight: 800, cursor: "pointer", textAlign: "left", fontFamily: "'Syne',sans-serif" }
         },
           React.createElement("div", null, "\uD83C\uDFD7 Create a Household"),
-          React.createElement("div", { style: { fontSize: 11, fontWeight: 400, color: "var(--text-muted)", marginTop: 4 } }, "Start a new household and invite your family")
+          React.createElement("div", { style: { fontSize: 12, fontWeight: 400, color: "#8a96a8", marginTop: 5 } }, "Start a new household and invite your family")
         ),
         React.createElement("button", {
           onClick: () => setView("join"),
-          style: { padding: "16px 20px", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 12, color: "#4ade80", fontSize: 14, fontWeight: 800, cursor: "pointer", textAlign: "left", fontFamily: "'Syne',sans-serif" }
+          style: { padding: "18px 20px", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 12, color: "#4ade80", fontSize: 14, fontWeight: 800, cursor: "pointer", textAlign: "left", fontFamily: "'Syne',sans-serif" }
         },
           React.createElement("div", null, "\uD83D\uDD11 Join with Invite Code"),
-          React.createElement("div", { style: { fontSize: 11, fontWeight: 400, color: "var(--text-muted)", marginTop: 4 } }, "Enter the 6-character code from your household leader")
+          React.createElement("div", { style: { fontSize: 12, fontWeight: 400, color: "#8a96a8", marginTop: 5 } }, "Enter the 6-character code from your household leader")
         )
       )
     )
@@ -2029,57 +2034,57 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
 
   // ── Create view ──
   if (view === "create") return React.createElement("div", {
-    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
+    style: { minHeight: "100vh", background: "#080b11", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
   },
     React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
-      React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0 } }, "\u2190 Back"),
-      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#60a5fa", margin: "0 0 6px" } }, "\uD83C\uDFD7 Create Household"),
-      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 20px", lineHeight: 1.5 } },
+      React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "#8a96a8", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0, fontFamily: "'DM Sans',sans-serif" } }, "\u2190 Back"),
+      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#60a5fa", margin: "0 0 8px" } }, "\uD83C\uDFD7 Create Household"),
+      React.createElement("p", { style: { color: "#8a96a8", fontSize: 13, margin: "0 0 20px", lineHeight: 1.6 } },
         "Your existing tasks, pantry, and finance data will be migrated to the new household. Nothing will be lost."
       ),
-      React.createElement("div", { style: { ...cardStyle, marginBottom: 16 } },
-        React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "HOUSEHOLD NAME"),
+      React.createElement("div", { style: { ...hhCard } },
+        React.createElement("label", { style: hhLabel }, "HOUSEHOLD NAME"),
         React.createElement("input", {
           placeholder: "e.g. The Smith Household",
           value: householdName,
           onChange: e => { setHouseholdName(e.target.value); setError(""); },
-          style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, padding: "10px 12px", color: "var(--text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" }
+          style: hhInp
         })
       ),
-      error && React.createElement("p", { style: { color: "#ef4444", fontSize: 12, marginBottom: 12 } }, error),
+      error && React.createElement("p", { style: { color: "#ef4444", fontSize: 13, marginBottom: 14, lineHeight: 1.5 } }, error),
       React.createElement("button", {
         onClick: createHousehold,
         disabled: !householdName.trim(),
-        style: { width: "100%", padding: "14px 0", background: householdName.trim() ? "#60a5fa" : "rgba(96,165,250,.2)", border: "none", borderRadius: 10, color: householdName.trim() ? "#080b11" : "var(--text-muted)", fontSize: 14, fontWeight: 800, cursor: householdName.trim() ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif" }
+        style: { width: "100%", padding: "15px 0", background: householdName.trim() ? "#60a5fa" : "rgba(96,165,250,.2)", border: "none", borderRadius: 10, color: householdName.trim() ? "#080b11" : "#5a6477", fontSize: 14, fontWeight: 800, cursor: householdName.trim() ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
       }, "CREATE & MIGRATE DATA \u2192")
     )
   );
 
   // ── Join view ──
   if (view === "join") return React.createElement("div", {
-    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
+    style: { minHeight: "100vh", background: "#080b11", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
   },
     React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
-      React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0 } }, "\u2190 Back"),
-      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#4ade80", margin: "0 0 6px" } }, "\uD83D\uDD11 Join a Household"),
-      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 20px", lineHeight: 1.6 } },
+      React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "#8a96a8", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0, fontFamily: "'DM Sans',sans-serif" } }, "\u2190 Back"),
+      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#4ade80", margin: "0 0 8px" } }, "\uD83D\uDD11 Join a Household"),
+      React.createElement("p", { style: { color: "#8a96a8", fontSize: 13, margin: "0 0 20px", lineHeight: 1.6 } },
         "Enter the 6-character invite code from your household leader. Or if your leader pre-linked your email, just sign out and back in \u2014 you\u2019ll be added automatically."
       ),
-      React.createElement("div", { style: { ...cardStyle, marginBottom: 16 } },
-        React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "INVITE CODE"),
+      React.createElement("div", { style: { ...hhCard, marginBottom: 16 } },
+        React.createElement("label", { style: hhLabel }, "INVITE CODE"),
         React.createElement("input", {
           placeholder: "e.g. X7K2M9",
           value: inviteCode,
           onChange: e => { setInviteCode(e.target.value.toUpperCase()); setError(""); },
           maxLength: 6,
-          style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, padding: "10px 12px", color: "var(--text-primary)", fontSize: 18, fontWeight: 800, outline: "none", letterSpacing: ".15em", boxSizing: "border-box", textTransform: "uppercase", fontFamily: "'Syne',sans-serif" }
+          style: { ...hhInp, fontSize: 22, fontWeight: 800, letterSpacing: ".2em", textTransform: "uppercase", fontFamily: "'Syne',sans-serif" }
         })
       ),
-      error && React.createElement("p", { style: { color: "#ef4444", fontSize: 12, marginBottom: 12 } }, error),
+      error && React.createElement("p", { style: { color: "#ef4444", fontSize: 13, marginBottom: 14, lineHeight: 1.5 } }, error),
       React.createElement("button", {
         onClick: joinHousehold,
         disabled: inviteCode.trim().length !== 6,
-        style: { width: "100%", padding: "14px 0", background: inviteCode.trim().length === 6 ? "#4ade80" : "rgba(74,222,128,.2)", border: "none", borderRadius: 10, color: inviteCode.trim().length === 6 ? "#080b11" : "var(--text-muted)", fontSize: 14, fontWeight: 800, cursor: inviteCode.trim().length === 6 ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif" }
+        style: { width: "100%", padding: "15px 0", background: inviteCode.trim().length === 6 ? "#4ade80" : "rgba(74,222,128,.2)", border: "none", borderRadius: 10, color: inviteCode.trim().length === 6 ? "#080b11" : "#5a6477", fontSize: 14, fontWeight: 800, cursor: inviteCode.trim().length === 6 ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
       }, "JOIN HOUSEHOLD \u2192")
     )
   );
