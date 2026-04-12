@@ -1161,7 +1161,18 @@
     const [search, setSearch] = useState("");
     const [sort, setSort] = useState("pantry");
     const [showAdd, setShowAdd] = useState(false);
-    const [libSection, setLibSection] = useState("default"); // default | custom | imported
+    const [libSection, setLibSection] = useState("custom"); // default | custom | imported
+    // Auto-switch to default only if user has zero custom meals AND no imported meals
+    const autoSwitchedRef = React.useRef(false);
+    useEffect(() => {
+      if (!autoSwitchedRef.current && customMeals.length === 0 && importedMeals.length === 0) {
+        setLibSection("default");
+        autoSwitchedRef.current = true;
+      }
+      if (!autoSwitchedRef.current && (customMeals.length > 0 || importedMeals.length > 0)) {
+        autoSwitchedRef.current = true; // stays on "custom"
+      }
+    }, [customMeals.length, importedMeals.length]);
     const allMeals = [...MEALS_DB, ...customMeals, ...importedMeals];
     const catMap = {
       "All": null,
@@ -2917,8 +2928,17 @@
         setWeekPlan(wm || {});
         const ci = await DB.get(hid ? KEYS.hhGroceryCheck(sunKey) : KEYS.groceryCheck(sunKey));
         setCheckedItems(ci || {});
-        const cm = await DB.get(hid ? KEYS.hhCustomMeals() : KEYS.customMeals());
-        setCustomMeals(cm || []);
+        // Load custom meals — try hh path first, fall back to personal (handles migration)
+        let cm = [];
+        if (hid) {
+          try { cm = (await DB.get(KEYS.hhCustomMeals())) || []; } catch(e) { cm = []; }
+          if (cm.length === 0) {
+            try { cm = (await DB.get(KEYS.customMeals())) || []; } catch(e) { cm = []; }
+          }
+        } else {
+          cm = (await DB.get(KEYS.customMeals())) || [];
+        }
+        setCustomMeals(cm);
 
         // Load any published libraries this household has been granted access to
         if (hid && window.__firebase_db) {

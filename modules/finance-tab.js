@@ -1143,18 +1143,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
         method: "POST", signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1200,
-          messages: [{ role: "user", content: `You are a personal financial coach for ${settings?.name || "the user"} and ${window.__ml.getPartnerName(settings)} (a Canadian couple). Analyze their spending data and write a concise Monthly Financial Brief.
-
-${ctx}
-
-Write a brief with these sections (use plain text, NO markdown headers, use emoji for visual structure):
-📊 SNAPSHOT — 2-3 sentences on overall financial health this month vs last month
-🔥 WATCH OUT — 2-3 biggest spending concerns with specific dollar amounts
-✅ WINS — 1-2 things they did well
-💡 RECOMMENDATIONS — 3-4 specific, actionable steps with dollar targets
-📈 TREND — 1 sentence on the 3-month trajectory
-
-Be direct, specific (use their real numbers), and conversational. Not a list of generic tips — real advice based on their actual data.` }] })
+          system: `You are a personal financial coach for ${settings?.name || "the user"} and ${window.__ml.getPartnerName(settings)} (a Canadian couple). Here is their raw spending data — use it as source material only, never reproduce it verbatim in your response:\n\n${ctx}`,
+          messages: [{ role: "user", content: `Write a Monthly Financial Brief using ONLY the 5 sections below. Do NOT repeat or list raw data. Use their real numbers inline within your commentary. Plain text only — no markdown headers, no bullet lists, no dashes. Use emoji to start each section:\n\n📊 SNAPSHOT — 2-3 sentences on overall financial health this month vs last month.\n🔥 WATCH OUT — 2-3 biggest spending concerns with specific dollar amounts worked into natural sentences.\n✅ WINS — 1-2 things they did well this month.\n💡 RECOMMENDATIONS — 3-4 specific, actionable steps with dollar targets, written as direct advice.\n📈 TREND — 1 sentence on the 3-month trajectory.\n\nBe direct, warm, and conversational. Every sentence must reference their actual numbers.` }] })
       });
       const rawText = await res.text();
       let data;
