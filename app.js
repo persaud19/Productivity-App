@@ -369,7 +369,10 @@ const KEYS = {
   hhCustomSubCats: () => `hh:finance:custom_subcats`,
   hhFinanceCoach: () => `hh:finance:coach`,
   hhReceipt: id => `hh:receipts:${id}`,
-  hhJointReminders: () => `hh:reminders:joint`
+  hhJointReminders: () => `hh:reminders:joint`,
+  hhCustomMeals: () => `hh:food:custommeal`,
+  hhWeekPlan: sun => `hh:food:weekplan:${sun}`,
+  hhGroceryCheck: sun => `hh:food:grocery:${sun}`
 };
 
 // ── Master admin ──
@@ -2477,7 +2480,7 @@ function App() {
       c: "#fb923c"
     }, {
       id: "food",
-      l: "FOOD",
+      l: "LOG",
       c: "#4ade80"
     }]
   }, {
@@ -2485,10 +2488,6 @@ function App() {
     label: "HOME",
     color: "#60a5fa",
     tabs: [{
-      id: "pantry",
-      l: "INVENTORY",
-      c: "#fb923c"
-    }, {
       id: "chores",
       l: "TASKS",
       c: "#60a5fa"
@@ -2496,6 +2495,14 @@ function App() {
       id: "reminders",
       l: "REMINDERS",
       c: "#a78bfa"
+    }, {
+      id: "pantry",
+      l: "PANTRY",
+      c: "#fb923c"
+    }, {
+      id: "homefood",
+      l: "FOOD",
+      c: "#4ade80"
     }]
   }, {
     id: "finance",
@@ -2806,6 +2813,14 @@ function App() {
     initialDate: editLogDate?.section === "evening" ? editLogDate.date : null,
     onInitialDateConsumed: () => setEditLogDate(null)
   }), tab === "food" && /*#__PURE__*/React.createElement(window.FoodTab, {
+    mode: "health",
+    uid: window.__current_uid || settings.uid || "",
+    partnerUid: window.__current_partner_uid || settings.partnerUid || "",
+    activeUser: activeUser,
+    pantryItemsFromApp: pantryItems,
+    settings: settings
+  }), tab === "homefood" && /*#__PURE__*/React.createElement(window.FoodTab, {
+    mode: "home",
     uid: window.__current_uid || settings.uid || "",
     partnerUid: window.__current_partner_uid || settings.partnerUid || "",
     activeUser: activeUser,

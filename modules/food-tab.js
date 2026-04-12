@@ -2836,7 +2836,10 @@
   // ─────────────────────────────────────────────────────────────────────────────
   
   // FoodTab — integrates food module into Mission Log shell
+  // mode: "health" → LOG only (daily macro tracking, lives in HEALTH section)
+  //        "home"  → WEEK / LIBRARY / GROCERY (meal planning, lives in HOME section)
   function FoodTab({
+    mode = "health",
     activeUser,
     settings,
     pantryItemsFromApp = []
@@ -2845,7 +2848,7 @@
     const userName = settings?.name || "Me";
     const partnerName = window.__ml.getPartnerName(settings);
     const isPartner = activeUser === "partner";
-    const [subTab, setSubTab] = useState("log");
+    const [subTab, setSubTab] = useState(() => mode === "home" ? "plan" : "log");
     const [pantryItems, setPantryItems] = useState(pantryItemsFromApp || []);
     const [weekPlan, setWeekPlan] = useState({});
     const [checkedItems, setCheckedItems] = useState({});
@@ -2864,33 +2867,47 @@
   
     useEffect(() => {
       (async () => {
-        const p = await DB.get(KEYS.pantry());
-        setPantryItems(p || []);
-        const wm = await DB.get(KEYS.weekPlan(sunKey));
+        const hid = window.__current_household_id;
+
+        // Pantry: use app-level prop if pre-loaded (already hh:-routed), else load directly
+        if (pantryItemsFromApp && pantryItemsFromApp.length > 0) {
+          setPantryItems(pantryItemsFromApp);
+        } else {
+          const p = await DB.get(hid ? KEYS.hhPantry() : KEYS.pantry());
+          setPantryItems(p || []);
+        }
+
+        // Shared when in household, personal otherwise
+        const wm = await DB.get(hid ? KEYS.hhWeekPlan(sunKey) : KEYS.weekPlan(sunKey));
         setWeekPlan(wm || {});
-        const ci = await DB.get(KEYS.groceryCheck(sunKey));
+        const ci = await DB.get(hid ? KEYS.hhGroceryCheck(sunKey) : KEYS.groceryCheck(sunKey));
         setCheckedItems(ci || {});
-        const cm = await DB.get(KEYS.customMeals());
+        const cm = await DB.get(hid ? KEYS.hhCustomMeals() : KEYS.customMeals());
         setCustomMeals(cm || []);
-        const ck = await DB.get(KEYS.cookedMeals(sunKey));
+        const ck = await DB.get(KEYS.cookedMeals(sunKey)); // cooked log stays personal
+
         setCookedMeals(ck || {});
-        const ml = await DB.get(KEYS.mealLog(today));
-        setMealLog(ml || {});
-        const mt = await DB.get(KEYS.macroTargets());
-        setMacroTargets(mt || null);
-        const lib = await DB.get(KEYS.mealLibrary());
-        setMealLibrary(Array.isArray(lib) ? lib : []);
-        // Sabrina prompts (only for partner view)
-        const sp = await DB.get(KEYS.partnerMealPrompts());
-        const validPrompts = (sp || []).filter(p => {
-          const age = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-          return age <= 3 && !p.answered;
-        });
-        setSabrinaPrompts(validPrompts);
-        if (isPartner && validPrompts.length > 0) setActiveSabrinaPrompt(validPrompts[0]);
+
+        // Health-mode only: daily log, macro targets, partner prompts
+        if (mode === "health") {
+          const ml = await DB.get(KEYS.mealLog(today));
+          setMealLog(ml || {});
+          const mt = await DB.get(KEYS.macroTargets());
+          setMacroTargets(mt || null);
+          const lib = await DB.get(KEYS.mealLibrary());
+          setMealLibrary(Array.isArray(lib) ? lib : []);
+          const sp = await DB.get(KEYS.partnerMealPrompts());
+          const validPrompts = (sp || []).filter(p => {
+            const age = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+            return age <= 3 && !p.answered;
+          });
+          setSabrinaPrompts(validPrompts);
+          if (isPartner && validPrompts.length > 0) setActiveSabrinaPrompt(validPrompts[0]);
+        }
+
         setLoadingFood(false);
       })();
-    }, [activeUser, sunKey, today]);
+    }, [activeUser, sunKey, today, mode]);
   
     // Auto-generate macro targets when weight changes (or no targets exist)
     const generateMacroTargets = useCallback(async (weight) => {
@@ -3013,23 +3030,10 @@
   
     const allMeals = [...MEALS_DB, ...customMeals];
     const canMake = pantryItems.length > 0 ? allMeals.filter(m => pantryMatch(m, pantryItems).pct >= 80).length : 0;
-    const subTabs = [{
-      id: "log",
-      l: "LOG",
-      c: "#fb923c"
-    }, {
-      id: "plan",
-      l: "WEEK",
-      c: "#4ade80"
-    }, {
-      id: "library",
-      l: "LIBRARY",
-      c: "#f4a823"
-    }, {
-      id: "grocery",
-      l: "GROCERY",
-      c: "#a78bfa"
-    }];
+    // health mode: LOG only. home mode: WEEK / LIBRARY / GROCERY only.
+    const subTabs = mode === "home"
+      ? [{ id: "plan", l: "WEEK", c: "#4ade80" }, { id: "library", l: "LIBRARY", c: "#f4a823" }, { id: "grocery", l: "GROCERY", c: "#a78bfa" }]
+      : [{ id: "log", l: "LOG", c: "#fb923c" }];
     if (loadingFood) return /*#__PURE__*/React.createElement("div", {
       style: {
         padding: "32px 0",
@@ -3047,8 +3051,8 @@
         marginBottom: 14
       }
     }, /*#__PURE__*/React.createElement(SectionHead, {
-      label: "Food",
-      color: "#fb923c"
+      label: mode === "home" ? "Food Planning" : "Food Log",
+      color: mode === "home" ? "#4ade80" : "#fb923c"
     }), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
@@ -3074,7 +3078,8 @@
         marginBottom: 14,
         borderBottom: "1px solid rgba(255,255,255,.06)"
       }
-    }, subTabs.map(t => /*#__PURE__*/React.createElement("button", {
+    // Only render sub-tab bar in home mode (health has only LOG — no picker needed)
+    }, mode === "home" && subTabs.map(t => /*#__PURE__*/React.createElement("button", {
       key: t.id,
       onClick: () => setSubTab(t.id),
       style: {
@@ -3092,11 +3097,11 @@
       }
     }, t.l))),
   
-    /* ── MacroBar always visible at top ── */
-    /*#__PURE__*/React.createElement(MacroBar, { logged: dailyLogged, targets: macroTargets }),
-  
-    /* ── Partner meal prompt (partner view) ── */
-    activeSabrinaPrompt && isPartner && /*#__PURE__*/React.createElement("div", {
+    /* ── MacroBar — health mode only (daily calorie tracking) ── */
+    mode === "health" && /*#__PURE__*/React.createElement(MacroBar, { logged: dailyLogged, targets: macroTargets }),
+
+    /* ── Partner meal prompt — health mode only ── */
+    mode === "health" && activeSabrinaPrompt && isPartner && /*#__PURE__*/React.createElement("div", {
       style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }
     },
       /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 600, margin: "0 0 4px" } }, userName + " had " + activeSabrinaPrompt.meal + " for " + activeSabrinaPrompt.slot),
@@ -3113,9 +3118,9 @@
       )
     ),
   
-    /* ── Macro target generation ── */
-    generatingTargets && /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", color: "var(--text-muted)", fontSize: 12, marginBottom: 12 } }, "Calculating your macro targets\u2026"),
-    macroTargets?.rationale && subTab === "log" && /*#__PURE__*/React.createElement("p", {
+    /* ── Macro target generation — health mode only ── */
+    mode === "health" && generatingTargets && /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", color: "var(--text-muted)", fontSize: 12, marginBottom: 12 } }, "Calculating your macro targets\u2026"),
+    mode === "health" && macroTargets?.rationale && subTab === "log" && /*#__PURE__*/React.createElement("p", {
       style: { fontSize: 11, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }
     }, "\uD83E\uDD16 ", macroTargets.rationale, " ",
       /*#__PURE__*/React.createElement("button", {
@@ -3176,8 +3181,9 @@
     subTab === "plan" && /*#__PURE__*/React.createElement(WeekPlanTab, {
       plan: weekPlan,
       setPlan: async p => {
+        const hid = window.__current_household_id;
         setWeekPlan(p);
-        await DB.set(KEYS.weekPlan(sunKey), p);
+        await DB.set(hid ? KEYS.hhWeekPlan(sunKey) : KEYS.weekPlan(sunKey), p);
       },
       allMeals: allMeals,
       pantryItems: pantryItems,
@@ -3186,22 +3192,25 @@
     }), subTab === "library" && /*#__PURE__*/React.createElement(LibraryTab, {
       customMeals: customMeals,
       onAddMeal: async m => {
+        const hid = window.__current_household_id;
         const u = [...customMeals, m];
         setCustomMeals(u);
-        await DB.set(KEYS.customMeals(), u);
+        await DB.set(hid ? KEYS.hhCustomMeals() : KEYS.customMeals(), u);
       },
       onDeleteCustom: async id => {
+        const hid = window.__current_household_id;
         const u = customMeals.filter(m => m.id !== id);
         setCustomMeals(u);
-        await DB.set(KEYS.customMeals(), u);
+        await DB.set(hid ? KEYS.hhCustomMeals() : KEYS.customMeals(), u);
       },
       pantryItems: pantryItems
     }), subTab === "grocery" && /*#__PURE__*/React.createElement(GroceryTab, {
       plan: weekPlan,
       checked: checkedItems,
       setChecked: async c => {
+        const hid = window.__current_household_id;
         setCheckedItems(c);
-        await DB.set(KEYS.groceryCheck(sunKey), c);
+        await DB.set(hid ? KEYS.hhGroceryCheck(sunKey) : KEYS.groceryCheck(sunKey), c);
       }
     }),
   
