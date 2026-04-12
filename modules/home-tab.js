@@ -773,8 +773,9 @@ function RemindersTab({ settings }) {
   const voiceRef = useRef(null);
 
   const loadReminders = useCallback(async () => {
+    const hid = window.__current_household_id;
     const p = await DB.get(KEYS.reminders());
-    const j = await DB.get(KEYS.jointReminders());
+    const j = await DB.get(hid ? KEYS.hhJointReminders() : KEYS.jointReminders());
     setPersonal(Array.isArray(p) ? p : []);
     setJoint(Array.isArray(j) ? j : []);
   }, []);
@@ -782,7 +783,11 @@ function RemindersTab({ settings }) {
   useEffect(() => { loadReminders(); }, [loadReminders]);
 
   const savePersonal = async items => { setPersonal(items); await DB.set(KEYS.reminders(), items); };
-  const saveJoint = async items => { setJoint(items); await DB.set(KEYS.jointReminders(), items); };
+  const saveJoint = async items => {
+    setJoint(items);
+    const hid = window.__current_household_id;
+    await DB.set(hid ? KEYS.hhJointReminders() : KEYS.jointReminders(), items);
+  };
 
   const startVoice = () => {
     if (!window.SpeechRecognition && !window.webkitSpeechRecognition) { alert("Voice input not supported. Try Chrome on Android."); return; }

@@ -368,7 +368,8 @@ const KEYS = {
   hhMerchantRules: () => `hh:finance:merchant_rules`,
   hhCustomSubCats: () => `hh:finance:custom_subcats`,
   hhFinanceCoach: () => `hh:finance:coach`,
-  hhReceipt: id => `hh:receipts:${id}`
+  hhReceipt: id => `hh:receipts:${id}`,
+  hhJointReminders: () => `hh:reminders:joint`
 };
 
 // ── Master admin ──
@@ -2208,17 +2209,88 @@ function App() {
   }, []);
   const loadAll = async () => {
     setLoading(true);
+
+    // ── Step 1: Resolve household FIRST so all shared-data reads use the correct path ──
+    let resolvedHid = null;
+    try {
+      const hid = await DB.get(KEYS.userHouseholdId());
+      if (hid) {
+        resolvedHid = hid;
+        window.__current_household_id = hid;
+        setHouseholdId(hid);
+        try {
+          const metaSnap = await window.__firebase_db.ref(`households/${hid}/meta`).once("value");
+          if (metaSnap.exists()) {
+            const meta = metaSnap.val();
+            window.__current_household_meta = meta;
+            setHouseholdMeta(meta);
+            const uid = window.__current_uid;
+            const otherUids = Object.keys(meta.members || {}).filter(id => id !== uid);
+            window.__current_partner_uid = otherUids[0] || null;
+          }
+        } catch(e) {}
+      } else {
+        window.__current_household_id = null;
+        setHouseholdId(null);
+        setHouseholdMeta(null);
+
+        // ── Phase 2: email pre-link auto-join ──
+        try {
+          const auth = window.__firebase_auth;
+          const userEmail = auth && auth.currentUser && auth.currentUser.email;
+          if (userEmail) {
+            const encodedEmail = encodeEmailKey(userEmail);
+            const linkSnap = await window.__firebase_db.ref(`householdEmailLinks/${encodedEmail}`).once("value");
+            if (linkSnap.exists()) {
+              const pendingHid = linkSnap.val();
+              const metaSnap = await window.__firebase_db.ref(`households/${pendingHid}/meta`).once("value");
+              if (metaSnap.exists()) {
+                const pendingMeta = metaSnap.val();
+                const memberCount = Object.keys(pendingMeta.members || {}).length;
+                if (memberCount < 6) {
+                  const uid = window.__current_uid;
+                  const displayName = (auth.currentUser && auth.currentUser.displayName) || "Member";
+                  await window.__firebase_db.ref(`households/${pendingHid}/meta/members/${uid}`).set({
+                    name: displayName, email: userEmail.toLowerCase(),
+                    role: "member", joinedAt: new Date().toISOString()
+                  });
+                  await window.__firebase_db.ref(`users/${uid}/householdId`).set(pendingHid);
+                  await window.__firebase_db.ref(`householdEmailLinks/${encodedEmail}`).remove();
+                  await window.__firebase_db.ref(`households/${pendingHid}/meta/pendingInvites/${encodedEmail}`).remove();
+                  resolvedHid = pendingHid;
+                  window.__current_household_id = pendingHid;
+                  setHouseholdId(pendingHid);
+                  const updatedSnap = await window.__firebase_db.ref(`households/${pendingHid}/meta`).once("value");
+                  if (updatedSnap.exists()) {
+                    const updatedMeta = updatedSnap.val();
+                    window.__current_household_meta = updatedMeta;
+                    setHouseholdMeta(updatedMeta);
+                  }
+                }
+              }
+            }
+          }
+        } catch(e) {}
+      }
+    } catch(e) {}
+
+    // ── Step 2: Personal data (always per-user) ──
     const sd = await DB.get(KEYS.setupDone());
     const st = await DB.get(KEYS.settings());
     const go = await DB.get(KEYS.goals());
     const sk = await DB.get(KEYS.streak());
-    const ch = await DB.get(KEYS.chores());
     const as = await DB.get(KEYS.allSundays());
-    const pan = await DB.get(KEYS.pantry());
+
+    // ── Step 3: Shared data — use household path when in a household, personal path otherwise ──
+    const hid = resolvedHid; // local alias for clarity
+    const ch = await DB.get(hid ? KEYS.hhChores() : KEYS.chores());
+
+    // Pantry: household path first; fall back to legacy personal path if empty
+    const pan = await DB.get(hid ? KEYS.hhPantry() : KEYS.pantry());
     if (pan && pan.length > 0) {
       setPantryItems(pan);
-    } else {
-      // First launch for this user — check if old root-level pantry data exists (pre-auth migration)
+    } else if (!hid) {
+      // Solo mode only: check legacy root-level path (pre-auth migration)
       let migrated = false;
       if (window.__firebase_db && window.__current_uid) {
         try {
@@ -2229,19 +2301,24 @@ function App() {
               setPantryItems(oldData);
               await DB.set(KEYS.pantry(), oldData);
               migrated = true;
-              console.log("[Mission Log] Migrated", oldData.length, "pantry items from old path");
             }
           }
-        } catch(e) { /* migration optional — continue */ }
+        } catch(e) {}
       }
-      if (!migrated) {
-        // No seed data — pantry already exists in Firebase for existing users
-        setPantryItems([]);
-      }
+      if (!migrated) setPantryItems([]);
+    } else {
+      setPantryItems([]);
     }
+
+    // Joint reminders: shared when in household, personal otherwise
+    // Personal reminders always stay per-user
+    const rp = await DB.get(KEYS.reminders());
+    const rj = await DB.get(hid ? KEYS.hhJointReminders() : KEYS.jointReminders());
+    setReminders(Array.isArray(rp) ? rp : []);
+    setJointReminders(Array.isArray(rj) ? rj : []);
+
+    // ── Step 4: Remaining personal data ──
     if (!sd) {
-      // New user (e.g. Sabrina) — skip the onboarding wizard entirely.
-      // Auto-complete setup using their Google display name and sensible defaults.
       const displayName = (window.__firebase_auth && window.__firebase_auth.currentUser && window.__firebase_auth.currentUser.displayName) || "";
       const firstName = displayName.split(" ")[0] || "User";
       const autoSettings = { ...DEFAULT_SETTINGS, name: firstName };
@@ -2258,72 +2335,6 @@ function App() {
     setTasks(ch || CHORE_SEED);
     setAllSundays(as || []);
 
-    // Load household membership
-    try {
-      const hid = await DB.get(KEYS.userHouseholdId());
-      if (hid) {
-        window.__current_household_id = hid;
-        setHouseholdId(hid);
-        try {
-          const metaSnap = await window.__firebase_db.ref(`households/${hid}/meta`).once("value");
-          if (metaSnap.exists()) {
-            const meta = metaSnap.val();
-            window.__current_household_meta = meta;
-            setHouseholdMeta(meta);
-            // Set partner UID for food-tab / meal prompts key routing
-            const uid = window.__current_uid;
-            const otherUids = Object.keys(meta.members || {}).filter(id => id !== uid);
-            window.__current_partner_uid = otherUids[0] || null;
-          }
-        } catch(e) {}
-      } else {
-        window.__current_household_id = null;
-        setHouseholdId(null);
-        setHouseholdMeta(null);
-
-        // ── Phase 2: email pre-link auto-join ──
-        // If the leader pre-linked this user's email, auto-join their household
-        try {
-          const auth = window.__firebase_auth;
-          const userEmail = auth && auth.currentUser && auth.currentUser.email;
-          if (userEmail) {
-            const encodedEmail = encodeEmailKey(userEmail);
-            const linkSnap = await window.__firebase_db.ref(`householdEmailLinks/${encodedEmail}`).once("value");
-            if (linkSnap.exists()) {
-              const pendingHid = linkSnap.val();
-              const metaSnap = await window.__firebase_db.ref(`households/${pendingHid}/meta`).once("value");
-              if (metaSnap.exists()) {
-                const pendingMeta = metaSnap.val();
-                const memberCount = Object.keys(pendingMeta.members || {}).length;
-                if (memberCount < 6) {
-                  const uid = window.__current_uid;
-                  const displayName = (auth.currentUser && auth.currentUser.displayName) || "Member";
-                  // Add as member
-                  await window.__firebase_db.ref(`households/${pendingHid}/meta/members/${uid}`).set({
-                    name: displayName,
-                    email: userEmail.toLowerCase(),
-                    role: "member",
-                    joinedAt: new Date().toISOString()
-                  });
-                  // Set householdId on user profile
-                  await window.__firebase_db.ref(`users/${uid}/householdId`).set(pendingHid);
-                  // Remove consumed email link + pending invite entry
-                  await window.__firebase_db.ref(`householdEmailLinks/${encodedEmail}`).remove();
-                  await window.__firebase_db.ref(`households/${pendingHid}/meta/pendingInvites/${encodedEmail}`).remove();
-                  // Activate household
-                  window.__current_household_id = pendingHid;
-                  setHouseholdId(pendingHid);
-                  // Reload updated meta (now includes us as member)
-                  const updatedSnap = await window.__firebase_db.ref(`households/${pendingHid}/meta`).once("value");
-                  if (updatedSnap.exists()) setHouseholdMeta(updatedSnap.val());
-                }
-              }
-            }
-          }
-        } catch(e) {}
-      }
-    } catch(e) {}
-
     // Load today's log
     const td = await DB.get(KEYS.log(getToday()));
     setTodayLog(td || null);
@@ -2333,18 +2344,9 @@ function App() {
     for (let i = 0; i < 90; i++) {
       const d = addDays(getToday(), -i);
       const l = await DB.get(KEYS.log(d));
-      if (l) logs.push({
-        date: d,
-        ...l
-      });
+      if (l) logs.push({ date: d, ...l });
     }
     setAllLogs(logs);
-
-    // Load reminders
-    const rp = await DB.get(KEYS.reminders());
-    const rj = await DB.get(KEYS.jointReminders());
-    setReminders(Array.isArray(rp) ? rp : []);
-    setJointReminders(Array.isArray(rj) ? rj : []);
 
     // Load today's meal log + macro targets for Evening rating
     const ml = await DB.get(KEYS.mealLog(getToday()));
@@ -2357,11 +2359,7 @@ function App() {
     for (let i = 0; i < 365; i++) {
       const d = addDays(getToday(), -i);
       const l = await DB.get(KEYS.log(d));
-      if (l?.morning || l?.evening) {
-        s++;
-      } else {
-        break;
-      }
+      if (l?.morning || l?.evening) { s++; } else { break; }
     }
     setStreak(s);
     await DB.set(KEYS.streak(), s);
