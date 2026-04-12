@@ -372,7 +372,11 @@ const KEYS = {
   hhJointReminders: () => `hh:reminders:joint`,
   hhCustomMeals: () => `hh:food:custommeal`,
   hhWeekPlan: sun => `hh:food:weekplan:${sun}`,
-  hhGroceryCheck: sun => `hh:food:grocery:${sun}`
+  hhGroceryCheck: sun => `hh:food:grocery:${sun}`,
+  // Published meal libraries — top-level (not under users/ or households/)
+  // Accessed directly via window.__firebase_db.ref() — not through DB layer
+  // publishedLibraries/<hid>/meta + meals
+  // households/<hid>/meta/unlockedLibraries/<publisherHid>: true
 };
 
 // ── Master admin ──
@@ -1383,6 +1387,8 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
   const [allHouseholds, setAllHouseholds] = useState([]);
   const [masterLoading, setMasterLoading] = useState(false);
   const [viewingHousehold, setViewingHousehold] = useState(null); // { hid, meta }
+  const [libraryToggling, setLibraryToggling] = useState(false);
+  const [libraryMsg, setLibraryMsg] = useState("");
 
   const loadAllHouseholds = async () => {
     setMasterLoading(true);
@@ -1406,12 +1412,60 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
 
   const handleImpersonateHousehold = (hid, meta) => {
     setViewingHousehold({ hid, meta });
-    window.__master_viewing_household_id = hid; // read-only debug context
+    setLibraryMsg("");
+    window.__master_viewing_household_id = hid;
   };
 
   const handleExitImpersonate = () => {
     setViewingHousehold(null);
+    setLibraryMsg("");
     window.__master_viewing_household_id = null;
+  };
+
+  // ── Publish master's own library (run once / on update) ──
+  // Writes Ryan's household custom meals to publishedLibraries/<ryan_hid>/
+  const handlePublishLibrary = async () => {
+    if (!householdId) { setLibraryMsg("You need a household to publish from"); return; }
+    setLibraryToggling(true);
+    try {
+      const db = window.__firebase_db;
+      // Load Ryan's own household custom meals
+      const cm = await db.ref(`households/${householdId}/ml/food/custommeal`).once("value");
+      const meals = cm.exists() ? (cm.val() || []) : [];
+      await db.ref(`publishedLibraries/${householdId}/meta`).set({
+        name: "Ryan's Kitchen",
+        author: "Ryan",
+        publishedAt: new Date().toISOString(),
+        mealCount: meals.length
+      });
+      await db.ref(`publishedLibraries/${householdId}/meals`).set(meals);
+      setLibraryMsg("Published \u2014 " + meals.length + " meals live");
+    } catch(e) { setLibraryMsg("Error: " + e.message); }
+    setLibraryToggling(false);
+    setTimeout(() => setLibraryMsg(""), 4000);
+  };
+
+  // ── Grant / revoke library access for a specific household ──
+  const handleToggleLibraryAccess = async (targetHid, targetMeta) => {
+    if (!householdId) { setLibraryMsg("Publish your library first"); return; }
+    setLibraryToggling(true);
+    const db = window.__firebase_db;
+    const hasAccess = !!(targetMeta.unlockedLibraries && targetMeta.unlockedLibraries[householdId]);
+    try {
+      if (hasAccess) {
+        await db.ref(`households/${targetHid}/meta/unlockedLibraries/${householdId}`).remove();
+      } else {
+        await db.ref(`households/${targetHid}/meta/unlockedLibraries/${householdId}`).set(true);
+      }
+      // Refresh the household list so the toggle updates immediately
+      await loadAllHouseholds();
+      // Also update viewingHousehold meta
+      const freshSnap = await db.ref(`households/${targetHid}/meta`).once("value");
+      if (freshSnap.exists()) setViewingHousehold({ hid: targetHid, meta: freshSnap.val() });
+      setLibraryMsg(hasAccess ? "Access revoked" : "Access granted \u2714");
+    } catch(e) { setLibraryMsg("Error: " + e.message); }
+    setLibraryToggling(false);
+    setTimeout(() => setLibraryMsg(""), 3000);
   };
 
   const handleInviteByEmail = async () => {
@@ -1762,10 +1816,18 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
           "Read-only access to all households for troubleshooting. No data is modified."
         ),
         !showMasterPanel
-          ? React.createElement("button", {
-              onClick: handleOpenMaster,
-              style: { background: "rgba(167,139,250,.15)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 8, color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "7px 14px", cursor: "pointer" }
-            }, masterLoading ? "Loading..." : "View All Households")
+          ? React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+              React.createElement("button", {
+                onClick: handleOpenMaster,
+                style: { background: "rgba(167,139,250,.15)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 8, color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "7px 14px", cursor: "pointer" }
+              }, masterLoading ? "Loading..." : "View All Households"),
+              React.createElement("button", {
+                onClick: handlePublishLibrary,
+                disabled: libraryToggling,
+                style: { background: "rgba(244,168,35,.15)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 8, color: "#f4a823", fontSize: 11, fontWeight: 700, padding: "7px 14px", cursor: "pointer", opacity: libraryToggling ? .5 : 1 }
+              }, libraryToggling ? "Publishing..." : "\uD83D\uDCD6 Publish My Library"),
+              libraryMsg && React.createElement("p", { style: { color: "#4ade80", fontSize: 11, margin: "4px 0 0", fontWeight: 700, width: "100%" } }, libraryMsg)
+            )
           : React.createElement("div", null,
               masterLoading && React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12 } }, "Loading households..."),
 
@@ -1814,6 +1876,38 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                       Object.values(viewingHousehold.meta.pendingInvites).map((inv, i) =>
                         React.createElement("p", { key: i, style: { color: "var(--text-secondary)", fontSize: 11, margin: "2px 0" } }, inv.email)
                       )
+                    ),
+
+                    // ── Library access toggle ──
+                    React.createElement("div", { style: { marginTop: 14, background: "rgba(244,168,35,.06)", border: "1px solid rgba(244,168,35,.2)", borderRadius: 8, padding: "12px 14px" } },
+                      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+                        React.createElement("div", null,
+                          React.createElement("p", { style: { color: "#f4a823", fontSize: 11, fontWeight: 800, margin: "0 0 2px", letterSpacing: ".05em", fontFamily: "'Syne',sans-serif" } }, "MEAL LIBRARY ACCESS"),
+                          React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } },
+                            (viewingHousehold.meta.unlockedLibraries && viewingHousehold.meta.unlockedLibraries[householdId])
+                              ? "Has access to Ryan's Kitchen"
+                              : "No library access granted"
+                          )
+                        ),
+                        React.createElement("div", {
+                          onClick: () => !libraryToggling && handleToggleLibraryAccess(viewingHousehold.hid, viewingHousehold.meta),
+                          style: {
+                            width: 44, height: 24, borderRadius: 12, cursor: libraryToggling ? "not-allowed" : "pointer",
+                            position: "relative", flexShrink: 0, opacity: libraryToggling ? .5 : 1,
+                            background: (viewingHousehold.meta.unlockedLibraries && viewingHousehold.meta.unlockedLibraries[householdId]) ? "#f4a823" : "rgba(255,255,255,.12)",
+                            transition: "background .2s"
+                          }
+                        },
+                          React.createElement("div", {
+                            style: {
+                              position: "absolute", top: 3, width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                              transition: "left .2s",
+                              left: (viewingHousehold.meta.unlockedLibraries && viewingHousehold.meta.unlockedLibraries[householdId]) ? 23 : 3
+                            }
+                          })
+                        )
+                      ),
+                      libraryMsg && React.createElement("p", { style: { color: libraryMsg.includes("Error") ? "#ef4444" : "#4ade80", fontSize: 11, margin: "4px 0 0", fontWeight: 700 } }, libraryMsg)
                     )
                   )
                 : React.createElement("div", null,

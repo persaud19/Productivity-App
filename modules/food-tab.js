@@ -1151,6 +1151,8 @@
   // ─────────────────────────────────────────────────────────────────────────────
   function LibraryTab({
     customMeals,
+    importedMeals = [],
+    importedLibMeta = [],
     onAddMeal,
     onDeleteCustom,
     pantryItems = []
@@ -1159,19 +1161,24 @@
     const [search, setSearch] = useState("");
     const [sort, setSort] = useState("pantry");
     const [showAdd, setShowAdd] = useState(false);
-    const allMeals = [...MEALS_DB, ...customMeals];
+    const [libSection, setLibSection] = useState("default"); // default | custom | imported
+    const allMeals = [...MEALS_DB, ...customMeals, ...importedMeals];
     const catMap = {
       "All": null,
       "Breakfast": "B",
       "Lunch": "L",
       "Dinner": "D"
     };
+    // Which pool to show based on selected section
+    const sectionPool = libSection === "custom" ? customMeals
+      : libSection === "imported" ? importedMeals
+      : MEALS_DB;
     const counts = {
-      B: allMeals.filter(m => m.cat === "B").length,
-      L: allMeals.filter(m => m.cat === "L").length,
-      D: allMeals.filter(m => m.cat === "D").length
+      B: sectionPool.filter(m => m.cat === "B").length,
+      L: sectionPool.filter(m => m.cat === "L").length,
+      D: sectionPool.filter(m => m.cat === "D").length
     };
-    const filtered = allMeals.filter(m => !catMap[cat] || m.cat === catMap[cat]).filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => {
+    const filtered = sectionPool.filter(m => !catMap[cat] || m.cat === catMap[cat]).filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => {
       if (sort === "pantry") return pantryMatch(b, pantryItems).pct - pantryMatch(a, pantryItems).pct;
       if (sort === "cal") return a.cal - b.cal;
       if (sort === "prot") return b.prot - a.prot;
@@ -1183,7 +1190,31 @@
       setShowAdd(false);
     };
     const canMakeNow = pantryItems.length > 0 ? allMeals.filter(m => pantryMatch(m, pantryItems).pct >= 80).length : 0;
-    return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    return /*#__PURE__*/React.createElement("div", null,
+
+      // ── Section switcher: Default / Mine / Imported ──
+      React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 14, background: "rgba(255,255,255,.03)", borderRadius: 10, padding: 4 } },
+        [
+          ["default", "DEFAULT (" + MEALS_DB.length + ")", "#f4a823"],
+          ["custom", "MINE (" + customMeals.length + ")", "#60a5fa"],
+          ...(importedMeals.length > 0 ? [["imported", "\uD83D\uDCD6 STARTER (" + importedMeals.length + ")", "#a78bfa"]] : [])
+        ].map(([id, label, col]) =>
+          React.createElement("button", {
+            key: id, onClick: () => { setLibSection(id); setCat("All"); setSearch(""); },
+            style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: ".05em", background: libSection === id ? col + "22" : "transparent", color: libSection === id ? col : "var(--text-muted)", fontFamily: "'Syne',sans-serif" }
+          }, label)
+        )
+      ),
+
+      // Imported library banner
+      libSection === "imported" && importedLibMeta.length > 0 && React.createElement("div", {
+        style: { background: "rgba(167,139,250,.08)", border: "1px solid rgba(167,139,250,.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 12 }
+      },
+        React.createElement("p", { style: { color: "#a78bfa", fontWeight: 800, fontSize: 12, margin: "0 0 2px", fontFamily: "'Syne',sans-serif" } }, "\uD83D\uDCD6 " + (importedLibMeta[0].name || "Starter Library")),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: 0 } }, "Curated by " + (importedLibMeta[0].author || "Ryan") + " \xB7 Read-only \xB7 Available in your week planner")
+      ),
+
+      /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
         justifyContent: "space-between",
@@ -1206,7 +1237,7 @@
         fontWeight: 700,
         margin: "0 0 1px"
       }
-    }, "\uD83D\uDCD6 ", allMeals.length, " meals \xB7 ", counts.B, "B \xB7 ", counts.L, "L \xB7 ", counts.D, "D"), /*#__PURE__*/React.createElement("p", {
+    }, "\uD83D\uDCD6 ", sectionPool.length, " meals \xB7 ", counts.B, "B \xB7 ", counts.L, "L \xB7 ", counts.D, "D"), /*#__PURE__*/React.createElement("p", {
       style: {
         color: "var(--text-secondary)",
         fontSize: 10,
@@ -1217,7 +1248,9 @@
         color: "#4ade80",
         fontWeight: 700
       }
-    }, canMakeNow), " meals 80%+ covered by your pantry") : "Tap any card for ingredients + steps")), /*#__PURE__*/React.createElement("button", {
+    }, canMakeNow), " meals 80%+ covered by your pantry") : "Tap any card for ingredients + steps")),
+    // Only show + Add button when viewing own custom meals section
+    libSection === "custom" && /*#__PURE__*/React.createElement("button", {
       onClick: () => setShowAdd(true),
       style: {
         padding: "10px 14px",
@@ -2863,6 +2896,8 @@
     const [generatingTargets, setGeneratingTargets] = useState(false);
     const [sabrinaPrompts, setSabrinaPrompts] = useState([]);
     const [activeSabrinaPrompt, setActiveSabrinaPrompt] = useState(null);
+    const [importedMeals, setImportedMeals] = useState([]); // meals from unlocked published libraries
+    const [importedLibMeta, setImportedLibMeta] = useState([]); // [{ name, author, mealCount }]
     const sunKey = getSundayKey();
   
     useEffect(() => {
@@ -2884,6 +2919,34 @@
         setCheckedItems(ci || {});
         const cm = await DB.get(hid ? KEYS.hhCustomMeals() : KEYS.customMeals());
         setCustomMeals(cm || []);
+
+        // Load any published libraries this household has been granted access to
+        if (hid && window.__firebase_db) {
+          try {
+            const metaSnap = await window.__firebase_db.ref(`households/${hid}/meta/unlockedLibraries`).once("value");
+            if (metaSnap.exists()) {
+              const unlockedHids = Object.keys(metaSnap.val() || {});
+              const allImported = [];
+              const allMeta = [];
+              for (const libHid of unlockedHids) {
+                const libSnap = await window.__firebase_db.ref(`publishedLibraries/${libHid}`).once("value");
+                if (libSnap.exists()) {
+                  const libData = libSnap.val();
+                  const meals = Array.isArray(libData.meals) ? libData.meals : [];
+                  // Tag each meal so LibraryTab knows it's read-only
+                  meals.forEach(m => allImported.push({ ...m, _imported: true, _libName: libData.meta?.name || "Imported" }));
+                  if (libData.meta) allMeta.push(libData.meta);
+                }
+              }
+              setImportedMeals(allImported);
+              setImportedLibMeta(allMeta);
+            } else {
+              setImportedMeals([]);
+              setImportedLibMeta([]);
+            }
+          } catch(e) { setImportedMeals([]); setImportedLibMeta([]); }
+        }
+
         const ck = await DB.get(KEYS.cookedMeals(sunKey)); // cooked log stays personal
 
         setCookedMeals(ck || {});
@@ -3028,7 +3091,8 @@
       return { calories: cal, protein: prot, carbs, fat };
     }, [mealLog]);
   
-    const allMeals = [...MEALS_DB, ...customMeals];
+    // importedMeals are tagged _imported:true — included in planning but read-only in library
+    const allMeals = [...MEALS_DB, ...customMeals, ...importedMeals];
     const canMake = pantryItems.length > 0 ? allMeals.filter(m => pantryMatch(m, pantryItems).pct >= 80).length : 0;
     // health mode: LOG only. home mode: WEEK / LIBRARY / GROCERY only.
     const subTabs = mode === "home"
@@ -3191,6 +3255,8 @@
       onCookMeal: handleCookMeal
     }), subTab === "library" && /*#__PURE__*/React.createElement(LibraryTab, {
       customMeals: customMeals,
+      importedMeals: importedMeals,
+      importedLibMeta: importedLibMeta,
       onAddMeal: async m => {
         const hid = window.__current_household_id;
         const u = [...customMeals, m];
