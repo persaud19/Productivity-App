@@ -316,7 +316,10 @@ const KEYS = {
   streak: () => `ml:streak`,
   goals: () => `ml:goals`,
   completedGoals: () => `ml:goals:completed`,
-  milestones: () => `ml:milestones`,
+  milestones: () => `ml:milestones`,          // LEGACY — do not write new data here
+  achievementLog: () => `ml:achievements`,    // step goals, goal completions, celebrations
+  children: () => `ml:children`,              // array of { id, name, dob? } objects
+  childMilestones: id => `ml:milestones:child:${id}`, // per-child life moments
   chores: () => `ml:chores`,
   pantry: () => `ml:food:pantry`,
   weekPlan: sun => `ml:food:weekplan:${sun}`,
@@ -490,7 +493,8 @@ function applyTheme(name) {
 const DEFAULT_SETTINGS = {
   name: "",
   partnerName: "",
-  sonName: "",
+  sonName: "",         // legacy — kept for backward compat
+  children: [],        // [{ id, name, dob }] — new multi-child array
   age: "",
   weightGoal: "",
   weightStart: "",
@@ -1336,7 +1340,14 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
   // ── Profile fields ──
   const [profileName, setProfileName] = useState(settings.name || "");
   const [profilePartner, setProfilePartner] = useState(settings.partnerName || "");
-  const [profileSon, setProfileSon] = useState(settings.sonName || "");
+  const [profileSon, setProfileSon] = useState(settings.sonName || ""); // legacy, kept for compat
+  // New multi-child: seed from settings.children; if none but legacy sonName exists, convert
+  const [children, setChildren] = useState(() => {
+    if (settings.children && settings.children.length > 0) return settings.children;
+    if (settings.sonName) return [{ id: "child_legacy", name: settings.sonName, dob: "" }];
+    return [];
+  });
+  const [newChildName, setNewChildName] = useState("");
   const [profileAge, setProfileAge] = useState(settings.age || "");
 
   // ── Household invite-by-email state (leader only) ──
@@ -1542,7 +1553,8 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       theme,
       name: profileName.trim() || settings.name,
       partnerName: profilePartner.trim(),
-      sonName: profileSon.trim(),
+      sonName: children.length === 1 ? children[0].name : (profileSon.trim()), // keep legacy in sync
+      children: children,
       age: profileAge ? parseInt(profileAge) : ""
     };
     await DB.set(KEYS.settings(), updated);
@@ -1608,14 +1620,41 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
               style: { ...inp }
             })
           ),
-          React.createElement("div", null,
-            React.createElement("p", { style: { ...label, marginBottom: 4 } }, "KID'S NAME"),
-            React.createElement("input", {
-              value: profileSon,
-              onChange: e => setProfileSon(e.target.value),
-              placeholder: "Optional",
-              style: { ...inp }
-            })
+          React.createElement("div", { style: { gridColumn: "1 / -1" } },
+            React.createElement("p", { style: { ...label, marginBottom: 8 } }, "CHILDREN"),
+            children.map((c, i) =>
+              React.createElement("div", { key: c.id, style: { display: "flex", gap: 7, alignItems: "center", marginBottom: 6 } },
+                React.createElement("input", {
+                  value: c.name,
+                  onChange: e => setChildren(prev => prev.map((x, xi) => xi === i ? { ...x, name: e.target.value } : x)),
+                  placeholder: "Name...",
+                  style: { ...inp, flex: 1, fontSize: 13 }
+                }),
+                React.createElement("input", {
+                  type: "date",
+                  value: c.dob || "",
+                  onChange: e => setChildren(prev => prev.map((x, xi) => xi === i ? { ...x, dob: e.target.value } : x)),
+                  style: { ...inp, width: 130, fontSize: 12, colorScheme: "dark" }
+                }),
+                React.createElement("button", {
+                  onClick: () => setChildren(prev => prev.filter((_, xi) => xi !== i)),
+                  style: { padding: "8px 11px", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.2)", borderRadius: 8, color: "#ef4444", cursor: "pointer", fontSize: 14, flexShrink: 0 }
+                }, "✕")
+              )
+            ),
+            React.createElement("div", { style: { display: "flex", gap: 7, alignItems: "center" } },
+              React.createElement("input", {
+                value: newChildName,
+                onChange: e => setNewChildName(e.target.value),
+                onKeyDown: e => { if (e.key === "Enter" && newChildName.trim()) { setChildren(prev => [...prev, { id: "child_" + Date.now(), name: newChildName.trim(), dob: "" }]); setNewChildName(""); } },
+                placeholder: children.length === 0 ? "No children added yet — tap + to add" : "Add another child...",
+                style: { ...inp, flex: 1, fontSize: 13 }
+              }),
+              newChildName.trim() && React.createElement("button", {
+                onClick: () => { setChildren(prev => [...prev, { id: "child_" + Date.now(), name: newChildName.trim(), dob: "" }]); setNewChildName(""); },
+                style: { padding: "8px 12px", background: "#4ade80", border: "none", borderRadius: 8, color: "#080b11", fontWeight: 800, cursor: "pointer", fontSize: 13, flexShrink: 0 }
+              }, "+")
+            )
           )
         ),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "8px 0 0", lineHeight: 1.5 } },
@@ -2202,6 +2241,12 @@ window.__ml = {
   callClaude,
   useAutoSave, getMondayOfWeek, getDayKey, ALL_EXERCISES,
   C, CL, inp, Lbl, SectionHead,
+  // Returns children array from current settings, falling back to legacy sonName
+  getChildren: (settingsObj) => {
+    if (settingsObj && settingsObj.children && settingsObj.children.length > 0) return settingsObj.children;
+    if (settingsObj && settingsObj.sonName) return [{ id: "child_legacy", name: settingsObj.sonName, dob: "" }];
+    return [];
+  },
   // Household helpers — modules use these to check household state
   getHouseholdId: () => window.__current_household_id || null,
   getHouseholdMeta: () => window.__current_household_meta || null,
@@ -2378,6 +2423,10 @@ function App() {
     const go = await DB.get(KEYS.goals());
     const sk = await DB.get(KEYS.streak());
     const as = await DB.get(KEYS.allSundays());
+    // Hydrate children array from settings or legacy sonName
+    if (st && !st.children) {
+      st.children = st.sonName ? [{ id: "child_legacy", name: st.sonName, dob: "" }] : [];
+    }
 
     // ── Step 3: Shared data — use household path when in a household, personal path otherwise ──
     const hid = resolvedHid; // local alias for clarity
@@ -2469,9 +2518,9 @@ function App() {
   };
   const handleMilestone = msg => {
     setCelebration(msg);
-    // Store in milestones
-    DB.get(KEYS.milestones()).then(ms => {
-      DB.set(KEYS.milestones(), [{
+    // Store in achievementLog (separate from child life milestones)
+    DB.get(KEYS.achievementLog()).then(ms => {
+      DB.set(KEYS.achievementLog(), [{
         text: msg,
         date: getToday(),
         timestamp: new Date().toISOString()

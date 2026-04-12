@@ -2,7 +2,7 @@
 // Contains: Morning, Evening, Goals, Sunday and all sub-components
 (function () {
   'use strict';
-  const { DB, KEYS, getToday, fmtDate, fmtMid, fmtLong, addDays, daysBetween, getSundayKey, callClaude, useAutoSave, getMondayOfWeek, getDayKey, ALL_EXERCISES, C, CL, inp, Lbl, SectionHead } = window.__ml;
+  const { DB, KEYS, getToday, fmtDate, fmtMid, fmtLong, addDays, daysBetween, getSundayKey, callClaude, useAutoSave, getMondayOfWeek, getDayKey, ALL_EXERCISES, C, CL, inp, Lbl, SectionHead, getChildren } = window.__ml;
   const { useState, useEffect, useRef, useCallback, useMemo } = React;
   const GOAL_CATEGORY_META = window.GOAL_CATEGORY_META;
   const GOAL_TEMPLATES = window.GOAL_TEMPLATES;
@@ -1282,7 +1282,9 @@ function Evening({
     e: "✗",
     c: "#ef4444"
   }];
-  const sonName = settings?.sonName || "your son";
+  const childrenList = getChildren(settings);
+  const childNames = childrenList.map(c => c.name).filter(Boolean);
+  const familyNames = [window.__ml.getPartnerName(settings), ...childNames].join(" or ");
   const partnerName = window.__ml.getPartnerName(settings);
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1545,7 +1547,7 @@ function Evening({
     });
   })(), /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: `Moment with ${partnerName}${sonName ? " or " + sonName : ""}?`
+      c: `Moment with ${familyNames}?`
     }), /*#__PURE__*/React.createElement("input", {
       type: "text",
       value: familyMoment,
@@ -2462,7 +2464,11 @@ function SundayBrief({
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
-          system: `You are ${settings?.name || "the user"}'s accountability partner. ${settings?.name || "User"} lives with ${window.__ml.getPartnerName(settings)}${settings?.sonName ? " and " + settings.sonName : ""}, follows a 7 Pillars life framework.\n\nWrite a 5-line Sunday accountability brief:\n- Line 1 (Result): Biggest result with specific numbers.\n- Line 2 (Gap): The real gap — identify the data pattern, be direct, no softening.\n- Line 3 (Win): Something specific that went well this week.\n- Line 4 (Focus): The gap reframed as one concrete action for next week.\n- Line 5 (Close): One short sentence that lands. No fluff.\n\nIf previous weeks data is provided, reference trends across weeks — not just this week.\nTone: Direct, warm, no lectures, no guilt trips. Be honest and reference specific wins.`,
+          system: (() => {
+            const kids = getChildren(settings);
+            const kidsStr = kids.length > 0 ? " and " + kids.map(c => c.name).join(", ") : (settings?.sonName ? " and " + settings.sonName : "");
+            return `You are ${settings?.name || "the user"}'s accountability partner. ${settings?.name || "User"} lives with ${window.__ml.getPartnerName(settings)}${kidsStr}, follows a 7 Pillars life framework.\n\nWrite a 5-line Sunday accountability brief:\n- Line 1 (Result): Biggest result with specific numbers.\n- Line 2 (Gap): The real gap — identify the data pattern, be direct, no softening.\n- Line 3 (Win): Something specific that went well this week.\n- Line 4 (Focus): The gap reframed as one concrete action for next week.\n- Line 5 (Close): One short sentence that lands. No fluff.\n\nIf previous weeks data is provided, reference trends across weeks — not just this week.\nTone: Direct, warm, no lectures, no guilt trips. Be honest and reference specific wins.`;
+          })(),
           messages: [{
             role: "user",
             content: `Data:\n\n${ctx}\n\nWrite the 5-line brief.`
@@ -2672,10 +2678,10 @@ function Sunday({
   const [faithNote, setFaithNote] = useState("");
   const [faithScripture, setFaithScripture] = useState("");
   const [faithMoment, setFaithMoment] = useState("");
-  const [milestones, setMilestones] = useState([]);
-  const [newMilestone, setNewMilestone] = useState("");
-  const [addingMs, setAddingMs] = useState(false);
-  const [sundayOpts, setSundayOpts] = useState({ showFaith: true, showReading: true });
+  const [childMilestonesMap, setChildMilestonesMap] = useState({}); // { childId: [milestone...] }
+  const [newMilestoneMap, setNewMilestoneMap] = useState({});       // { childId: "typing..." }
+  const [addingMsFor, setAddingMsFor] = useState(null);             // childId currently expanding add row
+  const [sundayOpts, setSundayOpts] = useState({ showFaith: true, showReading: true, showChildren: true });
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
   const [ok, setOk] = useState(false);
@@ -2694,10 +2700,25 @@ function Sunday({
         setFaithScripture(d.faithScripture || "");
         setFaithMoment(d.faithMoment || "");
       }
-      const ms = await DB.get(KEYS.milestones());
-      setMilestones(ms || []);
+      // Load per-child milestones — also migrate legacy ml:milestones to first child if present
+      const childList = getChildren(settings);
+      const map = {};
+      for (const child of childList) {
+        const ms = await DB.get(KEYS.childMilestones(child.id));
+        map[child.id] = ms || [];
+      }
+      // Migration: if legacy milestones exist and not yet migrated, move them to first child
+      const legacyMs = await DB.get(KEYS.milestones());
+      if (legacyMs && legacyMs.length > 0 && childList.length > 0) {
+        const firstId = childList[0].id;
+        if (!map[firstId] || map[firstId].length === 0) {
+          map[firstId] = legacyMs;
+          await DB.set(KEYS.childMilestones(firstId), legacyMs);
+        }
+      }
+      setChildMilestonesMap(map);
       const opts = await DB.get(KEYS.sundayOptions());
-      if (opts) setSundayOpts(opts);
+      if (opts) setSundayOpts(prev => ({ ...prev, ...opts }));
     })();
   }, []);
   const reviewData = {
@@ -2745,18 +2766,16 @@ function Sunday({
     setBusy(false);
     setOk(true);
   };
-  const addMilestone = async () => {
-    if (!newMilestone.trim()) return;
-    const entry = {
-      text: newMilestone,
-      date: getToday(),
-      timestamp: new Date().toISOString()
-    };
-    const updated = [entry, ...milestones];
-    setMilestones(updated);
-    await DB.set(KEYS.milestones(), updated);
-    setNewMilestone("");
-    setAddingMs(false);
+  const addMilestone = async (childId) => {
+    const text = (newMilestoneMap[childId] || "").trim();
+    if (!text) return;
+    const entry = { text, date: getToday(), timestamp: new Date().toISOString() };
+    const existing = childMilestonesMap[childId] || [];
+    const updated = [entry, ...existing];
+    setChildMilestonesMap(prev => ({ ...prev, [childId]: updated }));
+    setNewMilestoneMap(prev => ({ ...prev, [childId]: "" }));
+    setAddingMsFor(null);
+    await DB.set(KEYS.childMilestones(childId), updated);
   };
   const startVoice = () => {
     if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
@@ -3000,7 +3019,7 @@ function Sunday({
     style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }
   }, /*#__PURE__*/React.createElement(Lbl, { c: "At a Glance" }),
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 5 } },
-      [["showFaith", "💜 Faith"], ["showReading", "📚 Reading"]].map(([key, label]) =>
+      [[...getChildren(settings).length > 0 ? [["showChildren", "👶 Kids"]] : [], ["showFaith", "💜 Faith"], ["showReading", "📚 Reading"]]].flat().map(([key, label]) =>
         /*#__PURE__*/React.createElement("button", {
           key: key,
           onClick: () => toggleSundayOpt(key),
@@ -3648,106 +3667,46 @@ function Sunday({
     s: {
       marginBottom: 12
     }
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 6
-      }
-    }, /*#__PURE__*/React.createElement(Lbl, {
-      c: `${settings?.sonName || "Your Son"}'s Milestones`
-    }), /*#__PURE__*/React.createElement("button", {
-      onClick: () => setAddingMs(!addingMs),
-      style: {
-        padding: "4px 10px",
-        background: "rgba(244,114,182,.12)",
-        border: "1px solid rgba(244,114,182,.25)",
-        color: "#f472b6",
-        borderRadius: 7,
-        fontSize: 11,
-        fontWeight: 700,
-        cursor: "pointer"
-      }
-    }, "+ Add")), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--text-muted)",
-        fontSize: 11,
-        margin: "0 0 10px",
-        lineHeight: 1.5
-      }
-    }, "These moments are permanent \u2014 never overwritten."), addingMs && /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        gap: 7,
-        marginBottom: 10
-      }
-    }, /*#__PURE__*/React.createElement("input", {
-      value: newMilestone,
-      onChange: e => setNewMilestone(e.target.value),
-      placeholder: "A moment worth keeping forever...",
-      style: {
-        ...inp,
-        flex: 1,
-        fontSize: 13
-      },
-      onKeyDown: e => e.key === "Enter" && addMilestone()
-    }), /*#__PURE__*/React.createElement("button", {
-      onClick: addMilestone,
-      style: {
-        padding: "8px 13px",
-        background: "#f472b6",
-        color: "#080b11",
-        border: "none",
-        borderRadius: 8,
-        fontSize: 12,
-        fontWeight: 800,
-        cursor: "pointer",
-        flexShrink: 0
-      }
-    }, "\u2713")), milestones.length > 0 ? /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        flexDirection: "column",
-        gap: 6
-      }
-    }, milestones.slice(0, 20).map((m, i) => /*#__PURE__*/React.createElement("div", {
-      key: i,
-      style: {
-        display: "flex",
-        gap: 9,
-        padding: "8px 10px",
-        background: "rgba(244,114,182,.04)",
-        borderRadius: 8,
-        border: "1px solid rgba(244,114,182,.1)",
-        alignItems: "flex-start"
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: "#f472b6",
-        fontSize: 10,
-        fontWeight: 700,
-        flexShrink: 0,
-        marginTop: 2
-      }
-    }, fmtDate(m.date)), /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: "#c9ccd4",
-        fontSize: 12,
-        flex: 1
-      }
-    }, m.text)))) : /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--text-muted)",
-        fontSize: 12,
-        margin: 0
-      }
-    }, "No milestones yet. Add the first one.")),
-    s: {
-      marginBottom: 12
-    }
-  }), /*#__PURE__*/React.createElement(Card, {
+  }), sundayOpts.showChildren && getChildren(settings).map(child =>
+    /*#__PURE__*/React.createElement(Card, {
+      key: child.id,
+      ch: /*#__PURE__*/React.createElement(React.Fragment, null,
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+          /*#__PURE__*/React.createElement(Lbl, { c: child.name + "'s Milestones" }),
+          /*#__PURE__*/React.createElement("button", {
+            onClick: () => setAddingMsFor(addingMsFor === child.id ? null : child.id),
+            style: { padding: "4px 10px", background: "rgba(244,114,182,.12)", border: "1px solid rgba(244,114,182,.25)", color: "#f472b6", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+          }, "+ Add")
+        ),
+        /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 } }, "These moments are permanent \u2014 never overwritten."),
+        addingMsFor === child.id && /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 7, marginBottom: 10 } },
+          /*#__PURE__*/React.createElement("input", {
+            value: newMilestoneMap[child.id] || "",
+            onChange: e => setNewMilestoneMap(prev => ({ ...prev, [child.id]: e.target.value })),
+            placeholder: "A moment worth keeping forever...",
+            style: { ...inp, flex: 1, fontSize: 13 },
+            onKeyDown: e => e.key === "Enter" && addMilestone(child.id),
+            autoFocus: true
+          }),
+          /*#__PURE__*/React.createElement("button", {
+            onClick: () => addMilestone(child.id),
+            style: { padding: "8px 13px", background: "#f472b6", color: "#080b11", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", flexShrink: 0 }
+          }, "\u2713")
+        ),
+        (childMilestonesMap[child.id] || []).length > 0
+          ? /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
+              (childMilestonesMap[child.id] || []).slice(0, 20).map((m, i) =>
+                /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", gap: 9, padding: "8px 10px", background: "rgba(244,114,182,.04)", borderRadius: 8, border: "1px solid rgba(244,114,182,.1)", alignItems: "flex-start" } },
+                  /*#__PURE__*/React.createElement("span", { style: { color: "#f472b6", fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 } }, fmtDate(m.date)),
+                  /*#__PURE__*/React.createElement("span", { style: { color: "#c9ccd4", fontSize: 12, flex: 1 } }, m.text)
+                )
+              )
+            )
+          : /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: 0 } }, "No milestones yet. Add the first one.")
+      ),
+      s: { marginBottom: 12 }
+    })
+  ), /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
       c: "Biggest Win This Week"
     }), /*#__PURE__*/React.createElement("input", {
@@ -3786,7 +3745,43 @@ function Sunday({
       background: "rgba(74,222,128,.06)",
       marginBottom: 12
     }
-  }), /*#__PURE__*/React.createElement("button", {
+  }), (() => {
+    // ── Recommended Modules ──
+    const recs = [
+      { key: "showChildren", icon: "👶", title: "Children & Milestones", desc: "Track life moments for each child. Supports multiple kids.", active: sundayOpts.showChildren && getChildren(settings).length > 0, missing: getChildren(settings).length === 0, hint: "Add children in Settings → Profile to unlock" },
+      { key: "showFaith", icon: "💜", title: "Faith & Reflection", desc: "A scripture, a felt moment, and anything on your heart.", active: sundayOpts.showFaith, hint: "Toggle on with the pill above" },
+      { key: "showReading", icon: "📚", title: "Reading Log", desc: "Book title, pages read, and a voice-dictated reflection.", active: sundayOpts.showReading, hint: "Toggle on with the pill above" },
+      { key: null, icon: "🏋️", title: "Workout Notes", desc: "A weekly free-text reflection on training quality and how your body felt.", active: false, hint: "Coming soon" },
+      { key: null, icon: "💤", title: "Sleep Journal", desc: "Track sleep quality trends across weeks, not just nightly hours.", active: false, hint: "Coming soon" },
+      { key: null, icon: "🧠", title: "Mental Health Check-in", desc: "Anxiety level, emotional regulation, and one coping win.", active: false, hint: "Coming soon" },
+      { key: null, icon: "📸", title: "Photo Memory", desc: "Attach one photo each week — a visual timeline of your life.", active: false, hint: "Coming soon" },
+      { key: null, icon: "🌱", title: "Habit Tracker Summary", desc: "See which daily habits held vs broke down this week.", active: false, hint: "Tied to Goals habit mode — coming soon" },
+      { key: null, icon: "🤝", title: "Relationship Score", desc: "Rate key relationships weekly: partner, family, friendships.", active: false, hint: "Coming soon" },
+    ];
+    const inactive = recs.filter(r => !r.active);
+    if (inactive.length === 0) return null;
+    return /*#__PURE__*/React.createElement(Card, {
+      ch: /*#__PURE__*/React.createElement(React.Fragment, null,
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 } },
+          /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 12, margin: 0 } }, "✨ MODULES YOU COULD ADD"),
+          /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, inactive.length + " available")
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+          inactive.map((r, i) =>
+            /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", gap: 11, padding: "10px 12px", background: "rgba(167,139,250,.04)", border: "1px solid rgba(167,139,250,.1)", borderRadius: 10, alignItems: "flex-start" } },
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 20, flexShrink: 0, marginTop: 1 } }, r.icon),
+              /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+                /*#__PURE__*/React.createElement("p", { style: { color: "#c9ccd4", fontSize: 12, fontWeight: 700, margin: "0 0 2px" } }, r.title),
+                /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "0 0 3px", lineHeight: 1.5 } }, r.desc),
+                /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontSize: 10, margin: 0, opacity: 0.7 } }, r.hint)
+              )
+            )
+          )
+        )
+      ),
+      s: { marginBottom: 12 }
+    });
+  })(), /*#__PURE__*/React.createElement("button", {
     onClick: go,
     disabled: busy,
     style: {
