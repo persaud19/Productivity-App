@@ -331,6 +331,7 @@ const KEYS = {
   winsArchive: () => `ml:wins:all`,
   sundayIndex: () => `ml:sunday:index`,
   sundayOptions: () => `ml:sunday:options`,
+  weeklyModule: (sun, mod) => `ml:sunday:module:${sun}:${mod}`,
   workoutNotes: sun => `ml:workout:notes:${sun}`,
   mentalHealth: sun => `ml:mental:health:${sun}`,
   habitReflection: sun => `ml:habit:reflection:${sun}`,
