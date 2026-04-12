@@ -32,6 +32,7 @@ function TasksTab({
   const [doneTask, setDoneTask] = useState(null);
   const [editTask, setEditTask] = useState(null);
   const [doneDateState, setDoneDateState] = useState(getToday());
+  const [doneByState, setDoneByState] = useState("self");
   const myName = settings?.name || "Me";
   const partnerName = window.__ml.getPartnerName(settings);
   const saveTasks = async updated => {
@@ -40,9 +41,11 @@ function TasksTab({
   };
   const handleDone = async () => {
     if (!doneTask) return;
+    const completedByName = doneByState === "both" ? myName + " & " + partnerName : doneByState === "partner" ? partnerName : myName;
     await saveTasks(tasks.map(t => t.id === doneTask.id ? {
       ...t,
-      last: doneDateState
+      last: doneDateState,
+      completedBy: completedByName
     } : t));
     setDoneTask(null);
   };
@@ -397,7 +400,13 @@ function TasksTab({
         color: "#2d3340",
         fontSize: 10
       }
-    }, "Every ", task.freq, "d"))), /*#__PURE__*/React.createElement("div", {
+    }, "Every ", task.freq, "d"), task.completedBy && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#4ade80",
+        fontSize: 10,
+        fontStyle: "italic"
+      }
+    }, "\u2713 ", task.completedBy))), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
         gap: 5,
@@ -418,6 +427,7 @@ function TasksTab({
       onClick: () => {
         setDoneTask(task);
         setDoneDateState(getToday());
+        setDoneByState("self");
       },
       style: {
         padding: "5px 11px",
@@ -480,7 +490,22 @@ function TasksTab({
       marginBottom: 12,
       colorScheme: "dark"
     }
+  }), /*#__PURE__*/React.createElement(Lbl, {
+    c: "Completed By"
   }), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", gap: 6, marginBottom: 14 }
+  }, [["self", myName], ["partner", partnerName], ["both", "Both"]].map(([val, label]) =>
+    /*#__PURE__*/React.createElement("button", {
+      key: val,
+      onClick: () => setDoneByState(val),
+      style: {
+        flex: 1, padding: "8px 4px", borderRadius: 8, border: "none", cursor: "pointer",
+        fontSize: 11, fontWeight: 700, fontFamily: "'Syne',sans-serif",
+        background: doneByState === val ? "rgba(74,222,128,.2)" : "rgba(255,255,255,.05)",
+        color: doneByState === val ? "#4ade80" : "var(--text-secondary)"
+      }
+    }, label)
+  )), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "9px 12px",
       background: "rgba(74,222,128,.06)",

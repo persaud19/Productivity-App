@@ -327,6 +327,7 @@ const KEYS = {
   allSundays: () => `ml:allsundays`,
   winsArchive: () => `ml:wins:all`,
   sundayIndex: () => `ml:sunday:index`,
+  sundayOptions: () => `ml:sunday:options`,
   reminders: () => `ml:reminders:personal`,
   jointReminders: () => `ml:reminders:joint`,
   mealLog: date => `ml:meallog:${date}`,
@@ -2694,7 +2695,7 @@ function App() {
       alignItems: "center",
       gap: 10
     }
-  }, (activeSection.id === "health" || tab === "home") && /*#__PURE__*/React.createElement("div", {
+  }, false && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       borderRadius: 7,

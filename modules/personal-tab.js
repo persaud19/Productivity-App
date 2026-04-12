@@ -2675,9 +2675,7 @@ function Sunday({
   const [milestones, setMilestones] = useState([]);
   const [newMilestone, setNewMilestone] = useState("");
   const [addingMs, setAddingMs] = useState(false);
-  const [financeBalance, setFinanceBalance] = useState("");
-  const [financePayment, setFinancePayment] = useState("");
-  const [financeSavings, setFinanceSavings] = useState("");
+  const [sundayOpts, setSundayOpts] = useState({ showFaith: true, showReading: true });
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
   const [ok, setOk] = useState(false);
@@ -2695,12 +2693,11 @@ function Sunday({
         setFaithNote(d.faithNote || "");
         setFaithScripture(d.faithScripture || "");
         setFaithMoment(d.faithMoment || "");
-        setFinanceBalance(d.financeBalance || "");
-        setFinancePayment(d.financePayment || "");
-        setFinanceSavings(d.financeSavings || "");
       }
       const ms = await DB.get(KEYS.milestones());
       setMilestones(ms || []);
+      const opts = await DB.get(KEYS.sundayOptions());
+      if (opts) setSundayOpts(opts);
     })();
   }, []);
   const reviewData = {
@@ -2712,10 +2709,7 @@ function Sunday({
     reflection,
     faithNote,
     faithScripture,
-    faithMoment,
-    financeBalance,
-    financePayment,
-    financeSavings
+    faithMoment
   };
   useAutoSave(KEYS.weekReview(sunKey), reviewData);
   const go = async () => {
@@ -2739,9 +2733,6 @@ function Sunday({
       weekNote: wn,
       bookTitle,
       pagesRead,
-      financeBalance,
-      financePayment,
-      financeSavings,
       faithNote: faithNote.slice(0, 200),
       savedAt: new Date().toISOString()
     };
@@ -2851,25 +2842,41 @@ function Sunday({
     borderRadius: 8,
     fontSize: 12
   };
-  const wtChart = wtV.map(d => ({
-    d: fmtShort(d.date),
-    wt: d.morning.weight
+  // Build full Mon–Sun week so charts always render in day order with no mixed data
+  const toggleSundayOpt = async key => {
+    const updated = { ...sundayOpts, [key]: !sundayOpts[key] };
+    setSundayOpts(updated);
+    await DB.set(KEYS.sundayOptions(), updated);
+  };
+  const monday = getMondayOfWeek(getToday());
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const dayLogMap = {};
+  wk.forEach(d => { dayLogMap[d.date] = d; });
+  const wtChart = weekDates.map(date => ({
+    d: fmtShort(date),
+    wt: dayLogMap[date]?.morning?.weight > 0 ? dayLogMap[date].morning.weight : null
   }));
-  const woChart = wk.map(d => ({
-    d: fmtShort(d.date),
-    M: (d.morning?.mobilityCount || 0) > 0 ? 1 : 0,
-    C: d.evening?.cardio ? 1 : 0,
-    S: d.evening?.strength ? 1 : 0
+  const woChart = weekDates.map(date => {
+    const d = dayLogMap[date];
+    return {
+      d: fmtShort(date),
+      M: (d?.morning?.mobilityCount || 0) > 0 ? 1 : 0,
+      C: d?.evening?.cardio ? 1 : 0,
+      S: d?.evening?.strength ? 1 : 0
+    };
+  });
+  const snChart = weekDates.map(date => ({
+    d: fmtShort(date),
+    sn: dayLogMap[date]?.evening?.snack ?? null
   }));
-  const snChart = el.filter(d => d.evening?.snack != null).map(d => ({
-    d: fmtShort(d.date),
-    sn: d.evening.snack
-  }));
-  const moodChart = ml.filter(d => d.morning?.mood > 0 || d.morning?.energy > 0).map(d => ({
-    d: fmtShort(d.date),
-    mood: d.morning?.mood || 0,
-    energy: d.morning?.energy || 0
-  }));
+  const moodChart = weekDates.map(date => {
+    const d = dayLogMap[date];
+    return {
+      d: fmtShort(date),
+      mood: d?.morning?.mood > 0 ? d.morning.mood : null,
+      energy: d?.morning?.energy > 0 ? d.morning.energy : null
+    };
+  });
   const SC = ({
     lbl,
     val,
@@ -2989,9 +2996,24 @@ function Sunday({
     weekNote: wn,
     settings: settings,
     allSundays: allSundays
-  }), /*#__PURE__*/React.createElement(Lbl, {
-    c: "At a Glance"
   }), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }
+  }, /*#__PURE__*/React.createElement(Lbl, { c: "At a Glance" }),
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 5 } },
+      [["showFaith", "💜 Faith"], ["showReading", "📚 Reading"]].map(([key, label]) =>
+        /*#__PURE__*/React.createElement("button", {
+          key: key,
+          onClick: () => toggleSundayOpt(key),
+          style: {
+            padding: "3px 9px", borderRadius: 20, border: "none", cursor: "pointer",
+            fontSize: 10, fontWeight: 700,
+            background: sundayOpts[key] ? "rgba(167,139,250,.18)" : "rgba(255,255,255,.05)",
+            color: sundayOpts[key] ? "#a78bfa" : "#374151"
+          }
+        }, label + (sundayOpts[key] ? " ●" : " ○"))
+      )
+    )
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 6,
@@ -3067,7 +3089,7 @@ function Sunday({
     val: exDays,
     sub: "days flagged",
     c: "#a78bfa"
-  })), wtChart.length >= 2 && /*#__PURE__*/React.createElement(Card, {
+  })), wtV.length >= 2 && /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
       c: "Weight Trend"
     }), /*#__PURE__*/React.createElement("div", {
@@ -3118,7 +3140,7 @@ function Sunday({
     s: {
       marginBottom: 12
     }
-  }), woChart.length > 0 && /*#__PURE__*/React.createElement(Card, {
+  }), (ca + st + mobS) > 0 && /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
       c: "Daily Workouts"
     }), /*#__PURE__*/React.createElement("div", {
@@ -3189,7 +3211,7 @@ function Sunday({
     s: {
       marginBottom: 12
     }
-  }), snChart.length > 0 && /*#__PURE__*/React.createElement(Card, {
+  }), el.length > 0 && /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
       c: "Snacking Level (0=none \xB7 3=heavy)"
     }), /*#__PURE__*/React.createElement("div", {
@@ -3237,7 +3259,7 @@ function Sunday({
     s: {
       marginBottom: 12
     }
-  }), moodChart.length > 0 && /*#__PURE__*/React.createElement(Card, {
+  }), ml.length > 0 && /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
       c: "Energy vs Mood"
     }), /*#__PURE__*/React.createElement("div", {
@@ -3512,7 +3534,7 @@ function Sunday({
     s: {
       marginBottom: 12
     }
-  }), /*#__PURE__*/React.createElement(Card, {
+  }), sundayOpts.showFaith && /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
       c: "Faith"
     }), /*#__PURE__*/React.createElement("p", {
@@ -3558,7 +3580,7 @@ function Sunday({
     s: {
       marginBottom: 12
     }
-  }), /*#__PURE__*/React.createElement(Card, {
+  }), sundayOpts.showReading && /*#__PURE__*/React.createElement(Card, {
     ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
       c: "Reading This Week"
     }), /*#__PURE__*/React.createElement("input", {
@@ -3623,88 +3645,6 @@ function Sunday({
         margin: "5px 0 0"
       }
     }, "\uD83C\uDF99 tap mic to dictate \xB7 appends to existing text")),
-    s: {
-      marginBottom: 12
-    }
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Financial Snapshot \u2014 This Week"
-    }), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--text-muted)",
-        fontSize: 11,
-        margin: "0 0 10px"
-      }
-    }, "Quick pulse check \u2014 update once a week."), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        gap: 8
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: 1
-      }
-    }, /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "#6b7280",
-        fontSize: 9,
-        textTransform: "uppercase",
-        letterSpacing: ".06em",
-        margin: "0 0 4px"
-      }
-    }, "Loan Balance ($)"), /*#__PURE__*/React.createElement("input", {
-      type: "number",
-      value: financeBalance,
-      onChange: e => setFinanceBalance(e.target.value),
-      placeholder: settings?.loanBalance ? String(settings.loanBalance) : "e.g. 50000",
-      style: {
-        ...inp,
-        fontSize: 13
-      }
-    })), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: 1
-      }
-    }, /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "#6b7280",
-        fontSize: 9,
-        textTransform: "uppercase",
-        letterSpacing: ".06em",
-        margin: "0 0 4px"
-      }
-    }, "Savings ($)"), /*#__PURE__*/React.createElement("input", {
-      type: "number",
-      value: financeSavings,
-      onChange: e => setFinanceSavings(e.target.value),
-      placeholder: settings?.savingsCurrent ? String(settings.savingsCurrent) : "e.g. 10000",
-      style: {
-        ...inp,
-        fontSize: 13
-      }
-    }))), /*#__PURE__*/React.createElement("div", {
-      style: {
-        marginTop: 8
-      }
-    }, /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "#6b7280",
-        fontSize: 9,
-        textTransform: "uppercase",
-        letterSpacing: ".06em",
-        margin: "0 0 4px"
-      }
-    }, "Payment Made This Week ($)"), /*#__PURE__*/React.createElement("input", {
-      type: "number",
-      value: financePayment,
-      onChange: e => setFinancePayment(e.target.value),
-      placeholder: "0",
-      style: {
-        ...inp,
-        fontSize: 13,
-        width: 200
-      }
-    }))),
     s: {
       marginBottom: 12
     }
