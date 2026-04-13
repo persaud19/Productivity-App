@@ -2645,7 +2645,7 @@ function App() {
       c: "#a78bfa"
     }, {
       id: "pantry",
-      l: "PANTRY",
+      l: "INVENTORY",
       c: "#fb923c"
     }, {
       id: "homefood",

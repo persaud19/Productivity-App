@@ -133,7 +133,9 @@ function PantryEditModal({
     unit: item.unit || "unit",
     expiry: item.expiry || "",
     brand: item.brand || "",
-    location: item.location || item.notes || ""
+    location: item.location || item.notes || "",
+    consumable: item.consumable || false,
+    restockCycle: item.restockCycle || 14
   });
   const s = (k, v) => setForm(p => ({
     ...p,
@@ -252,7 +254,27 @@ function PantryEditModal({
     value: form.location,
     onChange: e => s("location", e.target.value),
     style: { ...inp, fontSize: 13, padding: "10px 8px" }
-  }, ["", "Kitchen", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Bedroom", "Office", "Basement", "Car", "Other"].map(loc => /*#__PURE__*/React.createElement("option", { key: loc, value: loc }, loc || "\u2014 Select location \u2014"))))), /*#__PURE__*/React.createElement("div", {
+  }, ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Bedroom", "Office", "Basement", "Car", "Other"].map(loc => /*#__PURE__*/React.createElement("option", { key: loc, value: loc }, loc || "\u2014 Select location \u2014"))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
+    c: "Item Type"
+  }), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", gap: 8, alignItems: "center" }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => s("consumable", !form.consumable),
+    style: {
+      padding: "7px 14px",
+      borderRadius: 8,
+      border: "1px solid " + (form.consumable ? "rgba(96,165,250,.4)" : "rgba(255,255,255,.1)"),
+      background: form.consumable ? "rgba(96,165,250,.15)" : "transparent",
+      color: form.consumable ? "#60a5fa" : "var(--text-muted)",
+      fontSize: 11,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "\u267B\uFE0F Consumable"), form.consumable && /*#__PURE__*/React.createElement("select", {
+    value: form.restockCycle,
+    onChange: e => s("restockCycle", parseInt(e.target.value)),
+    style: { ...inp, fontSize: 12, padding: "7px 8px", flex: 1 }
+  }, [[7, "Every week"], [14, "Every 2 weeks"], [21, "Every 3 weeks"], [28, "Every 4 weeks"]].map(([v, l]) => /*#__PURE__*/React.createElement("option", { key: v, value: v }, l))))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
@@ -265,6 +287,9 @@ function PantryEditModal({
         ...form,
         qty: parseFloat(form.qty) || 1,
         location: form.location,
+        consumable: form.consumable,
+        restockCycle: parseInt(form.restockCycle) || 14,
+        lastUpdated: new Date().toISOString().split("T")[0],
         id: item.id || "p" + Date.now()
       });
     },
@@ -346,9 +371,9 @@ function PantryAIChat({
         .filter(p => p.essential !== false)
         .map(p => `${p.name} | ${p.qty} ${p.unit}${p.expiry ? " | exp:" + p.expiry : ""}`)
         .join("\n");
-      const systemPrompt = `You are a pantry assistant for a household. You can ADD new items or EDIT existing ones.
+      const systemPrompt = `You are an inventory assistant for a household. You can ADD new items or EDIT existing ones.
 
-CURRENT PANTRY:
+CURRENT INVENTORY:
 ${pantryList || "(empty)"}
 
 Respond with ONLY a JSON object in this format:
@@ -358,14 +383,14 @@ Respond with ONLY a JSON object in this format:
     {"name":"Rolled Oats","qty":2,"unit":"kg","expiry":"2027-01","brand":""}
   ],
   "edits": [
-    {"match":"exact name from pantry list","changes":{"qty":6}}
+    {"match":"exact name from inventory list","changes":{"qty":6}}
   ],
   "reply": "short friendly confirmation or clarifying question"
 }
 
 RULES:
-- action "add": user is adding new items not in the pantry. Populate items[].
-- action "edit": user is updating existing items. Populate edits[]. match must be a name from the CURRENT PANTRY list.
+- action "add": user is adding new items not in the inventory. Populate items[].
+- action "edit": user is updating existing items. Populate edits[]. match must be a name from the CURRENT INVENTORY list.
 - action "both": user is doing both. Populate items[] AND edits[].
 - action "clarify": request is ambiguous — ask a specific follow-up question in reply. Do NOT populate items or edits.
 - For edits, "changes" can include: qty (set to this exact number), qtyDelta (positive or negative adjustment), unit, expiry (YYYY-MM), brand, name (rename), cat, notes.
@@ -402,7 +427,8 @@ Return ONLY valid JSON. No markdown fences.`;
         setExtracted(prev => [...prev, ...parsed.items.map(i => ({
           ...i,
           id: "p" + Date.now() + Math.random(),
-          qty: parseFloat(i.qty) || 1
+          qty: parseFloat(i.qty) || 1,
+          lastUpdated: new Date().toISOString().split("T")[0]
         }))]);
       }
       if ((parsed.action === "edit" || parsed.action === "both") && parsed.edits?.length) {
@@ -546,7 +572,7 @@ Return ONLY valid JSON. No markdown fences.`;
       fontWeight: 700,
       margin: "0 0 6px"
     }
-  }, "\u2713 Added to pantry!"), /*#__PURE__*/React.createElement("button", {
+  }, "\u2713 Added to inventory!"), /*#__PURE__*/React.createElement("button", {
     onClick: onClose,
     style: {
       padding: "7px 16px",
@@ -625,7 +651,7 @@ function PantryBarcodeScanner({
   const [scanning, setScanning] = useState(false);
   const [status, setStatus] = useState("idle");
   const [foundItem, setFoundItem] = useState(null);
-  const [form, setForm] = useState({ qty: 1, unit: "unit", expiry: "" });
+  const [form, setForm] = useState({ qty: 1, unit: "unit", expiry: "", location: "" });
   const [errorMsg, setErrorMsg] = useState("");
   const scannerRef = useRef(null);
   const SCANNER_DIV_ID = "pantry-qr-scanner-div";
@@ -690,7 +716,8 @@ function PantryBarcodeScanner({
         setForm({
           qty,
           unit: validUnit,
-          expiry: ""
+          expiry: "",
+          location: ""
         });
         setStatus("found");
       } else {
@@ -731,7 +758,8 @@ function PantryBarcodeScanner({
       setForm({
         qty: item.qty || 1,
         unit: PANTRY_UNITS.includes(item.unit) ? item.unit : "unit",
-        expiry: ""
+        expiry: "",
+        location: ""
       });
       setStatus("found");
     } catch {
@@ -745,7 +773,8 @@ function PantryBarcodeScanner({
       setForm({
         qty: 1,
         unit: "unit",
-        expiry: ""
+        expiry: "",
+        location: ""
       });
       setStatus("found");
     }
@@ -818,7 +847,7 @@ function PantryBarcodeScanner({
     value: form.qty,
     onChange: e => setForm(p => ({
       ...p,
-      qty: parseFloat(e.target.value) || 1
+      qty: e.target.value
     })),
     style: {
       ...inp,
@@ -858,7 +887,13 @@ function PantryBarcodeScanner({
       fontSize: 13,
       colorScheme: "dark"
     }
-  }))), /*#__PURE__*/React.createElement("div", {
+  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
+    c: "Storage Location (optional)"
+  }), /*#__PURE__*/React.createElement("select", {
+    value: form.location,
+    onChange: e => setForm(p => ({ ...p, location: e.target.value })),
+    style: { ...inp, fontSize: 13, padding: "10px 8px" }
+  }, ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Basement", "Other"].map(loc => /*#__PURE__*/React.createElement("option", { key: loc, value: loc }, loc || "\u2014 Select location \u2014")))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8
@@ -871,7 +906,9 @@ function PantryBarcodeScanner({
       barcode: foundItem.barcode,
       qty: parseFloat(form.qty) || 1,
       unit: form.unit,
-      expiry: form.expiry
+      expiry: form.expiry,
+      location: form.location,
+      lastUpdated: new Date().toISOString().split("T")[0]
     }),
     style: {
       flex: 1,
@@ -885,7 +922,7 @@ function PantryBarcodeScanner({
       cursor: "pointer",
       fontFamily: "'Syne',sans-serif"
     }
-  }, "ADD TO PANTRY \u2192"), /*#__PURE__*/React.createElement("button", {
+  }, "ADD TO INVENTORY \u2192"), /*#__PURE__*/React.createElement("button", {
     onClick: onClose,
     style: {
       flex: 1,
@@ -1084,7 +1121,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
     const first = unknowns[0];
     setClarifyMsgs([{
       role: "assistant",
-      content: "I found \"" + first.rawText + "\" on your receipt but couldn\u2019t match it to your pantry. What is this item? You can say things like \u201CThat\u2019s almond flour, 500g\u201D, \u201CIt\u2019s a bag of mixed nuts\u201D, or \u201CSkip this one\u201D."
+      content: "I found \"" + first.rawText + "\" on your receipt but couldn\u2019t match it to your inventory. What is this item? You can say things like \u201CThat\u2019s almond flour, 500g\u201D, \u201CIt\u2019s a bag of mixed nuts\u201D, or \u201CSkip this one\u201D."
     }]);
     setClarifyIdx(0);
     setResolved([]);
@@ -1197,7 +1234,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
     },
       /*#__PURE__*/React.createElement("div", { style: { fontSize: 40, marginBottom: 10 } }, "\uD83E\uDDFE"),
       /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 6px" } }, "Scan a Receipt"),
-      /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 20px", lineHeight: 1.6 } }, "Take a photo of your grocery receipt. Claude will read it and match items to your pantry automatically."),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 20px", lineHeight: 1.6 } }, "Take a photo of your grocery receipt. Claude will read it and match items to your inventory automatically."),
       /*#__PURE__*/React.createElement("button", {
         onClick: () => fileRef.current?.click(),
         style: { width: "100%", padding: "14px", background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 10, color: "#a78bfa", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif", marginBottom: 8 }
@@ -1214,14 +1251,14 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
       [0,1,2].map(i => /*#__PURE__*/React.createElement("div", { key: i, style: { width: 8, height: 8, borderRadius: "50%", background: "#a78bfa", animation: "pulse 1.2s " + (i*0.2) + "s ease-in-out infinite" } }))
     ),
     /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: "0 0 4px" } }, "Reading your receipt\u2026"),
-    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11 } }, "Claude is extracting items and matching them to your pantry")
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11 } }, "Claude is extracting items and matching them to your inventory")
   );
 
   // ── Review ──
   if (phase === "review") return /*#__PURE__*/React.createElement("div", null,
     /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: "0 0 14px" } }, "Receipt Review"),
     matched.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 14 } },
-      /*#__PURE__*/React.createElement("p", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700, margin: "0 0 8px" } }, "\u2713 " + matched.length + " matched to your pantry"),
+      /*#__PURE__*/React.createElement("p", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700, margin: "0 0 8px" } }, "\u2713 " + matched.length + " matched to your inventory"),
       matched.map((m, i) => /*#__PURE__*/React.createElement("div", {
         key: i,
         onClick: () => setSelectedMatched(prev => ({ ...prev, [i]: !prev[i] })),
@@ -1254,7 +1291,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
       /*#__PURE__*/React.createElement("button", {
         onClick: unknowns.length > 0 ? skipAllUnknowns : applyAll,
         style: { width: "100%", padding: "13px", background: "var(--card-bg-2)", border: "1px solid var(--card-border)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 12, fontWeight: 700, cursor: "pointer" }
-      }, unknowns.length > 0 ? "Skip unknowns \u2014 apply matched only" : "Apply to Pantry \u2192")
+      }, unknowns.length > 0 ? "Skip unknowns \u2014 apply matched only" : "Apply to Inventory \u2192")
     )
   );
 
@@ -1267,7 +1304,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
       phase === "done" && /*#__PURE__*/React.createElement("button", {
         onClick: applyAll,
         style: { padding: "8px 18px", background: "#4ade80", border: "none", borderRadius: 8, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
-      }, "Apply to Pantry \u2192")
+      }, "Apply to Inventory \u2192")
     ),
     /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", paddingBottom: 8 } },
       clarifyMsgs.map((m, i) => /*#__PURE__*/React.createElement("div", {
@@ -1364,6 +1401,7 @@ function PantryTab({
       if (c.cat) existing.cat = c.cat;
       if (c.notes !== undefined) existing.notes = c.notes;
       if (c.minQty !== undefined) existing.minQty = Math.max(0, parseFloat(c.minQty));
+      existing.lastUpdated = new Date().toISOString().split("T")[0];
     });
     setPantryItems(merged);
     await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), merged);
@@ -1526,6 +1564,10 @@ function PantryItemRow({
   const isExpiring = daysToExp !== null && daysToExp <= 7;
   const isExpired = daysToExp !== null && daysToExp < 0;
   const statusColor = qty === 0 ? "#ef4444" : isLow ? "#f4a823" : isExpired ? "#ef4444" : isExpiring ? "#facc15" : "#4ade80";
+  const daysSinceUpdate = item.lastUpdated ? Math.round((new Date() - new Date(item.lastUpdated)) / 86400000) : null;
+  const spiceWeighDue = item.cat === "Spices" && daysSinceUpdate !== null && daysSinceUpdate >= 90;
+  const consumableCheckDue = item.consumable && daysSinceUpdate !== null && item.restockCycle && daysSinceUpdate >= item.restockCycle;
+  const lastUpdatedLabel = daysSinceUpdate === null ? null : daysSinceUpdate === 0 ? "Updated today" : daysSinceUpdate < 7 ? `Updated ${daysSinceUpdate}d ago` : daysSinceUpdate < 30 ? `Updated ${Math.floor(daysSinceUpdate / 7)}w ago` : `Updated ${Math.floor(daysSinceUpdate / 30)}mo ago`;
   const bg = qty === 0 || isLow ? "rgba(239,68,68,.05)" : isExpiring || isExpired ? "rgba(244,168,35,.05)" : "var(--card-bg)";
   const border = qty === 0 || isLow ? "rgba(239,68,68,.2)" : "var(--card-border)";
   const expLabel = daysToExp === null ? null : daysToExp < 0 ? `Expired ${Math.abs(daysToExp)}d ago` : daysToExp === 0 ? "Expires today" : daysToExp <= 7 ? `Expires in ${daysToExp}d` : null;
@@ -1596,9 +1638,15 @@ function PantryItemRow({
       borderRadius: 4,
       padding: "1px 6px"
     }
-  }, expLabel)), (item.brand || item.location) && /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+  }, expLabel), spiceWeighDue && /*#__PURE__*/React.createElement("span", {
+    style: { background: "rgba(167,139,250,.15)", color: "#a78bfa", fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "1px 6px" }
+  }, "\u2696\uFE0F Weigh due"), consumableCheckDue && /*#__PURE__*/React.createElement("span", {
+    style: { background: "rgba(96,165,250,.12)", color: "#60a5fa", fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "1px 6px" }
+  }, "\u267B\uFE0F Check stock")), (item.brand || item.location || item.consumable || lastUpdatedLabel) && /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" } },
     item.brand && /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, item.brand),
-    item.location && /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, "\uD83D\uDCCD " + item.location)
+    item.location && /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, "\uD83D\uDCCD " + item.location),
+    item.consumable && /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, "\u267B\uFE0F " + (item.restockCycle === 7 ? "1wk" : item.restockCycle === 14 ? "2wk" : item.restockCycle === 21 ? "3wk" : "4wk") + " cycle"),
+    lastUpdatedLabel && /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10, opacity: 0.7 } }, lastUpdatedLabel)
   )), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
@@ -1910,7 +1958,8 @@ function PantryEditor({
   };
   const quickAdjust = async (item, delta) => {
     const newQty = Math.max(0, parseFloat(item.qty || 0) + delta);
-    const updated = pantryItems.map(p => p.id === item.id ? { ...p, qty: newQty } : p);
+    const today = new Date().toISOString().split("T")[0];
+    const updated = pantryItems.map(p => p.id === item.id ? { ...p, qty: newQty, lastUpdated: today } : p);
     setPantryItems(updated);
     await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
   };
