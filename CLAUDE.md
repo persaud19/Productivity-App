@@ -214,9 +214,9 @@ users/<uid>/
 3. Set `users/<ryan_uid>/householdId = <hid>`
 4. Original data stays as backup — app reads new path going forward
 
-**Two open questions Ryan still needs to answer before build starts:**
-1. Finance in solo mode — still works before joining a household, or household-only?
-2. New member with no household — empty HOME/Finance tabs, or blocked with "Join a household" prompt?
+**Confirmed answers (2026-04-09):**
+1. Finance works in solo mode — personal data accessible before joining a household
+2. New member with no household → "Join a household" prompt blocks HOME tab (hard block). Finance shows a dismissable banner "Join a household to share finances" but remains usable with personal data.
 
 **Build phases:**
 - Phase 1: DB layer `hh:` routing + household KEYS + HouseholdSetup component + migration
