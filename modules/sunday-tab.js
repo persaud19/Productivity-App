@@ -660,8 +660,8 @@
             React.createElement("div", { style: { height: 110 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(LineChart, { data: wtChart },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-secondary)", fontSize: 10 }, axisLine: false, tickLine: false }),
-                  React.createElement(YAxis, { domain: ["auto", "auto"], tick: { fill: "var(--text-secondary)", fontSize: 10 }, axisLine: false, tickLine: false, width: 34 }),
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(YAxis, { domain: ["auto", "auto"], tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false, width: 34 }),
                   React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" }, itemStyle: { color: "#f4a823" } }),
                   React.createElement(Line, { type: "monotone", dataKey: "wt", stroke: "#f4a823", strokeWidth: 2, dot: { fill: "#f4a823", r: 2 }, name: "Weight" })
                 )
@@ -676,7 +676,7 @@
             React.createElement("div", { style: { height: 100 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(BarChart, { data: woChart, barGap: 2, barSize: 8 },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-secondary)", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
                   React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" } }),
                   React.createElement(Bar, { dataKey: "M", fill: "#fb923c", radius: [3, 3, 0, 0], name: "Mobility" }),
                   React.createElement(Bar, { dataKey: "C", fill: "#60a5fa", radius: [3, 3, 0, 0], name: "Cardio" }),
@@ -701,8 +701,8 @@
             React.createElement("div", { style: { height: 90 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(BarChart, { data: snChart, barSize: 16 },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-secondary)", fontSize: 10 }, axisLine: false, tickLine: false }),
-                  React.createElement(YAxis, { domain: [0, 3], ticks: [0, 1, 2, 3], tick: { fill: "var(--text-secondary)", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(YAxis, { domain: [0, 3], ticks: [0, 1, 2, 3], tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
                   React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" }, itemStyle: { color: "#fb923c" } }),
                   React.createElement(Bar, { dataKey: "sn", fill: "#fb923c", radius: [3, 3, 0, 0], name: "Snacking" })
                 )
@@ -717,8 +717,8 @@
             React.createElement("div", { style: { height: 100 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(LineChart, { data: moodChart },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-secondary)", fontSize: 10 }, axisLine: false, tickLine: false }),
-                  React.createElement(YAxis, { domain: [0, 5], ticks: [1, 2, 3, 4, 5], tick: { fill: "var(--text-secondary)", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(YAxis, { domain: [0, 5], ticks: [1, 2, 3, 4, 5], tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
                   React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" } }),
                   React.createElement(Line, { type: "monotone", dataKey: "energy", stroke: "#60a5fa", strokeWidth: 2, dot: { fill: "#60a5fa", r: 2 }, name: "Energy" }),
                   React.createElement(Line, { type: "monotone", dataKey: "mood", stroke: "#f472b6", strokeWidth: 2, dot: { fill: "#f472b6", r: 2 }, name: "Mood", strokeDasharray: "4 2" })

@@ -1162,6 +1162,7 @@
     pantryItems = []
   }) {
     const [cat, setCat] = useState("All");
+    const [base, setBase] = useState("All");
     const [search, setSearch] = useState("");
     const [sort, setSort] = useState("pantry");
     const [showAdd, setShowAdd] = useState(false);
@@ -1184,16 +1185,31 @@
       "Lunch": "L",
       "Dinner": "D"
     };
+    function detectBase(meal) {
+      const text = ((meal.name || "") + " " + (meal.ing || []).join(" ")).toLowerCase();
+      if (/salmon|tuna|shrimp|prawn|cod|tilapia|halibut|seafood|fish/.test(text)) return "Seafood";
+      if (/chicken/.test(text)) return "Chicken";
+      if (/beef|steak|brisket/.test(text)) return "Beef";
+      if (/pork|bacon|ham|sausage/.test(text)) return "Pork";
+      if (/turkey/.test(text)) return "Turkey";
+      return "Plant-Based";
+    }
     // Which pool to show based on selected section
     const sectionPool = libSection === "custom" ? customMeals
       : libSection === "imported" ? importedMeals
       : MEALS_DB;
+    const hasCatLib = (m, c) => Array.isArray(m.cat) ? m.cat.includes(c) : m.cat === c;
     const counts = {
-      B: sectionPool.filter(m => m.cat === "B").length,
-      L: sectionPool.filter(m => m.cat === "L").length,
-      D: sectionPool.filter(m => m.cat === "D").length
+      B: sectionPool.filter(m => hasCatLib(m, "B")).length,
+      L: sectionPool.filter(m => hasCatLib(m, "L")).length,
+      D: sectionPool.filter(m => hasCatLib(m, "D")).length
     };
-    const filtered = sectionPool.filter(m => !catMap[cat] || m.cat === catMap[cat]).filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => {
+    const BASES = ["All", "Chicken", "Turkey", "Seafood", "Beef", "Pork", "Plant-Based"];
+    const baseCounts = BASES.slice(1).reduce((acc, b) => { acc[b] = sectionPool.filter(m => detectBase(m) === b).length; return acc; }, {});
+    const filtered = sectionPool
+      .filter(m => !catMap[cat] || hasCatLib(m, catMap[cat]))
+      .filter(m => base === "All" || detectBase(m) === base)
+      .filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => {
       if (sort === "pantry") return pantryMatch(b, pantryItems).pct - pantryMatch(a, pantryItems).pct;
       if (sort === "cal") return a.cal - b.cal;
       if (sort === "prot") return b.prot - a.prot;
@@ -1215,7 +1231,7 @@
           ...(importedMeals.length > 0 ? [["imported", "\uD83D\uDCD6 STARTER (" + importedMeals.length + ")", "#a78bfa"]] : [])
         ].map(([id, label, col]) =>
           React.createElement("button", {
-            key: id, onClick: () => { setLibSection(id); setCat("All"); setSearch(""); },
+            key: id, onClick: () => { setLibSection(id); setCat("All"); setBase("All"); setSearch(""); },
             style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: ".05em", background: libSection === id ? col + "22" : "transparent", color: libSection === id ? col : "var(--text-muted)", fontFamily: "'Syne',sans-serif" }
           }, label)
         )
@@ -1304,7 +1320,34 @@
           fontWeight: cat === c ? 700 : 400
         }
       }, c, catMap[c] ? ` (${counts[catMap[c]]})` : "");
-    })), /*#__PURE__*/React.createElement("div", {
+    })),
+
+    // ── Protein base filter row ──
+    React.createElement("div", { style: { display: "flex", gap: 5, marginBottom: 10, flexWrap: "wrap" } },
+      BASES.map(b => {
+        const baseColors = { "Chicken": "#fb923c", "Turkey": "#f59e0b", "Seafood": "#60a5fa", "Beef": "#ef4444", "Pork": "#f472b6", "Plant-Based": "#4ade80", "All": "#6b7280" };
+        const bc = baseColors[b] || "#6b7280";
+        const cnt = b === "All" ? sectionPool.length : (baseCounts[b] || 0);
+        if (b !== "All" && cnt === 0) return null;
+        return React.createElement("button", {
+          key: b,
+          onClick: () => setBase(b),
+          style: {
+            padding: "4px 10px",
+            borderRadius: 20,
+            fontSize: 10,
+            cursor: "pointer",
+            border: `1px solid ${base === b ? bc : "rgba(255,255,255,.08)"}`,
+            background: base === b ? `${bc}22` : "transparent",
+            color: base === b ? bc : "#6b7280",
+            fontWeight: base === b ? 700 : 400,
+            whiteSpace: "nowrap"
+          }
+        }, b === "All" ? "All bases" : b, b !== "All" ? ` (${cnt})` : "");
+      })
+    ),
+
+    /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
         gap: 6,
