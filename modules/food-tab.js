@@ -3017,6 +3017,7 @@
     const [activeSabrinaPrompt, setActiveSabrinaPrompt] = useState(null);
     const [importedMeals, setImportedMeals] = useState([]); // meals from unlocked published libraries
     const [importedLibMeta, setImportedLibMeta] = useState([]); // [{ name, author, mealCount }]
+    const [logDate, setLogDate] = useState(today); // which day is being logged (up to 7 days back)
     const sunKey = getSundayKey();
   
     useEffect(() => {
@@ -3081,7 +3082,7 @@
 
         // Health-mode only: daily log, macro targets, partner prompts
         if (mode === "health") {
-          const ml = await DB.get(KEYS.mealLog(today));
+          const ml = await DB.get(KEYS.mealLog(logDate));
           setMealLog(ml || {});
           const mt = await DB.get(KEYS.macroTargets());
           setMacroTargets(mt || null);
@@ -3100,6 +3101,12 @@
       })();
     }, [activeUser, sunKey, today, mode]);
   
+    // Reload meal log when user switches to a different log date
+    useEffect(() => {
+      if (mode !== "health" || loadingFood) return;
+      DB.get(KEYS.mealLog(logDate)).then(ml => setMealLog(ml || {}));
+    }, [logDate]);
+
     // Auto-generate macro targets when weight changes (or no targets exist)
     const generateMacroTargets = useCallback(async (weight) => {
       if (generatingTargets) return;
@@ -3135,15 +3142,15 @@
   
     const saveMealLog = async (updated) => {
       setMealLog(updated);
-      await DB.set(KEYS.mealLog(today), updated);
+      await DB.set(KEYS.mealLog(logDate), updated);
     };
-  
+
     const handleSlotSave = async (slot, mealData) => {
       const updated = { ...mealLog };
       if (slot === "snack") {
         updated.snacks = [...(updated.snacks || []), { ...mealData, timestamp: new Date().toISOString(), id: "s_" + Date.now() }];
       } else {
-        const planned = weekPlan[today + "_" + slot] || weekPlan[slot];
+        const planned = weekPlan[logDate + "_" + slot] || weekPlan[slot];
         updated[slot] = { ...mealData, plannedMeal: planned?.name || null, loggedAt: new Date().toISOString() };
       }
       await saveMealLog(updated);
@@ -3179,7 +3186,7 @@
         const newPrompt = {
           id: "sp_" + Date.now(),
           slot, meal: mealData.name, calories: mealData.calories, protein: mealData.protein,
-          carbs: mealData.carbs, fat: mealData.fat, date: today,
+          carbs: mealData.carbs, fat: mealData.fat, date: logDate,
           createdAt: new Date().toISOString(), answered: false
         };
         const cleaned = prompts.filter(p => {
@@ -3303,6 +3310,27 @@
       }
     }, t.l))),
   
+    /* ── Date picker — health mode only (log up to 7 days back) ── */
+    mode === "health" && React.createElement("div", { style: { overflowX: "auto", marginBottom: 12, paddingBottom: 2 } },
+      React.createElement("div", { style: { display: "flex", gap: 6, minWidth: "max-content" } },
+        Array.from({ length: 7 }, (_, i) => {
+          const d = addDays(today, -i);
+          const active = d === logDate;
+          const label = i === 0 ? "Today" : i === 1 ? "Yesterday" : fmtDate(d);
+          return React.createElement("button", {
+            key: d,
+            onClick: () => setLogDate(d),
+            style: {
+              padding: "5px 12px", borderRadius: 20, border: `1px solid ${active ? "#fb923c" : "rgba(255,255,255,.08)"}`,
+              background: active ? "rgba(251,146,60,.15)" : "transparent",
+              color: active ? "#fb923c" : "#6b7280",
+              fontSize: 11, fontWeight: active ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap"
+            }
+          }, label);
+        })
+      )
+    ),
+
     /* ── MacroBar — health mode only (daily calorie tracking) ── */
     mode === "health" && /*#__PURE__*/React.createElement(MacroBar, { logged: dailyLogged, targets: macroTargets }),
 
