@@ -220,6 +220,7 @@
     const [newMilestoneMap, setNewMilestoneMap] = useState({});
     const [addingMsFor, setAddingMsFor] = useState(null);
     const [sundayOpts, setSundayOpts] = useState({ showFaith: true, showReading: true, showChildren: true, showWorkout: false, showMentalHealth: false, showHabits: false, showRelationships: false, showNutrition: false, showRecovery: false, showSunlight: false, showGiving: false, showHomeEnv: false, showWork: false, showScreen: false, showIdeas: false, showCreative: false });
+    const [showModulePanel, setShowModulePanel] = useState(false);
     // Workout Notes state
     const [woTrainingQuality, setWoTrainingQuality] = useState(0);
     const [woBestSession, setWoBestSession] = useState("");
@@ -610,29 +611,45 @@
           style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }
         },
           React.createElement(Lbl, { c: "At a Glance" }),
-          React.createElement("div", { style: { display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "flex-end" } },
-            [[...getChildren(settings).length > 0 ? [["showChildren", "👶 Kids"]] : [],
-              ["showFaith", "💜 Faith"],
-              ["showReading", "📚 Reading"],
-              ["showWorkout", "🏋️ Training"],
-              ["showMentalHealth", "🧠 Mind"],
-              ["showHabits", "🌱 Habits"],
-              ["showRelationships", "🤝 Relations"],
-              ["showNutrition", "🧾 Nutrition"],
-              ["showRecovery", "🌿 Recovery"],
-              ["showSunlight", "☀️ Sunlight"],
-              ["showGiving", "🫶 Giving"],
-              ["showHomeEnv", "🏠 Home Vibe"],
-              ["showWork", "💼 Work"],
-              ["showScreen", "📱 Focus"],
-              ["showIdeas", "💡 Ideas"],
-              ["showCreative", "🎨 Create"]
-            ]].flat().map(([key, label]) =>
-              React.createElement("button", {
-                key,
-                onClick: () => toggleSundayOpt(key),
-                style: { padding: "3px 9px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 10, fontWeight: 700, background: sundayOpts[key] ? "rgba(167,139,250,.18)" : "rgba(255,255,255,.05)", color: sundayOpts[key] ? "#a78bfa" : "#374151" }
-              }, label + (sundayOpts[key] ? " ●" : " ○"))
+          React.createElement("div", { style: { position: "relative" } },
+            React.createElement("button", {
+              onClick: () => setShowModulePanel(p => !p),
+              style: { padding: "5px 12px", borderRadius: 20, border: "1px solid rgba(167,139,250,.3)", background: showModulePanel ? "rgba(167,139,250,.15)" : "rgba(167,139,250,.07)", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }
+            },
+              "MODULES",
+              React.createElement("span", { style: { fontSize: 9, opacity: .8 } }, `${Object.values(sundayOpts).filter(Boolean).length} on`),
+              React.createElement("span", null, showModulePanel ? "▲" : "▼")
+            ),
+            showModulePanel && React.createElement("div", {
+              style: { position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 50, background: "#111520", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: "8px 4px", minWidth: 200, boxShadow: "0 8px 32px rgba(0,0,0,.5)" }
+            },
+              [...(getChildren(settings).length > 0 ? [["showChildren", "👶", "Kids"]] : []),
+                ["showFaith", "💜", "Faith"],
+                ["showReading", "📚", "Reading"],
+                ["showWorkout", "🏋️", "Training"],
+                ["showMentalHealth", "🧠", "Mind"],
+                ["showHabits", "🌱", "Habits"],
+                ["showRelationships", "🤝", "Relationships"],
+                ["showNutrition", "🧾", "Nutrition"],
+                ["showRecovery", "🌿", "Recovery"],
+                ["showSunlight", "☀️", "Sunlight"],
+                ["showGiving", "🫶", "Giving"],
+                ["showHomeEnv", "🏠", "Home Vibe"],
+                ["showWork", "💼", "Work"],
+                ["showScreen", "📱", "Focus"],
+                ["showIdeas", "💡", "Ideas"],
+                ["showCreative", "🎨", "Create"]
+              ].map(([key, icon, label]) =>
+                React.createElement("div", {
+                  key,
+                  onClick: () => toggleSundayOpt(key),
+                  style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", cursor: "pointer", borderRadius: 8, background: sundayOpts[key] ? "rgba(167,139,250,.1)" : "transparent" }
+                },
+                  React.createElement("span", { style: { fontSize: 15, width: 20, textAlign: "center" } }, icon),
+                  React.createElement("span", { style: { flex: 1, fontSize: 12, color: sundayOpts[key] ? "#d1d5db" : "#6b7280", fontWeight: sundayOpts[key] ? 600 : 400 } }, label),
+                  React.createElement("span", { style: { fontSize: 14, color: sundayOpts[key] ? "#a78bfa" : "#374151" } }, sundayOpts[key] ? "●" : "○")
+                )
+              )
             )
           )
         ),
@@ -660,8 +677,8 @@
             React.createElement("div", { style: { height: 110 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(LineChart, { data: wtChart },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-secondary)", fontSize: 10 }, axisLine: false, tickLine: false }),
-                  React.createElement(YAxis, { domain: ["auto", "auto"], tick: { fill: "var(--text-secondary)", fontSize: 10 }, axisLine: false, tickLine: false, width: 34 }),
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(YAxis, { domain: ["auto", "auto"], tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false, width: 34 }),
                   React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" }, itemStyle: { color: "#f4a823" } }),
                   React.createElement(Line, { type: "monotone", dataKey: "wt", stroke: "#f4a823", strokeWidth: 2, dot: { fill: "#f4a823", r: 2 }, name: "Weight" })
                 )
@@ -676,7 +693,7 @@
             React.createElement("div", { style: { height: 100 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(BarChart, { data: woChart, barGap: 2, barSize: 8 },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-secondary)", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
                   React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" } }),
                   React.createElement(Bar, { dataKey: "M", fill: "#fb923c", radius: [3, 3, 0, 0], name: "Mobility" }),
                   React.createElement(Bar, { dataKey: "C", fill: "#60a5fa", radius: [3, 3, 0, 0], name: "Cardio" }),
@@ -701,8 +718,8 @@
             React.createElement("div", { style: { height: 90 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(BarChart, { data: snChart, barSize: 16 },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-secondary)", fontSize: 10 }, axisLine: false, tickLine: false }),
-                  React.createElement(YAxis, { domain: [0, 3], ticks: [0, 1, 2, 3], tick: { fill: "var(--text-secondary)", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(YAxis, { domain: [0, 3], ticks: [0, 1, 2, 3], tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
                   React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" }, itemStyle: { color: "#fb923c" } }),
                   React.createElement(Bar, { dataKey: "sn", fill: "#fb923c", radius: [3, 3, 0, 0], name: "Snacking" })
                 )
@@ -717,8 +734,8 @@
             React.createElement("div", { style: { height: 100 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(LineChart, { data: moodChart },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-secondary)", fontSize: 10 }, axisLine: false, tickLine: false }),
-                  React.createElement(YAxis, { domain: [0, 5], ticks: [1, 2, 3, 4, 5], tick: { fill: "var(--text-secondary)", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(YAxis, { domain: [0, 5], ticks: [1, 2, 3, 4, 5], tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
                   React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" } }),
                   React.createElement(Line, { type: "monotone", dataKey: "energy", stroke: "#60a5fa", strokeWidth: 2, dot: { fill: "#60a5fa", r: 2 }, name: "Energy" }),
                   React.createElement(Line, { type: "monotone", dataKey: "mood", stroke: "#f472b6", strokeWidth: 2, dot: { fill: "#f472b6", r: 2 }, name: "Mood", strokeDasharray: "4 2" })
@@ -1236,21 +1253,21 @@
         }),
         (() => {
           const recs = [
-            { key: "showChildren", icon: "👶", title: "Children & Milestones", active: sundayOpts.showChildren && getChildren(settings).length > 0, hint: getChildren(settings).length === 0 ? "Add children in Settings → Profile" : "Toggle on with pill above" },
-            { key: "showFaith", icon: "💜", title: "Faith & Reflection", active: sundayOpts.showFaith, hint: "Toggle on with pill above" },
-            { key: "showReading", icon: "📚", title: "Reading Log", active: sundayOpts.showReading, hint: "Toggle on with pill above" },
-            { key: "showWorkout", icon: "🏋️", title: "Training Notes", active: sundayOpts.showWorkout, hint: "Toggle on with pill above" },
-            { key: "showHabits", icon: "🌱", title: "Habit Tracker", active: sundayOpts.showHabits, hint: habitGoals.length === 0 ? "Add habit goals in Goals tab first" : "Toggle on with pill above" },
-            { key: "showRelationships", icon: "🤝", title: "Relationships", active: sundayOpts.showRelationships, hint: "Toggle on with pill above" },
-            { key: "showNutrition", icon: "🧾", title: "Nutrition Quality", active: sundayOpts.showNutrition, hint: "Toggle on with pill above" },
-            { key: "showRecovery", icon: "🌿", title: "Recovery & Body", active: sundayOpts.showRecovery, hint: "Toggle on with pill above" },
-            { key: "showSunlight", icon: "☀️", title: "Sunlight & Nature", active: sundayOpts.showSunlight, hint: "Toggle on with pill above" },
-            { key: "showGiving", icon: "🫶", title: "Acts of Giving", active: sundayOpts.showGiving, hint: "Toggle on with pill above" },
-            { key: "showHomeEnv", icon: "🏠", title: "Home Environment", active: sundayOpts.showHomeEnv, hint: "Toggle on with pill above" },
-            { key: "showWork", icon: "💼", title: "Work & Career", active: sundayOpts.showWork, hint: "Toggle on with pill above" },
-            { key: "showScreen", icon: "📱", title: "Screen & Focus", active: sundayOpts.showScreen, hint: "Toggle on with pill above" },
-            { key: "showIdeas", icon: "💡", title: "Ideas & Insights", active: sundayOpts.showIdeas, hint: "Toggle on with pill above" },
-            { key: "showCreative", icon: "🎨", title: "Creative Output", active: sundayOpts.showCreative, hint: "Toggle on with pill above" },
+            { key: "showChildren", icon: "👶", title: "Children & Milestones", active: sundayOpts.showChildren && getChildren(settings).length > 0, hint: getChildren(settings).length === 0 ? "Add children in Settings → Profile" : "Toggle on via MODULES ▼ above" },
+            { key: "showFaith", icon: "💜", title: "Faith & Reflection", active: sundayOpts.showFaith, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showReading", icon: "📚", title: "Reading Log", active: sundayOpts.showReading, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showWorkout", icon: "🏋️", title: "Training Notes", active: sundayOpts.showWorkout, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showHabits", icon: "🌱", title: "Habit Tracker", active: sundayOpts.showHabits, hint: habitGoals.length === 0 ? "Add habit goals in Goals tab first" : "Toggle on via MODULES ▼ above" },
+            { key: "showRelationships", icon: "🤝", title: "Relationships", active: sundayOpts.showRelationships, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showNutrition", icon: "🧾", title: "Nutrition Quality", active: sundayOpts.showNutrition, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showRecovery", icon: "🌿", title: "Recovery & Body", active: sundayOpts.showRecovery, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showSunlight", icon: "☀️", title: "Sunlight & Nature", active: sundayOpts.showSunlight, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showGiving", icon: "🫶", title: "Acts of Giving", active: sundayOpts.showGiving, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showHomeEnv", icon: "🏠", title: "Home Environment", active: sundayOpts.showHomeEnv, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showWork", icon: "💼", title: "Work & Career", active: sundayOpts.showWork, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showScreen", icon: "📱", title: "Screen & Focus", active: sundayOpts.showScreen, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showIdeas", icon: "💡", title: "Ideas & Insights", active: sundayOpts.showIdeas, hint: "Toggle on via MODULES ▼ above" },
+            { key: "showCreative", icon: "🎨", title: "Creative Output", active: sundayOpts.showCreative, hint: "Toggle on via MODULES ▼ above" },
             { key: "showMentalHealth", icon: "🧠", title: "Mental Health Check-in", active: false, hint: "🔜 Coming soon — toggle shows a preview card" },
           ];
           const inactive = recs.filter(r => !r.active);
