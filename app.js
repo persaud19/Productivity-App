@@ -536,12 +536,14 @@ const DEFAULT_GOALS = {
 const C = {
   B: "#f4a823",
   L: "#4ade80",
-  D: "#60a5fa"
+  D: "#60a5fa",
+  S: "#fb923c"
 };
 const CL = {
   B: "Breakfast",
   L: "Lunch",
-  D: "Dinner"
+  D: "Dinner",
+  S: "Snack"
 };
 const inp = {
   background: "rgba(255,255,255,0.05)",
@@ -2609,10 +2611,6 @@ function App() {
       id: "goals",
       l: "GOALS",
       c: "#34d399"
-    }, {
-      id: "sunday",
-      l: "SUNDAY",
-      c: "#4ade80"
     }]
   }, {
     id: "health",
@@ -2658,10 +2656,18 @@ function App() {
     color: "#34d399",
     tabs: []
   }, {
-    id: "history",
-    label: "OVERVIEW",
+    id: "weekrecap",
+    label: "WEEK RECAP",
     color: "#a78bfa",
-    tabs: []
+    tabs: [{
+      id: "sunday",
+      l: "SUNDAY",
+      c: "#4ade80"
+    }, {
+      id: "history",
+      l: "HISTORY",
+      c: "#a78bfa"
+    }]
   }];
 
   // Derive active section from current tab

@@ -295,7 +295,8 @@
   }) {
     const [tab, setTab] = useState("info"); // "info" | "recipe"
     const [open, setOpen] = useState(false);
-    const cc = C[meal.cat] || "#9ca3af";
+    const mealCats = Array.isArray(meal.cat) ? meal.cat : (meal.cat ? [meal.cat] : ["B"]);
+    const cc = C[mealCats[0]] || "#9ca3af";
     const pm = pantryMatch(meal, pantryItems);
     const pmColor = pm.pct >= 80 ? "#4ade80" : pm.pct >= 50 ? "#f4a823" : "var(--text-secondary)";
     return /*#__PURE__*/React.createElement("div", {
@@ -365,7 +366,9 @@
         letterSpacing: ".04em",
         flexShrink: 0
       }
-    }, CL[meal.cat]), pantryItems.length > 0 && pm.total > 0 && /*#__PURE__*/React.createElement("span", {
+    }, mealCats.map(c => CL[c] || c).join(" / ")), meal.fromInventory && /*#__PURE__*/React.createElement("span", {
+      style: { background: "rgba(96,165,250,.12)", color: "#60a5fa", fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "1px 6px", flexShrink: 0 }
+    }, "\uD83C\uDFE0 Home"), pantryItems.length > 0 && pm.total > 0 && /*#__PURE__*/React.createElement("span", {
       style: {
         background: `${pmColor}15`,
         color: pmColor,
@@ -662,9 +665,10 @@
     // Auto-fill: pick meals with highest pantry match per category
     const autoFill = async () => {
       const sortByPantry = meals => [...meals].sort((a, b) => pantryMatch(b, pantryItems).pct - pantryMatch(a, pantryItems).pct);
-      const B = sortByPantry(allMeals.filter(m => m.cat === "B"));
-      const L = sortByPantry(allMeals.filter(m => m.cat === "L"));
-      const D = sortByPantry(allMeals.filter(m => m.cat === "D"));
+      const hasCat = (m, c) => Array.isArray(m.cat) ? m.cat.includes(c) : m.cat === c;
+      const B = sortByPantry(allMeals.filter(m => hasCat(m, "B")));
+      const L = sortByPantry(allMeals.filter(m => hasCat(m, "L")));
+      const D = sortByPantry(allMeals.filter(m => hasCat(m, "D")));
       const up = {};
       for (let d = 0; d < 7; d++) up[d] = {
         B: B[d % B.length],
@@ -695,7 +699,7 @@
     const totalCal = Object.values(day).reduce((a, m) => a + (m?.cal || 0), 0);
     const totalProt = Object.values(day).reduce((a, m) => a + (m?.prot || 0), 0);
     const weekDone = [0, 1, 2, 3, 4, 5, 6].every(d => plan[d]?.B && plan[d]?.L && plan[d]?.D);
-    const pickable = allMeals.filter(m => m.cat === picking && (!search || m.name.toLowerCase().includes(search.toLowerCase()))).sort((a, b) => pantryMatch(b, pantryItems).pct - pantryMatch(a, pantryItems).pct);
+    const pickable = allMeals.filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => pantryMatch(b, pantryItems).pct - pantryMatch(a, pantryItems).pct);
     return /*#__PURE__*/React.createElement("div", null, !weekDone && /*#__PURE__*/React.createElement("div", {
       style: {
         background: "rgba(74,222,128,.06)",
@@ -1119,7 +1123,7 @@
     }, "Cancel")), /*#__PURE__*/React.createElement("input", {
       value: search,
       onChange: e => setSearch(e.target.value),
-      placeholder: `Search ${CL[picking]?.toLowerCase()}s... (${allMeals.filter(m => m.cat === picking).length} options)`,
+      placeholder: `Search all meals for ${CL[picking]?.toLowerCase() || "this slot"}... (${allMeals.length} options)`,
       style: {
         ...inp,
         marginBottom: 10,
@@ -1399,7 +1403,7 @@
   }
   
   Rules:
-  - cat must be exactly "B" (breakfast), "L" (lunch), or "D" (dinner)
+  - cat must be an array of one or more of: "B" (breakfast), "L" (lunch), "D" (dinner), "S" (snack). Example: ["D"] or ["B","S"]
   - cal, prot, carbs, fat are integers (per serving for 2 people)
   - prep and cook are integers in minutes
   - cad is estimated cost per serving in Canadian dollars (float)
@@ -1566,13 +1570,13 @@
   
     // ── Draft editor — let user tweak before saving ──────────────────────────
     const DraftEditor = () => {
-      const [d, setD] = useState(draft);
+      const [d, setD] = useState(() => {
+        const dr = draft || {};
+        return { ...dr, cat: Array.isArray(dr.cat) ? dr.cat : (dr.cat ? [dr.cat] : ["D"]), fromInventory: dr.fromInventory || false };
+      });
       if (!d) return null;
-      const cc = {
-        B: "#f4a823",
-        L: "#4ade80",
-        D: "#60a5fa"
-      }[d.cat] || "#9ca3af";
+      const dCats = d.cat || ["D"];
+      const cc = C[dCats[0]] || "#9ca3af";
       return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
         style: {
           background: "rgba(74,222,128,.07)",
@@ -1634,24 +1638,20 @@
           textTransform: "uppercase",
           letterSpacing: ".07em"
         }
-      }, "Meal Type"), /*#__PURE__*/React.createElement("select", {
-        value: d.cat,
-        onChange: e => setD(p => ({
-          ...p,
-          cat: e.target.value
-        })),
-        style: {
-          ...inp,
-          fontSize: 13,
-          padding: "10px 8px"
-        }
-      }, /*#__PURE__*/React.createElement("option", {
-        value: "B"
-      }, "Breakfast"), /*#__PURE__*/React.createElement("option", {
-        value: "L"
-      }, "Lunch"), /*#__PURE__*/React.createElement("option", {
-        value: "D"
-      }, "Dinner")))), /*#__PURE__*/React.createElement("div", {
+      }, "Meal Type (multi-select)"), /*#__PURE__*/React.createElement("div", {
+        style: { display: "flex", gap: 5, flexWrap: "wrap", marginTop: 4 }
+      }, [["B", "Breakfast"], ["L", "Lunch"], ["D", "Dinner"], ["S", "Snack"]].map(([code, label]) => {
+        const sel = dCats.includes(code);
+        const col = C[code] || "#9ca3af";
+        return /*#__PURE__*/React.createElement("button", {
+          key: code,
+          onClick: () => {
+            const next = sel ? dCats.filter(c => c !== code) : [...dCats, code];
+            setD(p => ({ ...p, cat: next.length > 0 ? next : [code] }));
+          },
+          style: { padding: "5px 10px", borderRadius: 20, border: `1px solid ${sel ? col : "rgba(255,255,255,.12)"}`, background: sel ? col + "22" : "transparent", color: sel ? col : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer" }
+        }, label);
+      })))), /*#__PURE__*/React.createElement("div", {
         style: {
           display: "flex",
           gap: 6,
@@ -1788,6 +1788,17 @@
           lineHeight: 1.5
         }
       }, step))))), /*#__PURE__*/React.createElement("div", {
+        style: { marginBottom: 12 }
+      }, /*#__PURE__*/React.createElement("button", {
+        onClick: () => setD(p => ({ ...p, fromInventory: !p.fromInventory })),
+        style: {
+          width: "100%", padding: "10px 14px", borderRadius: 10,
+          border: `1px solid ${d.fromInventory ? "rgba(96,165,250,.4)" : "rgba(255,255,255,.1)"}`,
+          background: d.fromInventory ? "rgba(96,165,250,.12)" : "transparent",
+          color: d.fromInventory ? "#60a5fa" : "var(--text-muted)",
+          fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left"
+        }
+      }, d.fromInventory ? "\uD83C\uDFE0 Made at home \u2014 will deduct from inventory when logged" : "\uD83C\uDFE0 Mark as home-cooked (deduct from inventory)")), /*#__PURE__*/React.createElement("div", {
         style: {
           display: "flex",
           gap: 8
@@ -2671,7 +2682,7 @@
   }
   
   // MealLogChat — conversational meal entry for one slot
-  function MealLogChat({ slot, date, existing, mealLibrary, onSave, onClose, userName }) {
+  function MealLogChat({ slot, date, existing, mealLibrary, allMeals: allMealsLib = [], onSave, onClose, userName }) {
     const [msgs, setMsgs] = useState(() => {
       const greeting = existing?.name
         ? [{ role: "assistant", content: `You logged **${existing.name}** here earlier (${existing.calories || "?"}cal · ${existing.protein || "?"}g protein). Want to update it?` }]
@@ -2682,8 +2693,11 @@
     const [listening, setListening] = useState(false);
     const [loading, setLoading] = useState(false);
     const [confirmed, setConfirmed] = useState(null); // final meal object
+    const [mode, setMode] = useState("chat"); // "chat" | "pick"
+    const [libSearch, setLibSearch] = useState("");
     const voiceRef = useRef(null);
     const chatEndRef = useRef(null);
+    const libFiltered = allMealsLib.filter(m => !libSearch || m.name.toLowerCase().includes(libSearch.toLowerCase()));
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
   
     const startVoice = () => {
@@ -2790,12 +2804,63 @@
       },
         // Header
         /*#__PURE__*/React.createElement("div", {
-          style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.07)" }
+          style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px 10px", borderBottom: "1px solid rgba(255,255,255,.07)" }
         },
-          /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#fb923c", textTransform: "uppercase", letterSpacing: ".06em" } }, slot),
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#fb923c", textTransform: "uppercase", letterSpacing: ".06em" } }, slot),
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", background: "rgba(255,255,255,.06)", borderRadius: 8, padding: 2 } },
+              ["chat", "pick"].map(m => /*#__PURE__*/React.createElement("button", {
+                key: m, onClick: () => setMode(m),
+                style: { padding: "4px 10px", borderRadius: 6, border: "none", background: mode === m ? "rgba(251,146,60,.2)" : "transparent", color: mode === m ? "#fb923c" : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer" }
+              }, m === "chat" ? "\uD83D\uDCAC Chat" : "\uD83D\uDCDA Library"))
+            )
+          ),
           /*#__PURE__*/React.createElement("button", { onClick: onClose, style: { background: "transparent", border: "none", color: "var(--text-secondary)", fontSize: 22, cursor: "pointer", lineHeight: 1 } }, "\xD7")
         ),
-        // Chat messages
+
+        // LIBRARY PICK MODE
+        mode === "pick" && /*#__PURE__*/React.createElement("div", {
+          style: { flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }
+        },
+          /*#__PURE__*/React.createElement("div", { style: { padding: "10px 16px 0" } },
+            /*#__PURE__*/React.createElement("input", {
+              type: "text", value: libSearch, onChange: e => setLibSearch(e.target.value),
+              placeholder: `Search ${allMealsLib.length} meals\u2026`,
+              style: { width: "100%", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", fontFamily: "'DM Sans',sans-serif", boxSizing: "border-box" }
+            })
+          ),
+          /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "10px 16px 14px", display: "flex", flexDirection: "column", gap: 6 } },
+            libFiltered.length === 0 && /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, textAlign: "center", padding: "20px 0" } }, "No meals found"),
+            libFiltered.map(m => {
+              const mCats = Array.isArray(m.cat) ? m.cat : (m.cat ? [m.cat] : []);
+              return /*#__PURE__*/React.createElement("div", {
+                key: m.id || m.name,
+                onClick: () => {
+                  onSave({ action: "save", name: m.name, calories: m.cal || m.calories || 0, protein: m.prot || m.protein || 0, carbs: m.carbs || 0, fat: m.fat || 0, portionDesc: "1 serving", fromInventory: m.fromInventory || false, ing: m.ing || [] });
+                  onClose();
+                },
+                style: { padding: "10px 12px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, cursor: "pointer" }
+              },
+                /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 } },
+                  /*#__PURE__*/React.createElement("div", null,
+                    /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 600, margin: "0 0 3px" } }, m.name),
+                    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 5, flexWrap: "wrap" } },
+                      mCats.map(c => /*#__PURE__*/React.createElement("span", { key: c, style: { fontSize: 9, color: C[c] || "#9ca3af", fontWeight: 700 } }, CL[c] || c)),
+                      m.fromInventory && /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "#60a5fa", fontWeight: 700 } }, "\uD83C\uDFE0 Home")
+                    )
+                  ),
+                  /*#__PURE__*/React.createElement("div", { style: { textAlign: "right", flexShrink: 0 } },
+                    /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "#f4a823", fontWeight: 700, margin: "0 0 1px" } }, (m.cal || m.calories || 0) + " cal"),
+                    /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, (m.prot || m.protein || 0) + "g P")
+                  )
+                )
+              );
+            })
+          )
+        ),
+
+        // CHAT MODE
+        mode === "chat" && /*#__PURE__*/React.createElement(React.Fragment, null,
         /*#__PURE__*/React.createElement("div", {
           style: { flex: 1, overflowY: "auto", padding: "16px 16px 8px", display: "flex", flexDirection: "column", gap: 10 }
         },
@@ -2837,7 +2902,7 @@
             onClick: () => send(input), disabled: !input.trim() || loading,
             style: { background: "#a78bfa", border: "none", borderRadius: 10, padding: "9px 14px", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", flexShrink: 0, opacity: !input.trim() || loading ? .4 : 1 }
           }, "\u2192")
-        )
+        ))
       )
     );
   }
@@ -3039,7 +3104,21 @@
         updated[slot] = { ...mealData, plannedMeal: planned?.name || null, loggedAt: new Date().toISOString() };
       }
       await saveMealLog(updated);
-  
+
+      // Deduct from inventory if meal is flagged as home-cooked
+      if (mealData.fromInventory && mealData.ing && mealData.ing.length > 0 && pantryItems.length > 0) {
+        const deductions = computeDeductions({ ing: mealData.ing }, pantryItems);
+        if (deductions.length > 0) {
+          const deducted = pantryItems.map(item => {
+            const d = deductions.find(d => d.pantryItem.id === item.id);
+            return d ? { ...item, qty: d.resultQty, lastUpdated: new Date().toISOString().split("T")[0] } : item;
+          });
+          setPantryItems(deducted);
+          const hhid = window.__current_household_id;
+          await DB.set(hhid ? KEYS.hhPantry() : KEYS.pantry(), deducted);
+        }
+      }
+
       // Save to meal library if new
       if (mealData.isNew && mealData.name) {
         const libEntry = { name: mealData.name, calories: mealData.calories, protein: mealData.protein, carbs: mealData.carbs, fat: mealData.fat, portionDesc: mealData.portionDesc || "" };
@@ -3306,6 +3385,7 @@
       date: today,
       existing: openSlot === "snack" ? null : mealLog[openSlot],
       mealLibrary: mealLibrary,
+      allMeals: allMeals,
       userName: isPartner ? partnerName : userName,
       onSave: meal => handleSlotSave(openSlot, meal),
       onClose: () => setOpenSlot(null)
