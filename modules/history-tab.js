@@ -18,7 +18,7 @@ function DayDetailView({
   const hasMorning = !!(m.weight || m.intention || m.gratitude || m.energy);
   const hasEvening = !!(e.win || e.dayRating || e.cardio || e.strength);
   const snackLabels = ["None 🟢", "Light 🟡", "Moderate 🟠", "Heavy 🔴"];
-  const snackColors = ["#4ade80", "#facc15", "#fb923c", "#ef4444"];
+  const snackColors = ["var(--color-success)", "var(--color-accent-yellow)", "var(--color-accent-orange)", "var(--color-danger)"];
   const Field = ({
     label,
     value,
@@ -54,7 +54,7 @@ function DayDetailView({
   const RatingDots = ({
     val,
     max = 5,
-    color = "#f4a823"
+    color = "var(--color-primary)"
   }) => val ? /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
@@ -108,7 +108,7 @@ function DayDetailView({
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#a78bfa",
+      color: "var(--color-accent-purple)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 16,
       fontWeight: 800,
@@ -123,18 +123,18 @@ function DayDetailView({
   }, "Log entry")), /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center" } },
     onEditLog && /*#__PURE__*/React.createElement("button", {
       onClick: () => { onEditLog(date, section === "both" ? "morning" : section); onClose(); },
-      style: { padding: "7px 12px", background: "rgba(244,168,35,.15)", border: "1px solid rgba(244,168,35,.3)", color: "#f4a823", borderRadius: 9, fontSize: 12, cursor: "pointer", fontWeight: 700 }
+      style: { padding: "7px 12px", background: "rgba(244,168,35,.15)", border: "1px solid rgba(244,168,35,.3)", color: "var(--color-primary)", borderRadius: 9, fontSize: 12, cursor: "pointer", fontWeight: 700 }
     }, "\u270F\uFE0F Edit"),
     /*#__PURE__*/React.createElement("button", {
       onClick: onClose,
-      style: { padding: "7px 14px", background: "var(--card-bg-2)", border: "1px solid rgba(255,255,255,.1)", color: "#9ca3af", borderRadius: 9, fontSize: 12, cursor: "pointer", fontWeight: 700 }
+      style: { padding: "7px 14px", background: "var(--card-bg-2)", border: "1px solid rgba(255,255,255,.1)", color: "var(--text-secondary)", borderRadius: 9, fontSize: 12, cursor: "pointer", fontWeight: 700 }
     }, "\u2190 Back")
   )), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 6
     }
-  }, [["morning", "Morning", "#f4a823", hasMorning], ["evening", "Evening", "#60a5fa", hasEvening], ["both", "Both", "#a78bfa", hasMorning || hasEvening]].map(([id, l, c, has]) => /*#__PURE__*/React.createElement("button", {
+  }, [["morning", "Morning", "var(--color-primary)", hasMorning], ["evening", "Evening", "var(--color-accent-blue)", hasEvening], ["both", "Both", "var(--color-accent-purple)", hasMorning || hasEvening]].map(([id, l, c, has]) => /*#__PURE__*/React.createElement("button", {
     key: id,
     onClick: () => setSection(id),
     disabled: !has,
@@ -144,7 +144,7 @@ function DayDetailView({
       borderRadius: 7,
       border: "1px solid " + (section === id ? c : "var(--card-bg-4)"),
       background: section === id ? c + "18" : "transparent",
-      color: section === id ? c : has ? "var(--text-secondary)" : "#2d3340",
+      color: section === id ? c : has ? "var(--text-secondary)" : "var(--text-disabled)",
       fontSize: 11,
       fontWeight: section === id ? 800 : 400,
       cursor: has ? "pointer" : "default",
@@ -164,7 +164,7 @@ function DayDetailView({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#a78bfa",
+      color: "var(--color-accent-purple)",
       fontSize: 11,
       fontWeight: 700,
       margin: 0
@@ -175,7 +175,7 @@ function DayDetailView({
     }
   }, section === "both" && /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontSize: 10,
       fontWeight: 800,
       letterSpacing: ".08em",
@@ -190,7 +190,7 @@ function DayDetailView({
       display: "block",
       width: 3,
       height: 16,
-      background: "#f4a823",
+      background: "var(--color-primary)",
       borderRadius: 2
     }
   }), "Morning"), !hasMorning && /*#__PURE__*/React.createElement("p", {
@@ -230,7 +230,7 @@ function DayDetailView({
     }
   }, "Weight"), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 20,
       fontWeight: 800,
@@ -260,7 +260,7 @@ function DayDetailView({
     }
   }, "Wake"), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#a78bfa",
+      color: "var(--color-accent-purple)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 18,
       fontWeight: 800,
@@ -284,7 +284,7 @@ function DayDetailView({
     }
   }, "Steps"), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#34d399",
+      color: "var(--color-accent-teal)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 18,
       fontWeight: 800,
@@ -300,7 +300,7 @@ function DayDetailView({
       flexDirection: "column",
       gap: 10
     }
-  }, [["Sleep Quality", m.sleep, "#a78bfa"], ["Energy", m.energy, "#60a5fa"], ["Readiness", m.readiness, "#4ade80"], ["Mood", m.mood, "#f472b6"], ["Hunger", m.hunger, "#fb923c"]].map(([l, v, c]) => v ? /*#__PURE__*/React.createElement("div", {
+  }, [["Sleep Quality", m.sleep, "var(--color-accent-purple)"], ["Energy", m.energy, "var(--color-accent-blue)"], ["Readiness", m.readiness, "var(--color-success)"], ["Mood", m.mood, "var(--color-accent-pink)"], ["Hunger", m.hunger, "var(--color-accent-orange)"]].map(([l, v, c]) => v ? /*#__PURE__*/React.createElement("div", {
     key: l,
     style: {
       display: "flex",
@@ -328,7 +328,7 @@ function DayDetailView({
     }
   }, "Water"), /*#__PURE__*/React.createElement("span", {
     style: {
-      color: "#60a5fa",
+      color: "var(--color-accent-blue)",
       fontSize: 11,
       fontWeight: 700
     }
@@ -348,21 +348,21 @@ function DayDetailView({
     }
   }, "Mobility"), /*#__PURE__*/React.createElement("span", {
     style: {
-      color: "#fb923c",
+      color: "var(--color-accent-orange)",
       fontSize: 11,
       fontWeight: 700
     }
   }, m.mobilityCount, "/10 exercises")), m.intention && /*#__PURE__*/React.createElement(Field, {
     label: "Intention",
     value: m.intention,
-    color: "#f4a823"
+    color: "var(--color-primary)"
   }), m.gratitude && /*#__PURE__*/React.createElement(Field, {
     label: "Gratitude",
     value: m.gratitude,
-    color: "#c9ccd4"
+    color: "var(--text-primary)"
   }))), (section === "evening" || section === "both") && /*#__PURE__*/React.createElement("div", null, section === "both" && /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#60a5fa",
+      color: "var(--color-accent-blue)",
       fontSize: 10,
       fontWeight: 800,
       letterSpacing: ".08em",
@@ -377,7 +377,7 @@ function DayDetailView({
       display: "block",
       width: 3,
       height: 16,
-      background: "#60a5fa",
+      background: "var(--color-accent-blue)",
       borderRadius: 2
     }
   }), "Evening"), !hasEvening && /*#__PURE__*/React.createElement("p", {
@@ -409,7 +409,7 @@ function DayDetailView({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#4ade80",
+      color: "var(--color-success)",
       fontSize: 11,
       fontWeight: 700,
       margin: 0
@@ -425,7 +425,7 @@ function DayDetailView({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#4ade80",
+      color: "var(--color-success)",
       fontSize: 11,
       fontWeight: 700,
       margin: 0
@@ -456,7 +456,7 @@ function DayDetailView({
       flexDirection: "column",
       gap: 10
     }
-  }, [["Day Rating", e.dayRating, "#f4a823"], ["Evening Mood", e.eveningMood, "#a78bfa"], ["Food Quality", e.foodQuality, "#fb923c"]].map(([l, v, c]) => v ? /*#__PURE__*/React.createElement("div", {
+  }, [["Day Rating", e.dayRating, "var(--color-primary)"], ["Evening Mood", e.eveningMood, "var(--color-accent-purple)"], ["Food Quality", e.foodQuality, "var(--color-accent-orange)"]].map(([l, v, c]) => v ? /*#__PURE__*/React.createElement("div", {
     key: l,
     style: {
       display: "flex",
@@ -484,7 +484,7 @@ function DayDetailView({
     }
   }, "Bedtime"), /*#__PURE__*/React.createElement("span", {
     style: {
-      color: "#a78bfa",
+      color: "var(--color-accent-purple)",
       fontSize: 11,
       fontWeight: 700
     }
@@ -501,30 +501,30 @@ function DayDetailView({
     }
   }, "Finance Win"), /*#__PURE__*/React.createElement("span", {
     style: {
-      color: "#34d399",
+      color: "var(--color-accent-teal)",
       fontSize: 11,
       fontWeight: 700
     }
   }, "\u2713 Yes"))), e.win && /*#__PURE__*/React.createElement(Field, {
     label: "Win of the Day",
     value: e.win,
-    color: "#f4a823"
+    color: "var(--color-primary)"
   }), e.familyMoment && /*#__PURE__*/React.createElement(Field, {
     label: "Family Moment",
     value: e.familyMoment,
-    color: "#f472b6"
+    color: "var(--color-accent-pink)"
   }), e.financeNote && /*#__PURE__*/React.createElement(Field, {
     label: "Finance Note",
     value: e.financeNote,
-    color: "#34d399"
+    color: "var(--color-accent-teal)"
   }), e.moodNote && /*#__PURE__*/React.createElement(Field, {
     label: "Mood Note",
     value: e.moodNote,
-    color: "#c9ccd4"
+    color: "var(--text-primary)"
   }), e.choresDone && e.choreNote && /*#__PURE__*/React.createElement(Field, {
     label: "Chore Completed",
     value: e.choreNote,
-    color: "#fb923c"
+    color: "var(--color-accent-orange)"
   })))));
 }
 function HistoryBrowser({
@@ -651,12 +651,12 @@ function HistoryBrowser({
     style: {
       width: 3,
       height: 24,
-      background: "#a78bfa",
+      background: "var(--color-accent-purple)",
       borderRadius: 2
     }
   }), /*#__PURE__*/React.createElement("h2", {
     style: {
-      color: "#a78bfa",
+      color: "var(--color-accent-purple)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 18,
       margin: 0,
@@ -664,7 +664,7 @@ function HistoryBrowser({
     }
   }, "History")), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#404755",
+      color: "var(--text-muted)",
       fontSize: 11,
       margin: "0 0 0 13px"
     }
@@ -683,7 +683,7 @@ function HistoryBrowser({
       borderRadius: 9,
       border: "1px solid " + (view === id ? "rgba(167,139,250,.4)" : "var(--card-bg-4)"),
       background: view === id ? "rgba(167,139,250,.12)" : "rgba(255,255,255,.02)",
-      color: view === id ? "#a78bfa" : "var(--text-secondary)",
+      color: view === id ? "var(--color-accent-purple)" : "var(--text-secondary)",
       fontSize: 10,
       fontWeight: view === id ? 800 : 400,
       cursor: "pointer",
@@ -728,7 +728,7 @@ function HistoryBrowser({
       borderRadius: 8,
       border: "1px solid rgba(255,255,255,.1)",
       background: "transparent",
-      color: monthOffset === 0 ? "#2d3340" : "var(--text-secondary)",
+      color: monthOffset === 0 ? "var(--text-disabled)" : "var(--text-secondary)",
       cursor: monthOffset === 0 ? "default" : "pointer",
       fontSize: 16,
       display: "flex",
@@ -783,8 +783,8 @@ function HistoryBrowser({
       style: {
         aspectRatio: "1",
         borderRadius: 8,
-        border: "1px solid " + (isSelected ? "#a78bfa" : isToday ? "rgba(167,139,250,.5)" : hasLog ? "rgba(74,222,128,.3)" : "rgba(255,255,255,.06)"),
-        background: isSelected ? "#a78bfa" : isToday ? "rgba(167,139,250,.18)" : hasLog ? "rgba(74,222,128,.1)" : "rgba(255,255,255,.02)",
+        border: "1px solid " + (isSelected ? "var(--color-accent-purple)" : isToday ? "rgba(167,139,250,.5)" : hasLog ? "rgba(74,222,128,.3)" : "rgba(255,255,255,.06)"),
+        background: isSelected ? "var(--color-accent-purple)" : isToday ? "rgba(167,139,250,.18)" : hasLog ? "rgba(74,222,128,.1)" : "rgba(255,255,255,.02)",
         cursor: hasLog && !isFuture ? "pointer" : "default",
         display: "flex",
         flexDirection: "column",
@@ -797,7 +797,7 @@ function HistoryBrowser({
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: isSelected ? "#080b11" : isToday ? "#a78bfa" : hasLog ? "#4ade80" : "var(--text-muted)",
+        color: isSelected ? "var(--bg)" : isToday ? "var(--color-accent-purple)" : hasLog ? "var(--color-success)" : "var(--text-muted)",
         fontSize: 11,
         fontWeight: 800,
         margin: 0,
@@ -813,14 +813,14 @@ function HistoryBrowser({
         width: 4,
         height: 4,
         borderRadius: "50%",
-        background: isSelected ? "rgba(8,11,17,.5)" : hasMorning ? "#f4a823" : "rgba(255,255,255,.15)"
+        background: isSelected ? "rgba(8,11,17,.5)" : hasMorning ? "var(--color-primary)" : "rgba(255,255,255,.15)"
       }
     }), /*#__PURE__*/React.createElement("div", {
       style: {
         width: 4,
         height: 4,
         borderRadius: "50%",
-        background: isSelected ? "rgba(8,11,17,.5)" : hasEvening ? "#60a5fa" : "rgba(255,255,255,.15)"
+        background: isSelected ? "rgba(8,11,17,.5)" : hasEvening ? "var(--color-accent-blue)" : "rgba(255,255,255,.15)"
       }
     })), exceptional && /*#__PURE__*/React.createElement("div", {
       style: {
@@ -830,7 +830,7 @@ function HistoryBrowser({
         width: 5,
         height: 5,
         borderRadius: "50%",
-        background: "#a78bfa"
+        background: "var(--color-accent-purple)"
       }
     }), isLoading && /*#__PURE__*/React.createElement("div", {
       style: {
@@ -847,7 +847,7 @@ function HistoryBrowser({
         width: 8,
         height: 8,
         borderRadius: "50%",
-        background: "#a78bfa"
+        background: "var(--color-accent-purple)"
       }
     })));
   })), /*#__PURE__*/React.createElement("div", {
@@ -857,7 +857,7 @@ function HistoryBrowser({
       marginTop: 12,
       flexWrap: "wrap"
     }
-  }, [["#f4a823", "Morning logged"], ["#60a5fa", "Evening logged"], ["#4ade80", "Both logged"], ["#a78bfa", "Today / Exceptional"]].map(([c, l]) => /*#__PURE__*/React.createElement("div", {
+  }, [["var(--color-primary)", "Morning logged"], ["var(--color-accent-blue)", "Evening logged"], ["var(--color-success)", "Both logged"], ["var(--color-accent-purple)", "Today / Exceptional"]].map(([c, l]) => /*#__PURE__*/React.createElement("div", {
     key: l,
     style: {
       display: "flex",
@@ -878,7 +878,7 @@ function HistoryBrowser({
     }
   }, l)))), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#2d3340",
+      color: "var(--text-disabled)",
       fontSize: 10,
       margin: "12px 0 0",
       textAlign: "center"
@@ -906,7 +906,7 @@ function HistoryBrowser({
     }
   }, "No Sunday reviews saved yet"), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#2d3340",
+      color: "var(--text-disabled)",
       fontSize: 11,
       margin: 0
     }
@@ -938,7 +938,7 @@ function HistoryBrowser({
       }
     }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 13,
         fontWeight: 800,
@@ -964,7 +964,7 @@ function HistoryBrowser({
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 18,
         fontWeight: 800,
@@ -984,7 +984,7 @@ function HistoryBrowser({
       }
     }, ["family", "faith", "fitness", "finance", "learning", "fun", "marriage"].map(p => {
       const v = pillarScores[p] || 0;
-      const c = v >= 4 ? "#4ade80" : v >= 3 ? "#f4a823" : v >= 2 ? "#fb923c" : "#ef4444";
+      const c = v >= 4 ? "var(--color-success)" : v >= 3 ? "var(--color-primary)" : v >= 2 ? "var(--color-accent-orange)" : "var(--color-danger)";
       return /*#__PURE__*/React.createElement("div", {
         key: p,
         style: {
@@ -1030,7 +1030,7 @@ function HistoryBrowser({
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#6b7280",
+        color: "var(--text-muted)",
         fontSize: 9,
         textTransform: "uppercase",
         letterSpacing: ".06em",
@@ -1039,7 +1039,7 @@ function HistoryBrowser({
       }
     }, "AI Brief (saved)"), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#c4b5fd",
+        color: "var(--color-accent-purple)",
         fontSize: 11,
         margin: 0,
         lineHeight: 1.6
@@ -1055,7 +1055,7 @@ function HistoryBrowser({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#a78bfa",
+      color: "var(--color-accent-purple)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 14,
       fontWeight: 800,
@@ -1082,7 +1082,7 @@ function HistoryBrowser({
       padding: "13px 0",
       background: insightLoading || allSundays.length === 0 ? "var(--card-bg-3)" : "rgba(167,139,250,.15)",
       border: "1px solid " + (insightLoading || allSundays.length === 0 ? "var(--card-border)" : "rgba(167,139,250,.35)"),
-      color: insightLoading || allSundays.length === 0 ? "var(--text-muted)" : "#a78bfa",
+      color: insightLoading || allSundays.length === 0 ? "var(--text-muted)" : "var(--color-accent-purple)",
       borderRadius: 10,
       fontSize: 14,
       fontWeight: 800,
@@ -1111,12 +1111,12 @@ function HistoryBrowser({
       width: 7,
       height: 7,
       borderRadius: "50%",
-      background: "#a78bfa",
+      background: "var(--color-accent-purple)",
       animation: "pulse 1.2s ease-in-out " + i * 0.2 + "s infinite"
     }
   }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#a78bfa",
+      color: "var(--color-accent-purple)",
       fontSize: 12,
       fontWeight: 700,
       margin: "0 0 2px"
@@ -1144,7 +1144,7 @@ function HistoryBrowser({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#a78bfa",
+      color: "var(--color-accent-purple)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 12,
       fontWeight: 800,

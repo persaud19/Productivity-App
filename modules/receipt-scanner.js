@@ -183,15 +183,15 @@
   // ── Design tokens ──────────────────────────────────────────────────────────
 
   var C = {
-    amber:  "#f4a823",
-    blue:   "#60a5fa",
-    green:  "#4ade80",
-    purple: "#a78bfa",
-    orange: "#fb923c",
-    red:    "#ef4444",
-    muted:  "#7a8699",
-    text:   "#d1d5db",
-    textSec:"#c4cdd9",
+    amber:  "var(--color-primary)",
+    blue:   "var(--color-accent-blue)",
+    green:  "var(--color-success)",
+    purple: "var(--color-accent-purple)",
+    orange: "var(--color-accent-orange)",
+    red:    "var(--color-danger)",
+    muted:  "var(--text-muted)",
+    text:   "var(--text-primary)",
+    textSec:"var(--text-secondary)",
   };
 
   var inputStyle = {
@@ -411,7 +411,7 @@
             display: "flex", alignItems: "center", justifyContent: "center"
           }
         },
-          important && React.createElement("span", { style: { fontSize: 11, color: "#080b11", fontWeight: 900, lineHeight: 1 } }, "✓")
+          important && React.createElement("span", { style: { fontSize: 11, color: "var(--bg)", fontWeight: 900, lineHeight: 1 } }, "✓")
         ),
         React.createElement("div", null,
           React.createElement("p", {
@@ -904,7 +904,7 @@
     },
       React.createElement("div", {
         style: {
-          background: "#0d1117",
+          background: "var(--bg-modal)",
           borderRadius: "20px 20px 0 0",
           marginTop: "auto",
           padding: "20px 16px 48px",

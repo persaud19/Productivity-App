@@ -12,27 +12,27 @@ const EPOCH = new Date("2026-01-05");
 const STRENGTH_PAIRS = [{
   id: "chest_tri",
   name: "Chest + Triceps",
-  color: "#60a5fa"
+  color: "var(--color-accent-blue)"
 }, {
   id: "back_bi",
   name: "Back + Biceps",
-  color: "#a78bfa"
+  color: "var(--color-accent-purple)"
 }, {
   id: "legs_glutes",
   name: "Legs + Glutes",
-  color: "#f4a823"
+  color: "var(--color-primary)"
 }, {
   id: "shoulders_core",
   name: "Shoulders + Core",
-  color: "#4ade80"
+  color: "var(--color-success)"
 }, {
   id: "push_pull",
   name: "Chest + Back",
-  color: "#fb923c"
+  color: "var(--color-accent-orange)"
 }, {
   id: "arms_core",
   name: "Arms + Core",
-  color: "#f472b6"
+  color: "var(--color-accent-pink)"
 }];
 const STRENGTH_POOL = window.STRENGTH_POOL;
 const EQUIP_COLORS = window.EQUIP_COLORS;
@@ -122,7 +122,7 @@ function IntervalTimer({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#4ade80",
+      color: "var(--color-success)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 22,
       fontWeight: 800,
@@ -156,7 +156,7 @@ function IntervalTimer({
     cy: 70,
     r: 60,
     fill: "none",
-    stroke: block.color || "#60a5fa",
+    stroke: block.color || "var(--color-accent-blue)",
     strokeWidth: 8,
     strokeLinecap: "round",
     strokeDasharray: `${2 * Math.PI * 60 * pct / 100} ${2 * Math.PI * 60}`,
@@ -169,7 +169,7 @@ function IntervalTimer({
     x: 70,
     y: 62,
     textAnchor: "middle",
-    fill: block.color || "#60a5fa",
+    fill: block.color || "var(--color-accent-blue)",
     fontSize: 28,
     fontWeight: 800,
     fontFamily: "'Syne',sans-serif"
@@ -181,7 +181,7 @@ function IntervalTimer({
     fontSize: 11
   }, block.label || ""))), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#9ca3af",
+      color: "var(--text-secondary)",
       fontSize: 12,
       margin: "0 0 4px"
     }
@@ -204,7 +204,7 @@ function IntervalTimer({
       padding: "12px 28px",
       background: running ? "rgba(239,68,68,.15)" : "rgba(96,165,250,.15)",
       border: `1px solid ${running ? "rgba(239,68,68,.3)" : "rgba(96,165,250,.3)"}`,
-      color: running ? "#ef4444" : "#60a5fa",
+      color: running ? "var(--color-danger)" : "var(--color-accent-blue)",
       borderRadius: 10,
       fontSize: 14,
       fontWeight: 800,
@@ -281,7 +281,7 @@ function OutdoorWalk({
         maxZoom: 19
       }).addTo(map);
       polylineRef.current = L.polyline([], {
-        color: "#60a5fa",
+        color: "var(--color-accent-blue)",
         weight: 4,
         opacity: 0.85
       }).addTo(map);
@@ -290,7 +290,7 @@ function OutdoorWalk({
         const pts = [...pointsRef.current, e.latlng];
         pointsRef.current = pts;
         const icon = L.divIcon({
-          html: `<div style="width:${pts.length === 1 ? 14 : 10}px;height:${pts.length === 1 ? 14 : 10}px;background:${pts.length === 1 ? "#4ade80" : "#60a5fa"};border:2px solid #fff;border-radius:50%;"></div>`,
+          html: `<div style="width:${pts.length === 1 ? 14 : 10}px;height:${pts.length === 1 ? 14 : 10}px;background:${pts.length === 1 ? "var(--color-success)" : "var(--color-accent-blue)"};border:2px solid #fff;border-radius:50%;"></div>`,
           iconSize: [14, 14],
           iconAnchor: [7, 7],
           className: ""
@@ -358,7 +358,7 @@ function OutdoorWalk({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#4ade80",
+      color: "var(--color-success)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 15,
       fontWeight: 800,
@@ -383,7 +383,7 @@ function OutdoorWalk({
       padding: "5px 11px",
       background: "rgba(244,168,35,.1)",
       border: "1px solid rgba(244,168,35,.25)",
-      color: "#f4a823",
+      color: "var(--color-primary)",
       borderRadius: 7,
       fontSize: 11,
       fontWeight: 700,
@@ -401,7 +401,7 @@ function OutdoorWalk({
       padding: "5px 11px",
       background: "rgba(239,68,68,.08)",
       border: "1px solid rgba(239,68,68,.18)",
-      color: "#ef4444",
+      color: "var(--color-danger)",
       borderRadius: 7,
       fontSize: 11,
       fontWeight: 700,
@@ -432,7 +432,7 @@ function OutdoorWalk({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#6b7280",
+      color: "var(--text-muted)",
       fontSize: 9,
       textTransform: "uppercase",
       letterSpacing: ".07em",
@@ -440,7 +440,7 @@ function OutdoorWalk({
     }
   }, "Distance"), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#60a5fa",
+      color: "var(--color-accent-blue)",
       fontSize: 20,
       fontWeight: 800,
       margin: 0,
@@ -452,7 +452,7 @@ function OutdoorWalk({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#6b7280",
+      color: "var(--text-muted)",
       fontSize: 9,
       textTransform: "uppercase",
       letterSpacing: ".07em",
@@ -477,7 +477,7 @@ function OutdoorWalk({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#6b7280",
+      color: "var(--text-muted)",
       fontSize: 9,
       textTransform: "uppercase",
       letterSpacing: ".07em",
@@ -485,7 +485,7 @@ function OutdoorWalk({
     }
   }, "Pace"), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#4ade80",
+      color: "var(--color-success)",
       fontSize: 16,
       fontWeight: 800,
       margin: 0,
@@ -500,7 +500,7 @@ function OutdoorWalk({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#4ade80",
+      color: "var(--color-success)",
       fontSize: 13,
       fontWeight: 700,
       margin: 0
@@ -512,7 +512,7 @@ function OutdoorWalk({
       padding: "13px 0",
       background: "rgba(74,222,128,.15)",
       border: "1px solid rgba(74,222,128,.3)",
-      color: "#4ade80",
+      color: "var(--color-success)",
       borderRadius: 10,
       fontSize: 14,
       fontWeight: 800,
@@ -543,7 +543,7 @@ function StrengthSession({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#4ade80",
+      color: "var(--color-success)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 18,
       fontWeight: 800,
@@ -566,7 +566,7 @@ function StrengthSession({
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#6b7280",
+      color: "var(--text-muted)",
       fontSize: 10,
       letterSpacing: ".07em",
       textTransform: "uppercase",
@@ -606,7 +606,7 @@ function StrengthSession({
   }, exercises.map(ex => {
     const ck = !!checked[ex.id];
     const tip = tipOpen === ex.id;
-    const ec = EQUIP_COLORS[ex.equip] || "#9ca3af";
+    const ec = EQUIP_COLORS[ex.equip] || "var(--text-secondary)";
     return /*#__PURE__*/React.createElement("div", {
       key: ex.id,
       style: {
@@ -630,15 +630,15 @@ function StrengthSession({
         width: 21,
         height: 21,
         borderRadius: 5,
-        border: `2px solid ${ck ? "#4ade80" : "rgba(255,255,255,.18)"}`,
-        background: ck ? "#4ade80" : "transparent",
+        border: `2px solid ${ck ? "var(--color-success)" : "rgba(255,255,255,.18)"}`,
+        background: ck ? "var(--color-success)" : "transparent",
         cursor: "pointer",
         flexShrink: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 0,
-        color: "#080b11",
+        color: "var(--bg)",
         fontSize: 11,
         fontWeight: 800
       }
@@ -650,7 +650,7 @@ function StrengthSession({
     }, /*#__PURE__*/React.createElement("span", {
       style: {
         fontSize: 13,
-        color: ck ? "#6b7280" : "var(--text-primary)",
+        color: ck ? "var(--text-muted)" : "var(--text-primary)",
         textDecoration: ck ? "line-through" : "none",
         fontWeight: 500
       }
@@ -679,7 +679,7 @@ function StrengthSession({
       style: {
         background: tip ? "rgba(244,168,35,.18)" : "transparent",
         border: `1px solid ${tip ? "rgba(244,168,35,.3)" : "var(--card-border)"}`,
-        color: tip ? "#f4a823" : "var(--text-muted)",
+        color: tip ? "var(--color-primary)" : "var(--text-muted)",
         borderRadius: 6,
         padding: "3px 8px",
         fontSize: 10,
@@ -693,7 +693,7 @@ function StrengthSession({
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#fcd34d",
+        color: "var(--color-accent-yellow)",
         fontSize: 12,
         margin: 0,
         lineHeight: 1.6,
@@ -751,7 +751,7 @@ function IndoorWalk({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#60a5fa",
+      color: "var(--color-accent-blue)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 18,
       fontWeight: 800,
@@ -767,7 +767,7 @@ function IndoorWalk({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#60a5fa",
+      color: "var(--color-accent-blue)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 15,
       fontWeight: 800,
@@ -781,7 +781,7 @@ function IndoorWalk({
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#6b7280",
+      color: "var(--text-muted)",
       fontSize: 10,
       fontWeight: 600,
       textTransform: "uppercase",
@@ -797,7 +797,7 @@ function IndoorWalk({
     style: inp
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#6b7280",
+      color: "var(--text-muted)",
       fontSize: 10,
       fontWeight: 600,
       textTransform: "uppercase",
@@ -821,13 +821,13 @@ function IndoorWalk({
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      color: "#60a5fa",
+      color: "var(--color-accent-blue)",
       fontSize: 13,
       fontWeight: 700
     }
   }, "Avg Speed: ", speed, " km/h")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#6b7280",
+      color: "var(--text-muted)",
       fontSize: 10,
       fontWeight: 600,
       textTransform: "uppercase",
@@ -856,10 +856,10 @@ function IndoorWalk({
     style: {
       width: "100%",
       padding: "12px 0",
-      background: dist && time ? "#60a5fa" : "rgba(255,255,255,.05)",
+      background: dist && time ? "var(--color-accent-blue)" : "rgba(255,255,255,.05)",
       border: "none",
       borderRadius: 9,
-      color: dist && time ? "#0a0f1a" : "var(--text-muted)",
+      color: dist && time ? "var(--bg-nav)" : "var(--text-muted)",
       fontSize: 13,
       fontWeight: 800,
       cursor: dist && time ? "pointer" : "default",
@@ -954,20 +954,20 @@ function Train({
   }, /*#__PURE__*/React.createElement("div", {
     style: { display: "flex", justifyContent: "space-between", alignItems: "center" }
   },
-    /*#__PURE__*/React.createElement(SectionHead, { label: backlogDate ? fmtMid(backlogDate) : "Train", color: "#fb923c" }),
+    /*#__PURE__*/React.createElement(SectionHead, { label: backlogDate ? fmtMid(backlogDate) : "Train", color: "var(--color-accent-orange)" }),
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, marginRight: 4 } },
       /*#__PURE__*/React.createElement("button", {
         onClick: () => { setTrainView("today"); setBacklogDate(null); setWorkoutType(null); setCardioType(null); setWalkType(null); setStrengthPair(null); setSessionDone(null); },
-        style: { background: trainView === "today" ? "rgba(251,146,60,.18)" : "rgba(255,255,255,.04)", border: `1px solid ${trainView === "today" ? "rgba(251,146,60,.4)" : "rgba(255,255,255,.1)"}`, borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 700, color: trainView === "today" ? "#fb923c" : "var(--text-secondary)", cursor: "pointer" }
+        style: { background: trainView === "today" ? "rgba(251,146,60,.18)" : "rgba(255,255,255,.04)", border: `1px solid ${trainView === "today" ? "rgba(251,146,60,.4)" : "rgba(255,255,255,.1)"}`, borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 700, color: trainView === "today" ? "var(--color-accent-orange)" : "var(--text-secondary)", cursor: "pointer" }
       }, "TODAY"),
       /*#__PURE__*/React.createElement("button", {
         onClick: () => { setTrainView("backlog"); setBacklogDate(null); setWorkoutType(null); setCardioType(null); setWalkType(null); setStrengthPair(null); setSessionDone(null); },
-        style: { background: trainView === "backlog" ? "rgba(251,146,60,.18)" : "rgba(255,255,255,.04)", border: `1px solid ${trainView === "backlog" ? "rgba(251,146,60,.4)" : "rgba(255,255,255,.1)"}`, borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 700, color: trainView === "backlog" ? "#fb923c" : "var(--text-secondary)", cursor: "pointer" }
+        style: { background: trainView === "backlog" ? "rgba(251,146,60,.18)" : "rgba(255,255,255,.04)", border: `1px solid ${trainView === "backlog" ? "rgba(251,146,60,.4)" : "rgba(255,255,255,.1)"}`, borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 700, color: trainView === "backlog" ? "var(--color-accent-orange)" : "var(--text-secondary)", cursor: "pointer" }
       }, "PAST 7")
     )
   ),
   /*#__PURE__*/React.createElement("p", {
-    style: { color: "#404755", fontSize: 12, margin: "2px 0 0 13px" }
+    style: { color: "var(--text-muted)", fontSize: 12, margin: "2px 0 0 13px" }
   }, backlogDate ? "Logging for " + fmtMid(backlogDate) : fmtMid(todayStr))),
 
   /* Backlog day picker */
@@ -984,7 +984,7 @@ function Train({
       },
         /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 500 } }, lbl),
         hasLog
-          ? /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "#4ade80", fontWeight: 700, background: "rgba(74,222,128,.12)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 6, padding: "2px 8px" } }, "LOGGED")
+          ? /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--color-success)", fontWeight: 700, background: "rgba(74,222,128,.12)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 6, padding: "2px 8px" } }, "LOGGED")
           : /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 600 } }, "tap to log \u203A")
       );
     })
@@ -1000,7 +1000,7 @@ function Train({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontSize: 11,
       fontWeight: 700,
       margin: "0 0 2px"
@@ -1023,7 +1023,7 @@ function Train({
     schedule: s,
     isToday
   }) => {
-    const c = s.type === "strength" ? s.pair?.color || "#f4a823" : s.type === "cardio" ? "#60a5fa" : s.type === "rest" ? "#2d3340" : "#555";
+    const c = s.type === "strength" ? s.pair?.color || "var(--color-primary)" : s.type === "cardio" ? "var(--color-accent-blue)" : s.type === "rest" ? "var(--text-disabled)" : "#555";
     return /*#__PURE__*/React.createElement("div", {
       key: d,
       style: {
@@ -1067,7 +1067,7 @@ function Train({
     }, "\uD83D\uDCAA"),
     /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 18,
         fontWeight: 800,
@@ -1076,7 +1076,7 @@ function Train({
     }, "Great work!"),
     /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#6b7280",
+        color: "var(--text-muted)",
         fontSize: 12,
         margin: "0 0 12px"
       }
@@ -1087,7 +1087,7 @@ function Train({
         background: "rgba(74,222,128,.12)",
         border: "1px solid rgba(74,222,128,.25)",
         borderRadius: 8,
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontSize: 11,
         fontWeight: 700,
         padding: "7px 16px",
@@ -1118,13 +1118,13 @@ function Train({
       }
     }, backlogDate ? "Logging for " + fmtMid(backlogDate) : "Today\u2019s plan: ", backlogDate ? null : /*#__PURE__*/React.createElement("span", {
       style: {
-        color: schedule.type === "strength" ? "#f4a823" : "#60a5fa",
+        color: schedule.type === "strength" ? "var(--color-primary)" : "var(--color-accent-blue)",
         fontWeight: 700
       }
     }, schedule.type === "strength" ? (schedule.pair?.name || "Strength") : schedule.format === "outdoor_walk" ? "Outdoor Walk" : (CARDIO_SESSIONS[schedule.format]?.title || "Cardio"))),
     schedule.type === "rest" && /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontSize: 11,
         margin: "0 0 12px",
         textAlign: "center",
@@ -1145,7 +1145,7 @@ function Train({
           background: "rgba(244,168,35,.08)",
           border: "1px solid rgba(244,168,35,.25)",
           borderRadius: 12,
-          color: "#f4a823",
+          color: "var(--color-primary)",
           fontSize: 14,
           fontWeight: 800,
           cursor: "pointer",
@@ -1167,7 +1167,7 @@ function Train({
           background: "rgba(96,165,250,.08)",
           border: "1px solid rgba(96,165,250,.25)",
           borderRadius: 12,
-          color: "#60a5fa",
+          color: "var(--color-accent-blue)",
           fontSize: 14,
           fontWeight: 800,
           cursor: "pointer",
@@ -1202,7 +1202,7 @@ function Train({
     }, "\u2190 Back"),
     /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#f4a823",
+        color: "var(--color-primary)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 14,
         fontWeight: 800,
@@ -1274,7 +1274,7 @@ function Train({
     }, "\u2190 Back"),
     /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#60a5fa",
+        color: "var(--color-accent-blue)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 14,
         fontWeight: 800,
@@ -1295,7 +1295,7 @@ function Train({
           background: "rgba(96,165,250,.08)",
           border: "1px solid rgba(96,165,250,.2)",
           borderRadius: 12,
-          color: "#60a5fa",
+          color: "var(--color-accent-blue)",
           fontSize: 13,
           fontWeight: 800,
           cursor: "pointer",
@@ -1317,7 +1317,7 @@ function Train({
           background: "rgba(96,165,250,.08)",
           border: "1px solid rgba(96,165,250,.2)",
           borderRadius: 12,
-          color: "#60a5fa",
+          color: "var(--color-accent-blue)",
           fontSize: 13,
           fontWeight: 800,
           cursor: "pointer",
@@ -1352,7 +1352,7 @@ function Train({
     }, "\u2190 Back"),
     /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#60a5fa",
+        color: "var(--color-accent-blue)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 14,
         fontWeight: 800,
@@ -1373,7 +1373,7 @@ function Train({
           background: "rgba(96,165,250,.08)",
           border: "1px solid rgba(96,165,250,.2)",
           borderRadius: 12,
-          color: "#60a5fa",
+          color: "var(--color-accent-blue)",
           fontSize: 13,
           fontWeight: 800,
           cursor: "pointer",
@@ -1395,7 +1395,7 @@ function Train({
           background: "rgba(96,165,250,.08)",
           border: "1px solid rgba(96,165,250,.2)",
           borderRadius: 12,
-          color: "#60a5fa",
+          color: "var(--color-accent-blue)",
           fontSize: 13,
           fontWeight: 800,
           cursor: "pointer",
@@ -1490,7 +1490,7 @@ function Train({
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#6b7280",
+        color: "var(--text-muted)",
         fontSize: 10,
         letterSpacing: ".07em",
         textTransform: "uppercase",
@@ -1499,7 +1499,7 @@ function Train({
       }
     }, "Today\u2019s Cardio"), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#60a5fa",
+        color: "var(--color-accent-blue)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 17,
         fontWeight: 800,
@@ -1544,7 +1544,7 @@ function Train({
     label,
     schedule: s
   }) => {
-    const c = s.type === "strength" ? s.pair?.color || "#f4a823" : "#60a5fa";
+    const c = s.type === "strength" ? s.pair?.color || "var(--color-primary)" : "var(--color-accent-blue)";
     return /*#__PURE__*/React.createElement("div", {
       key: label,
       style: {
@@ -1575,7 +1575,7 @@ function Train({
       }
     }, s.type === "strength" ? "STR" : "CARD"), /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#9ca3af",
+        color: "var(--text-secondary)",
         fontSize: 12,
         flex: 1
       }
@@ -1595,7 +1595,7 @@ function Train({
       gap: 4
     }
   }, history.slice(0, 10).map((h, i) => {
-    const c = h.type === "strength" ? "#f4a823" : "#60a5fa";
+    const c = h.type === "strength" ? "var(--color-primary)" : "var(--color-accent-blue)";
     return /*#__PURE__*/React.createElement("div", {
       key: i,
       style: {
@@ -1618,7 +1618,7 @@ function Train({
       }
     }, h.type === "strength" ? "STR" : "CARD"), /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#9ca3af",
+        color: "var(--text-secondary)",
         fontSize: 12,
         flex: 1
       }
@@ -1630,7 +1630,7 @@ function Train({
       }
     }, fmtDate(h.date)), h.dist && /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontSize: 10,
         flexShrink: 0
       }

@@ -66,7 +66,7 @@ function SubCatSelect({ envelopeId, value, onChange, extraOpts, onAdd, style }) 
   if (adding) {
     return /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6 } },
       /*#__PURE__*/React.createElement("input", { autoFocus: true, value: newVal, onChange: e => setNewVal(e.target.value), placeholder: "New sub-category", onKeyDown: e => { if (e.key === "Enter" && newVal.trim()) { onAdd && onAdd(newVal.trim()); onChange(newVal.trim()); setAdding(false); setNewVal(""); } if (e.key === "Escape") { setAdding(false); setNewVal(""); } }, style: { ...inputStyle, flex: 1 } }),
-      /*#__PURE__*/React.createElement("button", { onClick: () => { if (newVal.trim()) { onAdd && onAdd(newVal.trim()); onChange(newVal.trim()); } setAdding(false); setNewVal(""); }, style: { padding: "7px 12px", background: "#a78bfa", border: "none", borderRadius: 7, color: "#080b11", fontWeight: 800, fontSize: 12, cursor: "pointer" } }, "✓"),
+      /*#__PURE__*/React.createElement("button", { onClick: () => { if (newVal.trim()) { onAdd && onAdd(newVal.trim()); onChange(newVal.trim()); } setAdding(false); setNewVal(""); }, style: { padding: "7px 12px", background: "var(--color-accent-purple)", border: "none", borderRadius: 7, color: "var(--bg)", fontWeight: 800, fontSize: 12, cursor: "pointer" } }, "✓"),
       /*#__PURE__*/React.createElement("button", { onClick: () => { setAdding(false); setNewVal(""); }, style: { padding: "7px 10px", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, color: "var(--text-muted)", fontSize: 12, cursor: "pointer" } }, "✕")
     );
   }
@@ -175,22 +175,22 @@ function applyMerchantRules(transactions, rules) {
 // Default envelope categories derived from actual spending data
 const FINANCE_ENVELOPES_DEFAULT = [
   { id: "fixed_costs",     name: "Fixed Costs",       color: "#94a3b8", icon: "🏦", highlevel: "Fixed"         },
-  { id: "food_drink",      name: "Food & Drink",      color: "#fb923c", icon: "🍽", highlevel: "Food"          },
-  { id: "household",       name: "Household",         color: "#60a5fa", icon: "🏠", highlevel: "Household"     },
-  { id: "transportation",  name: "Transportation",    color: "#f4a823", icon: "🚗", highlevel: "Transportation" },
-  { id: "subscriptions",   name: "Subscriptions",     color: "#a78bfa", icon: "📱", highlevel: "Reoccuring Bills" },
+  { id: "food_drink",      name: "Food & Drink",      color: "var(--color-accent-orange)", icon: "🍽", highlevel: "Food"          },
+  { id: "household",       name: "Household",         color: "var(--color-accent-blue)", icon: "🏠", highlevel: "Household"     },
+  { id: "transportation",  name: "Transportation",    color: "var(--color-primary)", icon: "🚗", highlevel: "Transportation" },
+  { id: "subscriptions",   name: "Subscriptions",     color: "var(--color-accent-purple)", icon: "📱", highlevel: "Reoccuring Bills" },
   { id: "clothing",        name: "Clothing",          color: "#ec4899", icon: "👗", highlevel: "Leisure"       },
   { id: "amazon",          name: "Amazon",            color: "#f97316", icon: "📦", highlevel: "Household"     },
   { id: "entertainment",   name: "Entertainment",     color: "#8b5cf6", icon: "🎬", highlevel: "Leisure"       },
-  { id: "health",          name: "Health",            color: "#4ade80", icon: "💊", highlevel: "Household"     },
+  { id: "health",          name: "Health",            color: "var(--color-success)", icon: "💊", highlevel: "Household"     },
   { id: "travel",          name: "Travel",            color: "#06b6d4", icon: "✈️",  highlevel: "Leisure"      },
-  { id: "alcohol",         name: "Alcohol",           color: "#ef4444", icon: "🍺", highlevel: "Leisure"       },
+  { id: "alcohol",         name: "Alcohol",           color: "var(--color-danger)", icon: "🍺", highlevel: "Leisure"       },
   { id: "weed",            name: "Weed",              color: "#22c55e", icon: "🌿", highlevel: "Leisure"       },
   { id: "gifts",           name: "Gifts",             color: "#f43f5e", icon: "🎁", highlevel: "Leisure"       },
   { id: "yugioh",          name: "Yugioh / TCG",      color: "#eab308", icon: "🃏", highlevel: "Leisure"       },
-  { id: "learning",        name: "Learning",          color: "#34d399", icon: "📚", highlevel: "Household"     },
+  { id: "learning",        name: "Learning",          color: "var(--color-accent-teal)", icon: "📚", highlevel: "Household"     },
   { id: "work_expense",    name: "Work Expense",      color: "#64748b", icon: "💼", highlevel: "Household"     },
-  { id: "other",           name: "Other",             color: "#6b7280", icon: "📋", highlevel: ""              }
+  { id: "other",           name: "Other",             color: "var(--text-muted)", icon: "📋", highlevel: ""              }
 ];
 
 
@@ -208,9 +208,9 @@ const ICON_GROUPS = [
 
 // Preset color palette for envelopes
 const ENV_COLORS = [
-  "#94a3b8","#fb923c","#60a5fa","#f4a823","#a78bfa","#ec4899",
-  "#f97316","#8b5cf6","#4ade80","#06b6d4","#ef4444","#22c55e",
-  "#f43f5e","#eab308","#34d399","#64748b","#e879f9","#38bdf8",
+  "#94a3b8","var(--color-accent-orange)","var(--color-accent-blue)","var(--color-primary)","var(--color-accent-purple)","#ec4899",
+  "#f97316","#8b5cf6","var(--color-success)","#06b6d4","var(--color-danger)","#22c55e",
+  "#f43f5e","#eab308","var(--color-accent-teal)","#64748b","#e879f9","#38bdf8",
 ];
 
 // FinanceTab component
@@ -246,7 +246,7 @@ function FinanceTab({ settings, householdId }) {
   const [rulesRunMsg, setRulesRunMsg] = useState("");
   const [envelopeCatalog, setEnvelopeCatalog] = useState(FINANCE_ENVELOPES_DEFAULT);
   const [showManageEnvelopes, setShowManageEnvelopes] = useState(false);
-  const [newEnvForm, setNewEnvForm] = useState({ name: "", icon: "📋", color: "#6b7280", highlevel: "" });
+  const [newEnvForm, setNewEnvForm] = useState({ name: "", icon: "📋", color: "var(--text-muted)", highlevel: "" });
   const [iconGroupTab, setIconGroupTab] = useState(0);
   const [rulePrompt, setRulePrompt] = useState(null); // {txn, suggestedName, envelopeId, subCat}
   const [ruleForm, setRuleForm] = useState({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
@@ -334,7 +334,7 @@ function FinanceTab({ settings, householdId }) {
     const newEnv = { id, name: newEnvForm.name.trim(), icon: newEnvForm.icon, color: newEnvForm.color, highlevel: newEnvForm.highlevel, custom: true };
     const updated = [...envelopeCatalog, newEnv];
     await saveEnvelopeCatalog(updated);
-    setNewEnvForm({ name: "", icon: "📋", color: "#6b7280", highlevel: "" });
+    setNewEnvForm({ name: "", icon: "📋", color: "var(--text-muted)", highlevel: "" });
   };
 
   const handleToggleEnvelopeVisibility = async (id) => {
@@ -1379,7 +1379,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
 
   const mainTabBtn = (id, label, col, defaultView) => /*#__PURE__*/React.createElement("button", {
     onClick: () => { if (finTab !== id) setView(defaultView); },
-    style: { flex: 1, padding: "12px 0", border: "none", background: finTab === id ? `rgba(${col},0.12)` : "transparent", cursor: "pointer", fontSize: 11, fontWeight: finTab === id ? 800 : 500, fontFamily: "'Syne',sans-serif", letterSpacing: ".06em", color: finTab === id ? `rgb(${col})` : "#6b7585", borderBottom: `2px solid ${finTab === id ? `rgb(${col})` : "transparent"}`, whiteSpace: "nowrap", transition: "all .15s" }
+    style: { flex: 1, padding: "12px 0", border: "none", background: finTab === id ? `rgba(${col},0.12)` : "transparent", cursor: "pointer", fontSize: 11, fontWeight: finTab === id ? 800 : 500, fontFamily: "'Syne',sans-serif", letterSpacing: ".06em", color: finTab === id ? `rgb(${col})` : "var(--text-muted)", borderBottom: `2px solid ${finTab === id ? `rgb(${col})` : "transparent"}`, whiteSpace: "nowrap", transition: "all .15s" }
   }, label);
 
   const subTabBtn = (id, label, col) => /*#__PURE__*/React.createElement("button", {
@@ -1395,7 +1395,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
     !window.__current_household_id && !dismissedHouseholdBanner && /*#__PURE__*/React.createElement("div", {
       style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 10, padding: "10px 14px", margin: "12px 13px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }
     },
-      /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "#60a5fa", margin: 0 } }, "\uD83C\uDFE0 Set up a household to share finances with your family"),
+      /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--color-accent-blue)", margin: 0 } }, "\uD83C\uDFE0 Set up a household to share finances with your family"),
       /*#__PURE__*/React.createElement("button", { onClick: () => setDismissedHouseholdBanner(true), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", padding: "0 4px" } }, "\u00D7")
     ),
 
@@ -1403,13 +1403,13 @@ Return exactly ${bRows.length} objects. No markdown.`;
     window.__current_household_id && (window.__current_household_meta || {}).shareFinance === false && !dismissedHouseholdBanner && /*#__PURE__*/React.createElement("div", {
       style: { background: "rgba(244,168,35,.06)", border: "1px solid rgba(244,168,35,.2)", borderRadius: 10, padding: "10px 14px", margin: "12px 13px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }
     },
-      /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "#f4a823", margin: 0 } }, "\uD83D\uDCB0 Showing your personal finance data — household Finance sharing is off"),
+      /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--color-primary)", margin: 0 } }, "\uD83D\uDCB0 Showing your personal finance data — household Finance sharing is off"),
       /*#__PURE__*/React.createElement("button", { onClick: () => setDismissedHouseholdBanner(true), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", padding: "0 4px" } }, "\u00D7")
     ),
 
     // Header
     /*#__PURE__*/React.createElement("div", { style: { marginBottom: 16 } },
-      /*#__PURE__*/React.createElement(SectionHead, { label: "Finance", color: "#34d399" }),
+      /*#__PURE__*/React.createElement(SectionHead, { label: "Finance", color: "var(--color-accent-teal)" }),
 
       // Month picker
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, margin: "6px 0 0 13px" } },
@@ -1435,16 +1435,16 @@ Return exactly ${bRows.length} objects. No markdown.`;
     // Secondary nav row
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", marginBottom: 16, paddingBottom: 2 } },
       finTab === "budget" && /*#__PURE__*/React.createElement(React.Fragment, null,
-        subTabBtn("envelopes",    "Envelopes",    "#34d399"),
-        subTabBtn("transactions", "Money Out", "#60a5fa"),
-        subTabBtn("income",       "Money In",  "#4ade80")
+        subTabBtn("envelopes",    "Envelopes",    "var(--color-accent-teal)"),
+        subTabBtn("transactions", "Money Out", "var(--color-accent-blue)"),
+        subTabBtn("income",       "Money In",  "var(--color-success)")
       ),
       finTab === "insights" && /*#__PURE__*/React.createElement(React.Fragment, null,
-        subTabBtn("summary", "Summary", "#f4a823"),
-        subTabBtn("coach",   "Coach",   "#fb923c")
+        subTabBtn("summary", "Summary", "var(--color-primary)"),
+        subTabBtn("coach",   "Coach",   "var(--color-accent-orange)")
       ),
       finTab === "import" && /*#__PURE__*/React.createElement(React.Fragment, null,
-        subTabBtn("import", "Import CSV", "#a78bfa"),
+        subTabBtn("import", "Import CSV", "var(--color-accent-purple)"),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => { setRuleForm({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" }); setShowRulesTable(true); },
           style: { padding: "6px 14px", border: "1px solid rgba(167,139,250,.25)", background: "transparent", borderRadius: 20, cursor: "pointer", fontSize: 11, fontWeight: 400, color: "var(--text-muted)", whiteSpace: "nowrap" }
@@ -1458,7 +1458,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
       // Quick add expense button
       /*#__PURE__*/React.createElement("button", {
         onClick: () => setShowAddTxn(true),
-        style: { width: "100%", marginBottom: 12, padding: "10px 0", background: "rgba(52,211,153,.1)", border: "1px solid rgba(52,211,153,.25)", borderRadius: 10, color: "#34d399", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+        style: { width: "100%", marginBottom: 12, padding: "10px 0", background: "rgba(52,211,153,.1)", border: "1px solid rgba(52,211,153,.25)", borderRadius: 10, color: "var(--color-accent-teal)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
       }, "+ ADD EXPENSE"),
 
       // Budget health bar
@@ -1466,14 +1466,14 @@ Return exactly ${bRows.length} objects. No markdown.`;
         style: { background: netSpent > totalAllocated ? "rgba(239,68,68,.08)" : "rgba(52,211,153,.07)", border: `1px solid ${netSpent > totalAllocated ? "rgba(239,68,68,.2)" : "rgba(52,211,153,.2)"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16 }
       },
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 } },
-          /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#34d399", letterSpacing: ".07em" } }, "MONTHLY BUDGET"),
+          /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "var(--color-accent-teal)", letterSpacing: ".07em" } }, "MONTHLY BUDGET"),
           /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 700 } }, fmt(netSpent) + " / " + fmt(totalAllocated))
         ),
         /*#__PURE__*/React.createElement("div", { style: { height: 8, background: "rgba(255,255,255,.07)", borderRadius: 4, overflow: "hidden" } },
-          /*#__PURE__*/React.createElement("div", { style: { width: totalAllocated ? Math.min(100, netSpent/totalAllocated*100) + "%" : "0%", height: "100%", background: netSpent > totalAllocated ? "#ef4444" : "#34d399", borderRadius: 4, transition: "width .3s" } })
+          /*#__PURE__*/React.createElement("div", { style: { width: totalAllocated ? Math.min(100, netSpent/totalAllocated*100) + "%" : "0%", height: "100%", background: netSpent > totalAllocated ? "var(--color-danger)" : "var(--color-accent-teal)", borderRadius: 4, transition: "width .3s" } })
         ),
         totalAllocated === 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "6px 0 0" } }, "Tap an envelope to set your monthly allocation"),
-        Object.keys(rolloverIn).length > 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "#4ade80", margin: "6px 0 0", fontWeight: 600 } },
+        Object.keys(rolloverIn).length > 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--color-success)", margin: "6px 0 0", fontWeight: 600 } },
           "\u21A9 Rollover from last month: " + fmt(Object.values(rolloverIn).reduce((a,v)=>a+v,0))
         )
       ),
@@ -1482,15 +1482,15 @@ Return exactly ${bRows.length} objects. No markdown.`;
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" } },
         allMonths.some(m => m < currentMonth) && /*#__PURE__*/React.createElement("button", {
           onClick: computeRollover,
-          style: { background: "rgba(74,222,128,.1)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "#4ade80", fontWeight: 700, cursor: "pointer" }
+          style: { background: "rgba(74,222,128,.1)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "var(--color-success)", fontWeight: 700, cursor: "pointer" }
         }, "\u21A9 Pull rollover from " + monthLabel(allMonths.filter(m=>m<currentMonth).sort().pop())),
         totalAllocated > 0 && /*#__PURE__*/React.createElement("button", {
           onClick: setDefaultBudget,
-          style: { background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "#a78bfa", fontWeight: 700, cursor: "pointer" }
+          style: { background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "var(--color-accent-purple)", fontWeight: 700, cursor: "pointer" }
         }, "\uD83D\uDCCC Set as Default Budget"),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => setShowManageEnvelopes(true),
-          style: { background: "rgba(52,211,153,.08)", border: "1px solid rgba(52,211,153,.2)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "#34d399", fontWeight: 700, cursor: "pointer", marginLeft: "auto" }
+          style: { background: "rgba(52,211,153,.08)", border: "1px solid rgba(52,211,153,.2)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "var(--color-accent-teal)", fontWeight: 700, cursor: "pointer", marginLeft: "auto" }
         }, "\u2699\uFE0F Manage Envelopes")
       ),
 
@@ -1515,7 +1515,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
             },
               /*#__PURE__*/React.createElement("span", { style: { fontSize: 16 } }, env.icon),
               /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 600 } }, env.name),
-              rollover > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "#4ade80", fontWeight: 700, background: "rgba(74,222,128,.12)", borderRadius: 4, padding: "1px 5px" } }, "+" + fmt(rollover)),
+              rollover > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "var(--color-success)", fontWeight: 700, background: "rgba(74,222,128,.12)", borderRadius: 4, padding: "1px 5px" } }, "+" + fmt(rollover)),
               spent > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "var(--text-muted)", marginLeft: 2 } }, drillEnvelope === env.id ? "▲" : "▼")
             ),
             /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
@@ -1541,12 +1541,12 @@ Return exactly ${bRows.length} objects. No markdown.`;
                     style: { background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 6, padding: "3px 10px", fontSize: 12, color: env.allocated ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer", fontWeight: env.allocated ? 600 : 400 }
                   }, env.allocated ? fmt(env.allocated) : "Set budget"),
               /*#__PURE__*/React.createElement("span", {
-                style: { fontSize: 12, fontWeight: 700, color: over ? "#ef4444" : remaining < env.allocated * 0.2 ? "#f4a823" : "#4ade80", minWidth: 52, textAlign: "right" }
+                style: { fontSize: 12, fontWeight: 700, color: over ? "var(--color-danger)" : remaining < env.allocated * 0.2 ? "var(--color-primary)" : "var(--color-success)", minWidth: 52, textAlign: "right" }
               }, over ? "-" + fmt(Math.abs(remaining)) : fmt(remaining))
             )
           ),
           effective > 0 && /*#__PURE__*/React.createElement("div", { style: { height: 5, background: "rgba(255,255,255,.06)", borderRadius: 3, overflow: "hidden" } },
-            /*#__PURE__*/React.createElement("div", { style: { width: pct + "%", height: "100%", background: over ? "#ef4444" : pct > 80 ? "#f4a823" : env.color, borderRadius: 3, transition: "width .3s" } })
+            /*#__PURE__*/React.createElement("div", { style: { width: pct + "%", height: "100%", background: over ? "var(--color-danger)" : pct > 80 ? "var(--color-primary)" : env.color, borderRadius: 3, transition: "width .3s" } })
           ),
           effective > 0 && /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 4 } },
             /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Spent: " + fmt(spent)),
@@ -1607,17 +1607,17 @@ Return exactly ${bRows.length} objects. No markdown.`;
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12 } },
         /*#__PURE__*/React.createElement("button", {
           onClick: () => { setAddTxnForm(f => ({ ...f, card: "Cash", date: getToday(), amount: "", desc: "" })); setShowAddTxn(true); },
-          style: { flex: 1, padding: "10px 0", background: "rgba(251,191,36,.1)", border: "1px solid rgba(251,191,36,.3)", borderRadius: 10, color: "#fbbf24", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+          style: { flex: 1, padding: "10px 0", background: "rgba(251,191,36,.1)", border: "1px solid rgba(251,191,36,.3)", borderRadius: 10, color: "var(--color-accent-yellow)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
         }, "💵 + CASH"),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => { setAddTxnForm(f => ({ ...f, card: "Amex", date: getToday(), amount: "", desc: "" })); setShowAddTxn(true); },
-          style: { flex: 1, padding: "10px 0", background: "rgba(52,211,153,.08)", border: "1px solid rgba(52,211,153,.25)", borderRadius: 10, color: "#34d399", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+          style: { flex: 1, padding: "10px 0", background: "rgba(52,211,153,.08)", border: "1px solid rgba(52,211,153,.25)", borderRadius: 10, color: "var(--color-accent-teal)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
         }, "+ ADD EXPENSE")
       ),
       transactions.length === 0
         ? /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "30px 0" } },
             /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, marginBottom: 12 } }, "No transactions for " + monthLabel(currentMonth)),
-            /*#__PURE__*/React.createElement("button", { onClick: () => setView("import"), style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "8px 18px", color: "#a78bfa", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "Import CSV")
+            /*#__PURE__*/React.createElement("button", { onClick: () => setView("import"), style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "8px 18px", color: "var(--color-accent-purple)", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "Import CSV")
           )
         : /*#__PURE__*/React.createElement("div", null,
             // ── Filter + sort bar ──
@@ -1657,7 +1657,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
                 const filtered = transactions.filter(t => (!txnFilter.card || t.card === txnFilter.card) && (!txnFilter.envelopeId || t.envelopeId === txnFilter.envelopeId));
                 return filtered.length + " transaction" + (filtered.length !== 1 ? "s" : "") + (txnFilter.card || txnFilter.envelopeId ? " (filtered)" : " \xB7 " + transactions.filter(t=>t.isRefund).length + " refunds");
               })()),
-              /*#__PURE__*/React.createElement("button", { onClick: () => setView("import"), style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 6, padding: "4px 10px", color: "#a78bfa", fontSize: 10, fontWeight: 700, cursor: "pointer" } }, "\u2B06 Import more")
+              /*#__PURE__*/React.createElement("button", { onClick: () => setView("import"), style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 6, padding: "4px 10px", color: "var(--color-accent-purple)", fontSize: 10, fontWeight: 700, cursor: "pointer" } }, "\u2B06 Import more")
             ),
             // ── Transaction rows ──
             (() => {
@@ -1684,10 +1684,10 @@ Return exactly ${bRows.length} objects. No markdown.`;
                     /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + t.card + " \xB7 " + (env?.name || t.category) + (t.subCat ? " \xB7 " + t.subCat : ""))
                   ),
                   /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 } },
-                    /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: t.isRefund ? "#4ade80" : "var(--text-primary)" } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount))),
+                    /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: t.isRefund ? "var(--color-success)" : "var(--text-primary)" } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount))),
                     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 4 } },
-                      t.receiptId && /*#__PURE__*/React.createElement("span", { title: "Receipt attached", style: { fontSize: 9, color: "#a78bfa", background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 4, padding: "2px 5px" } }, "\uD83E\uDDFE"),
-                      t.needsReview && /*#__PURE__*/React.createElement("span", { title: "Flagged for review", style: { fontSize: 9, color: "#f4a823", background: "rgba(244,168,35,.12)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 4, padding: "2px 5px" } }, "\uD83D\uDEA9 Review"),
+                      t.receiptId && /*#__PURE__*/React.createElement("span", { title: "Receipt attached", style: { fontSize: 9, color: "var(--color-accent-purple)", background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 4, padding: "2px 5px" } }, "\uD83E\uDDFE"),
+                      t.needsReview && /*#__PURE__*/React.createElement("span", { title: "Flagged for review", style: { fontSize: 9, color: "var(--color-primary)", background: "rgba(244,168,35,.12)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 4, padding: "2px 5px" } }, "\uD83D\uDEA9 Review"),
                       /*#__PURE__*/React.createElement("button", { onClick: () => { setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }, style: { fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" } }, "edit")
                     )
                   )
@@ -1702,13 +1702,13 @@ Return exactly ${bRows.length} objects. No markdown.`;
 
       // Month totals
       /*#__PURE__*/React.createElement("div", { style: { background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: "16px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#34d399", letterSpacing: ".07em", margin: "0 0 14px" } }, monthLabel(currentMonth).toUpperCase()),
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "var(--color-accent-teal)", letterSpacing: ".07em", margin: "0 0 14px" } }, monthLabel(currentMonth).toUpperCase()),
         [
-          ["Income",          totalIncome > 0 ? fmt(totalIncome) : "—",  "#4ade80"],
-          ["Total Spent",     fmt(netSpent),        netSpent > totalAllocated ? "#ef4444" : "var(--text-primary)"],
-          ["Refunds",         "+" + fmt(totalRefunds), "#4ade80"],
-          ["Budgeted",        fmt(totalAllocated), "#34d399"],
-          ["Net Cash Flow",   totalIncome > 0 ? (netCashFlow >= 0 ? "+" : "") + fmt(netCashFlow) : "—", netCashFlow >= 0 ? "#4ade80" : "#ef4444"],
+          ["Income",          totalIncome > 0 ? fmt(totalIncome) : "—",  "var(--color-success)"],
+          ["Total Spent",     fmt(netSpent),        netSpent > totalAllocated ? "var(--color-danger)" : "var(--text-primary)"],
+          ["Refunds",         "+" + fmt(totalRefunds), "var(--color-success)"],
+          ["Budgeted",        fmt(totalAllocated), "var(--color-accent-teal)"],
+          ["Net Cash Flow",   totalIncome > 0 ? (netCashFlow >= 0 ? "+" : "") + fmt(netCashFlow) : "—", netCashFlow >= 0 ? "var(--color-success)" : "var(--color-danger)"],
           ["Money Out",    transactions.length.toString(), "var(--text-muted)"]
         ].map(([label, val, col]) => /*#__PURE__*/React.createElement("div", {
           key: label, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,.05)" }
@@ -1733,7 +1733,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
           },
             /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-primary)" } }, env.icon + " " + env.name),
             /*#__PURE__*/React.createElement("div", { style: { textAlign: "right" } },
-              /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: over ? "#ef4444" : "var(--text-primary)" } }, fmt(spent)),
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: over ? "var(--color-danger)" : "var(--text-primary)" } }, fmt(spent)),
               allocated > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)", marginLeft: 4 } }, "/ " + fmt(allocated))
             )
           );
@@ -1744,7 +1744,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
         /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 10, fontWeight: 800, color: "var(--text-muted)", letterSpacing: ".08em", marginBottom: 10 } }, "PAST MONTHS"),
         [...allMonths].sort((a,b)=>b.localeCompare(a)).map(m => /*#__PURE__*/React.createElement("button", {
           key: m, onClick: () => { setCurrentMonth(m); setView("envelopes"); },
-          style: { display: "block", width: "100%", textAlign: "left", background: m === currentMonth ? "rgba(52,211,153,.1)" : "rgba(255,255,255,.03)", border: `1px solid ${m === currentMonth ? "rgba(52,211,153,.25)" : "rgba(255,255,255,.06)"}`, borderRadius: 8, padding: "9px 12px", marginBottom: 6, color: m === currentMonth ? "#34d399" : "var(--text-secondary)", fontSize: 12, fontWeight: m === currentMonth ? 700 : 400, cursor: "pointer" }
+          style: { display: "block", width: "100%", textAlign: "left", background: m === currentMonth ? "rgba(52,211,153,.1)" : "rgba(255,255,255,.03)", border: `1px solid ${m === currentMonth ? "rgba(52,211,153,.25)" : "rgba(255,255,255,.06)"}`, borderRadius: 8, padding: "9px 12px", marginBottom: 6, color: m === currentMonth ? "var(--color-accent-teal)" : "var(--text-secondary)", fontSize: 12, fontWeight: m === currentMonth ? 700 : 400, cursor: "pointer" }
         }, monthLabel(m)))
       )
     ),
@@ -1754,10 +1754,10 @@ Return exactly ${bRows.length} objects. No markdown.`;
       // Header row — total + add button
       /*#__PURE__*/React.createElement("div", { style: { background: "rgba(74,222,128,.07)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 14, padding: "14px 16px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" } },
         /*#__PURE__*/React.createElement("div", null,
-          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#4ade80", letterSpacing: ".07em", margin: "0 0 2px" } }, "TOTAL MONEY IN — " + monthLabel(currentMonth).toUpperCase()),
-          /*#__PURE__*/React.createElement("p", { style: { fontSize: 22, fontWeight: 800, color: "#4ade80", margin: 0, fontFamily: "'Syne',sans-serif" } }, fmt(totalIncome))
+          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "var(--color-success)", letterSpacing: ".07em", margin: "0 0 2px" } }, "TOTAL MONEY IN — " + monthLabel(currentMonth).toUpperCase()),
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 22, fontWeight: 800, color: "var(--color-success)", margin: 0, fontFamily: "'Syne',sans-serif" } }, fmt(totalIncome))
         ),
-        /*#__PURE__*/React.createElement("button", { onClick: () => setShowAddIncome(true), style: { background: "#4ade80", border: "none", borderRadius: 10, padding: "10px 16px", color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
+        /*#__PURE__*/React.createElement("button", { onClick: () => setShowAddIncome(true), style: { background: "var(--color-success)", border: "none", borderRadius: 10, padding: "10px 16px", color: "var(--bg)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
       ),
 
       // Entry count + sort hint
@@ -1779,7 +1779,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
                 /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, inc.date + " \xB7 " + (inc.type || "other"))
               ),
               /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
-                /*#__PURE__*/React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "#4ade80" } }, "+" + fmt(inc.amount)),
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "var(--color-success)" } }, "+" + fmt(inc.amount)),
                 /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", borderRadius: 4, padding: "2px 6px" } }, "edit")
               )
             )
@@ -1788,7 +1788,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
       // Net cash flow callout
       totalIncome > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 12, padding: "12px 16px", background: netCashFlow >= 0 ? "rgba(74,222,128,.08)" : "rgba(239,68,68,.08)", border: `1px solid ${netCashFlow >= 0 ? "rgba(74,222,128,.2)" : "rgba(239,68,68,.2)"}`, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" } },
         /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-secondary)", fontWeight: 700 } }, "NET CASH FLOW"),
-        /*#__PURE__*/React.createElement("span", { style: { fontSize: 16, fontWeight: 800, color: netCashFlow >= 0 ? "#4ade80" : "#ef4444", fontFamily: "'Syne',sans-serif" } }, (netCashFlow >= 0 ? "+" : "") + fmt(netCashFlow))
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 16, fontWeight: 800, color: netCashFlow >= 0 ? "var(--color-success)" : "var(--color-danger)", fontFamily: "'Syne',sans-serif" } }, (netCashFlow >= 0 ? "+" : "") + fmt(netCashFlow))
       ),
 
       // Past months browser — tap any month to load it
@@ -1800,8 +1800,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
             onClick: () => setCurrentMonth(m),
             style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", textAlign: "left", background: m === currentMonth ? "rgba(74,222,128,.1)" : "rgba(255,255,255,.03)", border: `1px solid ${m === currentMonth ? "rgba(74,222,128,.3)" : "rgba(255,255,255,.06)"}`, borderRadius: 8, padding: "9px 12px", marginBottom: 6, cursor: "pointer" }
           },
-            /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: m === currentMonth ? "#4ade80" : "var(--text-secondary)", fontWeight: m === currentMonth ? 700 : 400 } }, monthLabel(m)),
-            m === currentMonth && income.length > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "#4ade80", fontWeight: 700 } }, fmt(totalIncome))
+            /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: m === currentMonth ? "var(--color-success)" : "var(--text-secondary)", fontWeight: m === currentMonth ? 700 : 400 } }, monthLabel(m)),
+            m === currentMonth && income.length > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--color-success)", fontWeight: 700 } }, fmt(totalIncome))
           )
         )
       )
@@ -1814,12 +1814,12 @@ Return exactly ${bRows.length} objects. No markdown.`;
       /*#__PURE__*/React.createElement("div", { style: { background: "rgba(251,146,60,.06)", border: "1px solid rgba(251,146,60,.2)", borderRadius: 16, padding: "18px 16px" } },
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: coachReport ? 14 : 0 } },
           /*#__PURE__*/React.createElement("div", null,
-            /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 13, color: "#fb923c", margin: 0, letterSpacing: ".05em" } }, "📊 MONTHLY BRIEF"),
+            /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 13, color: "var(--color-accent-orange)", margin: 0, letterSpacing: ".05em" } }, "📊 MONTHLY BRIEF"),
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "3px 0 0" } }, "AI analysis of your last 3 months")
           ),
           /*#__PURE__*/React.createElement("button", {
             onClick: handleGenerateReport, disabled: coachLoading,
-            style: { padding: "9px 18px", background: coachLoading ? "rgba(251,146,60,.3)" : "#fb923c", border: "none", borderRadius: 10, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: coachLoading ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", flexShrink: 0 }
+            style: { padding: "9px 18px", background: coachLoading ? "rgba(251,146,60,.3)" : "var(--color-accent-orange)", border: "none", borderRadius: 10, color: "var(--bg)", fontSize: 12, fontWeight: 800, cursor: coachLoading ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", flexShrink: 0 }
           }, coachLoading ? "Analysing\u2026" : coachReport ? "Refresh" : "Generate")
         ),
         coachReport && /*#__PURE__*/React.createElement("div", { style: { fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap" } }, coachReport)
@@ -1865,7 +1865,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
       ),
 
       // ── Chat input ──
-      /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, position: "sticky", bottom: 0, background: "#080b11", paddingBottom: 4 } },
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, position: "sticky", bottom: 0, background: "var(--bg)", paddingBottom: 4 } },
         /*#__PURE__*/React.createElement("input", {
           value: chatInput,
           onChange: e => setChatInput(e.target.value),
@@ -1875,7 +1875,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
         }),
         /*#__PURE__*/React.createElement("button", {
           onClick: handleChatSend, disabled: chatLoading || !chatInput.trim(),
-          style: { padding: "11px 18px", background: chatInput.trim() ? "#fb923c" : "rgba(255,255,255,.06)", border: "none", borderRadius: 12, color: chatInput.trim() ? "#080b11" : "var(--text-muted)", fontSize: 13, fontWeight: 800, cursor: chatInput.trim() ? "pointer" : "default", fontFamily: "'Syne',sans-serif", transition: "all .2s" }
+          style: { padding: "11px 18px", background: chatInput.trim() ? "var(--color-accent-orange)" : "rgba(255,255,255,.06)", border: "none", borderRadius: 12, color: chatInput.trim() ? "var(--bg)" : "var(--text-muted)", fontSize: 13, fontWeight: 800, cursor: chatInput.trim() ? "pointer" : "default", fontFamily: "'Syne',sans-serif", transition: "all .2s" }
         }, "\u2191")
       ),
 
@@ -1893,15 +1893,15 @@ Return exactly ${bRows.length} objects. No markdown.`;
       /*#__PURE__*/React.createElement("div", { style: { background: "rgba(244,168,35,.07)", border: "1px solid rgba(244,168,35,.25)", borderRadius: 12, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 10, alignItems: "flex-start" } },
         /*#__PURE__*/React.createElement("span", { style: { fontSize: 18, lineHeight: 1, marginTop: 1 } }, "\uD83D\uDCC2"),
         /*#__PURE__*/React.createElement("div", null,
-          /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, fontWeight: 800, color: "#f4a823", margin: "0 0 4px", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" } }, "NAME YOUR FILE BEFORE UPLOADING"),
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, fontWeight: 800, color: "var(--color-primary)", margin: "0 0 4px", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" } }, "NAME YOUR FILE BEFORE UPLOADING"),
           /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-secondary)", margin: 0, lineHeight: 1.6 } },
             "Include card type + date range so you know what\u2019s been imported:",
             /*#__PURE__*/React.createElement("br", null),
-            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "#f4a823", fontSize: 11 } }, "Amex_2026-01.xlsx"),
+            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "var(--color-primary)", fontSize: 11 } }, "Amex_2026-01.xlsx"),
             /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)" } }, " \xB7 "),
-            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "#60a5fa", fontSize: 11 } }, "TD_Chequing_2026-01.csv"),
+            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "var(--color-accent-blue)", fontSize: 11 } }, "TD_Chequing_2026-01.csv"),
             /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)" } }, " \xB7 "),
-            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "#4ade80", fontSize: 11 } }, "CIBC_2025-Q4.csv"),
+            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "monospace", color: "var(--color-success)", fontSize: 11 } }, "CIBC_2025-Q4.csv"),
             /*#__PURE__*/React.createElement("br", null),
             /*#__PURE__*/React.createElement("span", { style: { color: "#555e73", fontSize: 10 } }, "Amex .xlsx exports are supported directly \u2014 no CSV conversion needed.")
           )
@@ -1914,7 +1914,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
           const active = importMode === mode;
           const label = mode === "credit_card" ? "💳 Credit Card" : "🏦 Bank Statement";
           const desc = mode === "credit_card" ? "All rows = spending" : "Splits income + direct expenses";
-          const col = mode === "credit_card" ? "#60a5fa" : "#4ade80";
+          const col = mode === "credit_card" ? "var(--color-accent-blue)" : "var(--color-success)";
           return /*#__PURE__*/React.createElement("button", {
             key: mode, onClick: () => { setImportMode(mode); setCardResults(null); },
             style: { flex: 1, padding: "14px 12px", borderRadius: 12, border: `2px solid ${active ? col : "rgba(255,255,255,.08)"}`, background: active ? `rgba(${mode === "credit_card" ? "96,165,250" : "74,222,128"},.1)` : "rgba(255,255,255,.02)", cursor: "pointer", textAlign: "left" }
@@ -1927,10 +1927,10 @@ Return exactly ${bRows.length} objects. No markdown.`;
 
       // ── Mode description ──
       importMode === "bank_statement" && /*#__PURE__*/React.createElement("div", { style: { background: "rgba(74,222,128,.06)", border: "1px solid rgba(74,222,128,.15)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6 } },
-        /*#__PURE__*/React.createElement("span", { style: { color: "#4ade80", fontWeight: 700 } }, "INCOME: "),
+        /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-success)", fontWeight: 700 } }, "INCOME: "),
         "deposits, payroll, e-transfers in, refunds",
         /*#__PURE__*/React.createElement("br", null),
-        /*#__PURE__*/React.createElement("span", { style: { color: "#fb923c", fontWeight: 700 } }, "EXPENSES: "),
+        /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-accent-orange)", fontWeight: 700 } }, "EXPENSES: "),
         "utilities, property tax, mortgage, insurance billed from bank",
         /*#__PURE__*/React.createElement("br", null),
         /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontWeight: 700 } }, "SKIPPED: "),
@@ -1943,13 +1943,13 @@ Return exactly ${bRows.length} objects. No markdown.`;
         /*#__PURE__*/React.createElement("button", {
           onClick: () => { setImportMsg(""); cardFileRef.current?.click(); },
           disabled: cardParsing,
-          style: { width: "100%", padding: "14px 0", background: importMode === "credit_card" ? "#60a5fa" : "#4ade80", border: "none", borderRadius: 12, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: cardParsing ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", opacity: cardParsing ? .6 : 1 }
+          style: { width: "100%", padding: "14px 0", background: importMode === "credit_card" ? "var(--color-accent-blue)" : "var(--color-success)", border: "none", borderRadius: 12, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: cardParsing ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", opacity: cardParsing ? .6 : 1 }
         }, cardParsing ? "Parsing with Claude\u2026" : (importMode === "credit_card" ? "\uD83D\uDCC4 Upload CC File (.csv or .xlsx)" : "\uD83C\uDFE6 Upload Bank Statement (.csv or .xlsx)"))
       ),
 
       // ── Results preview ──
       cardResults && /*#__PURE__*/React.createElement("div", { style: { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 14, padding: "16px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#4ade80", margin: "0 0 12px", letterSpacing: ".05em" } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "var(--color-success)", margin: "0 0 12px", letterSpacing: ".05em" } },
           "REVIEW: " + cardResults.label + " — " +
           (cardResults.expenses.length ? cardResults.expenses.length + " expense" + (cardResults.expenses.length !== 1 ? "s" : "") : "") +
           (cardResults.income.length && cardResults.expenses.length ? " + " : "") +
@@ -1958,7 +1958,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
 
         // Expenses section
         cardResults.expenses.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginBottom: cardResults.income.length ? 12 : 0 } },
-          cardResults.income.length > 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#fb923c", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "EXPENSES"),
+          cardResults.income.length > 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--color-accent-orange)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "EXPENSES"),
           /*#__PURE__*/React.createElement("div", { style: { maxHeight: 200, overflowY: "auto" } },
             cardResults.expenses.slice(0, 50).map((t, i) => {
               const env = envelopeCatalog.find(ev => ev.id === t.envelopeId);
@@ -1969,10 +1969,10 @@ Return exactly ${bRows.length} objects. No markdown.`;
                   style: { background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 0, opacity: isFlagged ? 1 : 0.2, flexShrink: 0 }
                 }, "\uD83D\uDEA9"),
                 /*#__PURE__*/React.createElement("div", { style: { minWidth: 0, flex: 1 } },
-                  /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: isFlagged ? "#f4a823" : "var(--text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc),
+                  /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: isFlagged ? "var(--color-primary)" : "var(--text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc),
                   /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + (env?.icon || "") + " " + (env?.name || "Other") + (t.subCat ? " / " + t.subCat : ""))
                 ),
-                /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: t.isRefund ? "#4ade80" : isFlagged ? "#f4a823" : "var(--text-primary)", flexShrink: 0 } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount || 0)))
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: t.isRefund ? "var(--color-success)" : isFlagged ? "var(--color-primary)" : "var(--text-primary)", flexShrink: 0 } }, (t.isRefund ? "+" : "-") + fmt(Math.abs(t.amount || 0)))
               );
             })
           ),
@@ -1981,37 +1981,37 @@ Return exactly ${bRows.length} objects. No markdown.`;
 
         // Income section
         cardResults.income.length > 0 && /*#__PURE__*/React.createElement("div", null,
-          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#4ade80", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "MONEY IN"),
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--color-success)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "MONEY IN"),
           /*#__PURE__*/React.createElement("div", { style: { maxHeight: 150, overflowY: "auto" } },
             cardResults.income.map((t, i) => /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
               /*#__PURE__*/React.createElement("div", null,
                 /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-primary)", margin: 0 } }, t.source || t.desc),
                 /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date)
               ),
-              /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "#4ade80", flexShrink: 0 } }, "+" + fmt(t.amount || 0))
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--color-success)", flexShrink: 0 } }, "+" + fmt(t.amount || 0))
             ))
           )
         ),
 
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 14 } },
-          /*#__PURE__*/React.createElement("button", { onClick: confirmCardResults, style: { flex: 1, padding: "10px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, flaggedCardIds.size ? "Import All (" + flaggedCardIds.size + " flagged)" : "Import All"),
+          /*#__PURE__*/React.createElement("button", { onClick: confirmCardResults, style: { flex: 1, padding: "10px 0", background: "var(--color-success)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, flaggedCardIds.size ? "Import All (" + flaggedCardIds.size + " flagged)" : "Import All"),
           /*#__PURE__*/React.createElement("button", { onClick: () => { setCardResults(null); setFlaggedCardIds(new Set()); }, style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
         )
       ),
 
       // ── Screenshot scan ──
       /*#__PURE__*/React.createElement("div", { style: { background: "rgba(96,165,250,.05)", border: "1px solid rgba(96,165,250,.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#60a5fa", letterSpacing: ".06em", margin: "0 0 4px" } }, "SCAN STATEMENT"),
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "var(--color-accent-blue)", letterSpacing: ".06em", margin: "0 0 4px" } }, "SCAN STATEMENT"),
         /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 10px" } }, "Upload a screenshot — Claude extracts transactions automatically."),
         /*#__PURE__*/React.createElement("input", { ref: scanRef, type: "file", accept: "image/*", style: { display: "none" }, onChange: handleScanStatement }),
-        /*#__PURE__*/React.createElement("button", { onClick: () => scanRef.current?.click(), disabled: scanning, style: { padding: "9px 18px", background: "#60a5fa", border: "none", borderRadius: 9, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: scanning ? .6 : 1 } }, scanning ? "Scanning\u2026" : "\uD83D\uDCF8 Upload Screenshot")
+        /*#__PURE__*/React.createElement("button", { onClick: () => scanRef.current?.click(), disabled: scanning, style: { padding: "9px 18px", background: "var(--color-accent-blue)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", opacity: scanning ? .6 : 1 } }, scanning ? "Scanning\u2026" : "\uD83D\uDCF8 Upload Screenshot")
       ),
 
       // Scan results
       scanResults && /*#__PURE__*/React.createElement("div", { style: { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 14, padding: "16px", marginBottom: 16 } },
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
-          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: "#4ade80", margin: 0 } }, "FOUND " + scanResults.length + " TRANSACTIONS"),
-          flaggedScanIds.size > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "#f4a823", fontWeight: 700 } }, flaggedScanIds.size + " flagged for review")
+          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: "var(--color-success)", margin: 0 } }, "FOUND " + scanResults.length + " TRANSACTIONS"),
+          flaggedScanIds.size > 0 && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--color-primary)", fontWeight: 700 } }, flaggedScanIds.size + " flagged for review")
         ),
         /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 10px", lineHeight: 1.5 } }, "Tap \uD83D\uDEA9 to flag any transaction that looks wrong — it will be saved but marked for review."),
         /*#__PURE__*/React.createElement("div", { style: { maxHeight: 300, overflowY: "auto", marginBottom: 12 } },
@@ -2024,31 +2024,31 @@ Return exactly ${bRows.length} objects. No markdown.`;
                 style: { background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: 0, opacity: isFlagged ? 1 : 0.25, flexShrink: 0 }
               }, "\uD83D\uDEA9"),
               /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-                /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: isFlagged ? "#f4a823" : "var(--text-primary)", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc),
+                /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: isFlagged ? "var(--color-primary)" : "var(--text-primary)", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc),
                 /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + (env?.icon || "") + " " + (env?.name || "Other"))
               ),
-              /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: isFlagged ? "#f4a823" : "var(--text-primary)", flexShrink: 0 } }, "-$" + (t.amount || 0).toFixed(2))
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: isFlagged ? "var(--color-primary)" : "var(--text-primary)", flexShrink: 0 } }, "-$" + (t.amount || 0).toFixed(2))
             );
           })
         ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
-          /*#__PURE__*/React.createElement("button", { onClick: confirmScan, style: { flex: 1, padding: "10px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, flaggedScanIds.size ? "Import All (" + flaggedScanIds.size + " flagged)" : "Import All"),
+          /*#__PURE__*/React.createElement("button", { onClick: confirmScan, style: { flex: 1, padding: "10px 0", background: "var(--color-success)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, flaggedScanIds.size ? "Import All (" + flaggedScanIds.size + " flagged)" : "Import All"),
           /*#__PURE__*/React.createElement("button", { onClick: () => { setScanResults(null); setFlaggedScanIds(new Set()); }, style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
         )
       ),
 
       // ── Dedup tool ──
       /*#__PURE__*/React.createElement("div", { style: { background: "rgba(239,68,68,.05)", border: "1px solid rgba(239,68,68,.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#ef4444", letterSpacing: ".06em", margin: "0 0 4px" } }, "REMOVE DUPLICATES"),
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "var(--color-danger)", letterSpacing: ".06em", margin: "0 0 4px" } }, "REMOVE DUPLICATES"),
         /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 10px", lineHeight: 1.5 } }, "Scans every month in Firebase and removes any duplicate transaction or income entries."),
         /*#__PURE__*/React.createElement("button", {
           onClick: dedupeAllMonths, disabled: deduping,
-          style: { padding: "9px 18px", background: deduping ? "rgba(239,68,68,.3)" : "#ef4444", border: "none", borderRadius: 9, color: "#fff", fontSize: 12, fontWeight: 800, cursor: deduping ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", opacity: deduping ? .7 : 1 }
+          style: { padding: "9px 18px", background: deduping ? "rgba(239,68,68,.3)" : "var(--color-danger)", border: "none", borderRadius: 9, color: "#fff", fontSize: 12, fontWeight: 800, cursor: deduping ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", opacity: deduping ? .7 : 1 }
         }, deduping ? "Scanning\u2026" : "\uD83E\uDDF9 Deduplicate All Months")
       ),
 
       importMsg && /*#__PURE__*/React.createElement("div", {
-        style: { background: importMsg.includes("fail") || importMsg.includes("Error") || importMsg.includes("error") ? "rgba(239,68,68,.1)" : "rgba(74,222,128,.1)", border: `1px solid ${importMsg.includes("fail") || importMsg.includes("Error") || importMsg.includes("error") ? "rgba(239,68,68,.25)" : "rgba(74,222,128,.25)"}`, borderRadius: 10, padding: "12px 14px", fontSize: 12, color: importMsg.includes("fail") || importMsg.includes("Error") || importMsg.includes("error") ? "#ef4444" : "#4ade80", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }
+        style: { background: importMsg.includes("fail") || importMsg.includes("Error") || importMsg.includes("error") ? "rgba(239,68,68,.1)" : "rgba(74,222,128,.1)", border: `1px solid ${importMsg.includes("fail") || importMsg.includes("Error") || importMsg.includes("error") ? "rgba(239,68,68,.25)" : "rgba(74,222,128,.25)"}`, borderRadius: 10, padding: "12px 14px", fontSize: 12, color: importMsg.includes("fail") || importMsg.includes("Error") || importMsg.includes("error") ? "var(--color-danger)" : "var(--color-success)", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }
       },
         React.createElement("span", null, importMsg),
         React.createElement("button", { onClick: () => setImportMsg(""), style: { background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 16, lineHeight: 1, flexShrink: 0, opacity: .7 } }, "\xD7")
@@ -2058,8 +2058,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
     // ── ADD EXPENSE MODAL ───────────────────────────────────────────────
     showAddTxn && /*#__PURE__*/React.createElement(React.Fragment, null,
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setShowAddTxn(false) }),
-      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#34d399", margin: "0 0 16px" } }, "ADD EXPENSE"),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "var(--bg-modal)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "var(--color-accent-teal)", margin: "0 0 16px" } }, "ADD EXPENSE"),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "DATE"),
@@ -2093,7 +2093,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
           )
         ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
-          /*#__PURE__*/React.createElement("button", { onClick: handleAddTxn, style: { flex: 1, padding: "12px 0", background: "#34d399", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
+          /*#__PURE__*/React.createElement("button", { onClick: handleAddTxn, style: { flex: 1, padding: "12px 0", background: "var(--color-accent-teal)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setShowAddTxn(false), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
         )
       )
@@ -2102,8 +2102,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
     // ── Edit Transaction Modal ──────────────────────────────────────────────
     editingTxn && /*#__PURE__*/React.createElement(React.Fragment, null,
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setEditingTxn(null) }),
-      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#34d399", margin: "0 0 4px" } }, "EDIT TRANSACTION"),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "var(--bg-modal)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "var(--color-accent-teal)", margin: "0 0 4px" } }, "EDIT TRANSACTION"),
         /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, editingTxn.desc),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 12 } },
           /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
@@ -2112,7 +2112,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
           ),
           /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "AMOUNT"),
-            /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: editingTxn.isRefund ? "#4ade80" : "var(--text-primary)" } }, (editingTxn.isRefund ? "+" : "-") + "$" + (editingTxn.amount || 0).toFixed(2))
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: editingTxn.isRefund ? "var(--color-success)" : "var(--text-primary)" } }, (editingTxn.isRefund ? "+" : "-") + "$" + (editingTxn.amount || 0).toFixed(2))
           )
         ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
@@ -2134,28 +2134,28 @@ Return exactly ${bRows.length} objects. No markdown.`;
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
           /*#__PURE__*/React.createElement("button", {
             onClick: () => handleEditTxn(editingTxn, editTxnForm.envelopeId, editTxnForm.subCat),
-            style: { flex: 1, padding: "12px 0", background: "#34d399", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+            style: { flex: 1, padding: "12px 0", background: "var(--color-accent-teal)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
           }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setEditingTxn(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
         ),
-        /*#__PURE__*/React.createElement("button", { onClick: handleMoveTxnToIncome, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 9, color: "#4ade80", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Money In"),
+        /*#__PURE__*/React.createElement("button", { onClick: handleMoveTxnToIncome, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 9, color: "var(--color-success)", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Money In"),
         txnReceiptData && /*#__PURE__*/React.createElement("div", { style: { marginTop: 14, borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: 12 } },
-          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#a78bfa", letterSpacing: ".06em", margin: "0 0 8px" } }, "\uD83E\uDDFE RECEIPT: " + (txnReceiptData.vendor || "") + (txnReceiptData.date ? "  \xB7  " + txnReceiptData.date : "")),
+          /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "var(--color-accent-purple)", letterSpacing: ".06em", margin: "0 0 8px" } }, "\uD83E\uDDFE RECEIPT: " + (txnReceiptData.vendor || "") + (txnReceiptData.date ? "  \xB7  " + txnReceiptData.date : "")),
           (txnReceiptData.lineItems || []).filter(li => li.totalPrice != null && (li.name || li.rawText)).map((li, i) =>
             /*#__PURE__*/React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
               /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--text-secondary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, li.qty > 1 ? li.qty + "×  " + (li.name || li.rawText) : (li.name || li.rawText)),
-              /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: li.totalPrice < 0 ? "#4ade80" : "var(--text-primary)", flexShrink: 0, paddingLeft: 8 } }, (li.totalPrice < 0 ? "-" : "") + "$" + Math.abs(parseFloat(li.totalPrice) || 0).toFixed(2))
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: li.totalPrice < 0 ? "var(--color-success)" : "var(--text-primary)", flexShrink: 0, paddingLeft: 8 } }, (li.totalPrice < 0 ? "-" : "") + "$" + Math.abs(parseFloat(li.totalPrice) || 0).toFixed(2))
             )
           ),
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 6, paddingTop: 4 } },
             txnReceiptData.subtotal != null && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Subtotal $" + parseFloat(txnReceiptData.subtotal).toFixed(2)),
             txnReceiptData.tax != null && /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Tax $" + parseFloat(txnReceiptData.tax).toFixed(2)),
-            txnReceiptData.total != null && /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "#d1d5db" } }, "Total $" + parseFloat(txnReceiptData.total).toFixed(2))
+            txnReceiptData.total != null && /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--text-primary)" } }, "Total $" + parseFloat(txnReceiptData.total).toFixed(2))
           )
         ),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => { if (window.confirm("Delete this transaction? This cannot be undone.")) handleDeleteTxn(editingTxn); },
-          style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 9, color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+          style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 9, color: "var(--color-danger)", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, "\uD83D\uDDD1 Delete Transaction")
       )
     ),
@@ -2163,8 +2163,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
     // ── Edit Income Modal ───────────────────────────────────────────────────
     editingIncome && /*#__PURE__*/React.createElement(React.Fragment, null,
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setEditingIncome(null) }),
-      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#4ade80", margin: "0 0 16px" } }, "EDIT MONEY IN"),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "var(--bg-modal)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "var(--color-success)", margin: "0 0 16px" } }, "EDIT MONEY IN"),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "SOURCE"),
@@ -2188,13 +2188,13 @@ Return exactly ${bRows.length} objects. No markdown.`;
           )
         ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
-          /*#__PURE__*/React.createElement("button", { onClick: handleEditIncome, style: { flex: 1, padding: "12px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
+          /*#__PURE__*/React.createElement("button", { onClick: handleEditIncome, style: { flex: 1, padding: "12px 0", background: "var(--color-success)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setEditingIncome(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
         ),
-        /*#__PURE__*/React.createElement("button", { onClick: handleMoveIncomeToTxn, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 9, color: "#60a5fa", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Money Out"),
+        /*#__PURE__*/React.createElement("button", { onClick: handleMoveIncomeToTxn, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 9, color: "var(--color-accent-blue)", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Money Out"),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => { if (window.confirm("Delete this income entry? This cannot be undone.")) { handleDeleteIncome(editingIncome.id); setEditingIncome(null); } },
-          style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 9, color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+          style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 9, color: "var(--color-danger)", fontSize: 12, fontWeight: 700, cursor: "pointer" }
         }, "\uD83D\uDDD1 Delete Entry")
       )
     ),
@@ -2202,8 +2202,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
     // ── Add Income Modal ────────────────────────────────────────────────────
     showAddIncome && /*#__PURE__*/React.createElement(React.Fragment, null,
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setShowAddIncome(false) }),
-      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#4ade80", margin: "0 0 16px" } }, "ADD MONEY IN"),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "var(--bg-modal)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "var(--color-success)", margin: "0 0 16px" } }, "ADD MONEY IN"),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "DATE"),
@@ -2225,7 +2225,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
           )
         ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
-          /*#__PURE__*/React.createElement("button", { onClick: handleAddIncome, style: { flex: 1, padding: "12px 0", background: "#4ade80", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
+          /*#__PURE__*/React.createElement("button", { onClick: handleAddIncome, style: { flex: 1, padding: "12px 0", background: "var(--color-success)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setShowAddIncome(false), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
         )
       )
@@ -2234,8 +2234,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
     // ── Create Rule Prompt (after editing a transaction) ────────────────────
     rulePrompt && /*#__PURE__*/React.createElement(React.Fragment, null,
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.75)", zIndex: 210 }, onClick: () => setRulePrompt(null) }),
-      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 420, background: "#0e1420", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 211 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 13, color: "#a78bfa", margin: "0 0 4px" } }, "CREATE MERCHANT RULE?"),
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 420, background: "var(--bg-modal)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 211 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 13, color: "var(--color-accent-purple)", margin: "0 0 4px" } }, "CREATE MERCHANT RULE?"),
         /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" } }, "Save this mapping so future imports are auto-categorized."),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
           /*#__PURE__*/React.createElement("div", null,
@@ -2261,7 +2261,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
           )
         ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
-          /*#__PURE__*/React.createElement("button", { onClick: handleSaveRule, style: { flex: 1, padding: "12px 0", background: "#a78bfa", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE RULE"),
+          /*#__PURE__*/React.createElement("button", { onClick: handleSaveRule, style: { flex: 1, padding: "12px 0", background: "var(--color-accent-purple)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "SAVE RULE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setRulePrompt(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Skip")
         )
       )
@@ -2270,12 +2270,12 @@ Return exactly ${bRows.length} objects. No markdown.`;
     // ── Manage Envelopes Modal ──────────────────────────────────────────────
     showManageEnvelopes && /*#__PURE__*/React.createElement(React.Fragment, null,
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 220 }, onClick: () => setShowManageEnvelopes(false) }),
-      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "#080b11", zIndex: 221, display: "flex", flexDirection: "column" } },
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "var(--bg)", zIndex: 221, display: "flex", flexDirection: "column" } },
 
         // Header
         /*#__PURE__*/React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 } },
           /*#__PURE__*/React.createElement("div", null,
-            /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#34d399", margin: 0 } }, "MANAGE ENVELOPES"),
+            /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "var(--color-accent-teal)", margin: 0 } }, "MANAGE ENVELOPES"),
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0" } }, envelopeCatalog.length + " envelopes — toggle visibility or add new")
           ),
           /*#__PURE__*/React.createElement("button", { onClick: () => setShowManageEnvelopes(false), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 20, cursor: "pointer", lineHeight: 1 } }, "\xD7")
@@ -2285,7 +2285,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
 
           // ── ADD NEW ENVELOPE ──
           /*#__PURE__*/React.createElement("div", { style: { padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", background: "rgba(52,211,153,.04)" } },
-            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#34d399", fontWeight: 800, letterSpacing: ".07em", margin: "0 0 12px", fontFamily: "'Syne',sans-serif" } }, "+ ADD NEW ENVELOPE"),
+            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--color-accent-teal)", fontWeight: 800, letterSpacing: ".07em", margin: "0 0 12px", fontFamily: "'Syne',sans-serif" } }, "+ ADD NEW ENVELOPE"),
 
             // Name + current icon preview
             /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 10 } },
@@ -2315,7 +2315,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
                   /*#__PURE__*/React.createElement("button", {
                     key: g.label,
                     onClick: () => setIconGroupTab(i),
-                    style: { padding: "4px 10px", borderRadius: 12, border: "1px solid " + (iconGroupTab === i ? "rgba(52,211,153,.5)" : "rgba(255,255,255,.1)"), background: iconGroupTab === i ? "rgba(52,211,153,.12)" : "transparent", color: iconGroupTab === i ? "#34d399" : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }
+                    style: { padding: "4px 10px", borderRadius: 12, border: "1px solid " + (iconGroupTab === i ? "rgba(52,211,153,.5)" : "rgba(255,255,255,.1)"), background: iconGroupTab === i ? "rgba(52,211,153,.12)" : "transparent", color: iconGroupTab === i ? "var(--color-accent-teal)" : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }
                   }, g.label)
                 )
               ),
@@ -2348,7 +2348,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
             /*#__PURE__*/React.createElement("button", {
               onClick: handleAddEnvelope,
               disabled: !newEnvForm.name.trim(),
-              style: { width: "100%", padding: "11px 0", background: newEnvForm.name.trim() ? "#34d399" : "rgba(52,211,153,.2)", border: "none", borderRadius: 9, color: newEnvForm.name.trim() ? "#080b11" : "var(--text-muted)", fontSize: 13, fontWeight: 800, cursor: newEnvForm.name.trim() ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif" }
+              style: { width: "100%", padding: "11px 0", background: newEnvForm.name.trim() ? "var(--color-accent-teal)" : "rgba(52,211,153,.2)", border: "none", borderRadius: 9, color: newEnvForm.name.trim() ? "var(--bg)" : "var(--text-muted)", fontSize: 13, fontWeight: 800, cursor: newEnvForm.name.trim() ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif" }
             }, "+ CREATE ENVELOPE")
           ),
 
@@ -2370,7 +2370,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
               /*#__PURE__*/React.createElement("button", {
                 onClick: () => handleToggleEnvelopeVisibility(env.id),
                 title: env.hidden ? "Show" : "Hide",
-                style: { background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "5px 10px", color: env.hidden ? "var(--text-muted)" : "#34d399", fontSize: 14, cursor: "pointer", flexShrink: 0 }
+                style: { background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "5px 10px", color: env.hidden ? "var(--text-muted)" : "var(--color-accent-teal)", fontSize: 14, cursor: "pointer", flexShrink: 0 }
               }, env.hidden ? "👁\u200D🗨 Hidden" : "👁 Visible"),
               // Delete button (custom envelopes only)
               env.custom && /*#__PURE__*/React.createElement("button", {
@@ -2386,28 +2386,28 @@ Return exactly ${bRows.length} objects. No markdown.`;
     // ── Merchant Rules Table ────────────────────────────────────────────────
     showRulesTable && /*#__PURE__*/React.createElement(React.Fragment, null,
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 220 }, onClick: () => setShowRulesTable(false) }),
-      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "#080b11", zIndex: 221, display: "flex", flexDirection: "column" } },
+      /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "var(--bg)", zIndex: 221, display: "flex", flexDirection: "column" } },
         // Header
         /*#__PURE__*/React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.08)" } },
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between" } },
             /*#__PURE__*/React.createElement("div", null,
-              /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#a78bfa", margin: 0 } }, "MERCHANT RULES"),
+              /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "var(--color-accent-purple)", margin: 0 } }, "MERCHANT RULES"),
               /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0" } }, merchantRules.length + " rules — applied automatically on CSV import")
             ),
             /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
               /*#__PURE__*/React.createElement("button", {
                 onClick: () => { setRulesRunMsg(""); handleRunRules(merchantRules); },
                 disabled: runningRules,
-                style: { padding: "7px 14px", background: runningRules ? "rgba(167,139,250,.2)" : "rgba(167,139,250,.15)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 8, color: runningRules ? "var(--text-muted)" : "#a78bfa", fontSize: 12, fontWeight: 700, cursor: runningRules ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", whiteSpace: "nowrap" }
+                style: { padding: "7px 14px", background: runningRules ? "rgba(167,139,250,.2)" : "rgba(167,139,250,.15)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 8, color: runningRules ? "var(--text-muted)" : "var(--color-accent-purple)", fontSize: 12, fontWeight: 700, cursor: runningRules ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", whiteSpace: "nowrap" }
               }, runningRules ? "Running…" : "⚡ Run All Rules"),
               /*#__PURE__*/React.createElement("button", { onClick: () => { setShowRulesTable(false); setRulesRunMsg(""); }, style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 20, cursor: "pointer", lineHeight: 1 } }, "\xD7")
             )
           ),
-          rulesRunMsg && /*#__PURE__*/React.createElement("p", { style: { margin: "8px 0 0", fontSize: 12, color: rulesRunMsg.startsWith("✓") ? "#4ade80" : "#ef4444", fontWeight: 600 } }, rulesRunMsg)
+          rulesRunMsg && /*#__PURE__*/React.createElement("p", { style: { margin: "8px 0 0", fontSize: 12, color: rulesRunMsg.startsWith("✓") ? "var(--color-success)" : "var(--color-danger)", fontWeight: 600 } }, rulesRunMsg)
         ),
         // Add new rule row
         /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", background: "rgba(167,139,250,.05)" } },
-          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "#a78bfa", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "ADD NEW RULE"),
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--color-accent-purple)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "ADD NEW RULE"),
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
             /*#__PURE__*/React.createElement("input", { placeholder: "keyword", value: ruleForm.keyword, onChange: e => setRuleForm(f => ({ ...f, keyword: e.target.value })), style: { flex: "1 1 100px", minWidth: 80, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 9px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
             /*#__PURE__*/React.createElement("input", { placeholder: "display name", value: ruleForm.displayName, onChange: e => setRuleForm(f => ({ ...f, displayName: e.target.value })), style: { flex: "1 1 100px", minWidth: 80, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 9px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
@@ -2417,7 +2417,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
             /*#__PURE__*/React.createElement("div", { style: { flex: "1 1 100px", minWidth: 80 } },
               /*#__PURE__*/React.createElement(SubCatSelect, { envelopeId: ruleForm.envelopeId, value: ruleForm.subCat, onChange: v => setRuleForm(f => ({ ...f, subCat: v })), extraOpts: customSubCats[ruleForm.envelopeId] || [], onAdd: sub => handleAddSubCat(ruleForm.envelopeId, sub) })
             ),
-            /*#__PURE__*/React.createElement("button", { onClick: handleAddRule, style: { padding: "7px 14px", background: "#a78bfa", border: "none", borderRadius: 7, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
+            /*#__PURE__*/React.createElement("button", { onClick: handleAddRule, style: { padding: "7px 14px", background: "var(--color-accent-purple)", border: "none", borderRadius: 7, color: "var(--bg)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
           )
         ),
         // Rules list

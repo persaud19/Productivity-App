@@ -6,9 +6,9 @@
   const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 const PRI_COLOR = {
-  High: "#ef4444",
-  Medium: "#f4a823",
-  Low: "#4ade80"
+  High: "var(--color-danger)",
+  Medium: "var(--color-primary)",
+  Low: "var(--color-success)"
 };
 function choreStatus(task) {
   const nextDue = addDays(task.last, task.freq);
@@ -106,10 +106,10 @@ function TasksTab({
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionHead, {
     label: "Home",
-    color: "#f4a823"
+    color: "var(--color-primary)"
   }), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#404755",
+      color: "var(--text-muted)",
       fontSize: 12,
       margin: "0 0 0 13px"
     }
@@ -125,7 +125,7 @@ function TasksTab({
       padding: "8px 13px",
       background: "rgba(244,168,35,.15)",
       border: "1px solid rgba(244,168,35,.3)",
-      color: "#f4a823",
+      color: "var(--color-primary)",
       borderRadius: 9,
       fontSize: 12,
       fontWeight: 700,
@@ -141,19 +141,19 @@ function TasksTab({
   }, [{
     l: "Overdue",
     n: counts.overdue,
-    c: "#ef4444",
+    c: "var(--color-danger)",
     bg: "rgba(239,68,68,.1)",
     border: "rgba(239,68,68,.25)"
   }, {
     l: "Due Soon",
     n: counts.soon,
-    c: "#f4a823",
+    c: "var(--color-primary)",
     bg: "rgba(244,168,35,.08)",
     border: "rgba(244,168,35,.2)"
   }, {
     l: "On Track",
     n: counts.ok,
-    c: "#4ade80",
+    c: "var(--color-success)",
     bg: "rgba(74,222,128,.07)",
     border: "rgba(74,222,128,.18)"
   }].map(({
@@ -200,7 +200,7 @@ function TasksTab({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#ef4444",
+      color: "var(--color-danger)",
       fontSize: 11,
       fontWeight: 700,
       margin: "0 0 3px",
@@ -209,7 +209,7 @@ function TasksTab({
     }
   }, "\uD83D\uDEA8 ", urgentHigh.length, " High Priority Need Attention"), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#9ca3af",
+      color: "var(--text-secondary)",
       fontSize: 11,
       margin: 0,
       lineHeight: 1.5
@@ -229,19 +229,19 @@ function TasksTab({
   }, [{
     id: "all",
     l: `All (${tasks.length})`,
-    c: "#9ca3af"
+    c: "var(--text-secondary)"
   }, {
     id: "overdue",
     l: `Overdue (${counts.overdue})`,
-    c: "#ef4444"
+    c: "var(--color-danger)"
   }, {
     id: "soon",
     l: `Soon (${counts.soon})`,
-    c: "#f4a823"
+    c: "var(--color-primary)"
   }, {
     id: "ok",
     l: `On Track (${counts.ok})`,
-    c: "#4ade80"
+    c: "var(--color-success)"
   }].map(({
     id,
     l,
@@ -267,7 +267,7 @@ function TasksTab({
       flexWrap: "wrap"
     }
   }, ["All", "High", "Medium", "Low"].map(p => {
-    const pc = p === "All" ? "#9ca3af" : PRI_COLOR[p];
+    const pc = p === "All" ? "var(--text-secondary)" : PRI_COLOR[p];
     return /*#__PURE__*/React.createElement("button", {
       key: p,
       onClick: () => setPriFilter(p),
@@ -292,7 +292,7 @@ function TasksTab({
       cursor: "pointer",
       border: `1px solid ${ownerFilter === o ? "rgba(96,165,250,.4)" : "var(--card-border)"}`,
       background: ownerFilter === o ? "rgba(96,165,250,.12)" : "transparent",
-      color: ownerFilter === o ? "#60a5fa" : "var(--text-secondary)",
+      color: ownerFilter === o ? "var(--color-accent-blue)" : "var(--text-secondary)",
       fontWeight: ownerFilter === o ? 700 : 400
     }
   }, o)), /*#__PURE__*/React.createElement("input", {
@@ -319,7 +319,7 @@ function TasksTab({
       daysUntil,
       status
     } = choreStatus(task);
-    const sc = status === "overdue" ? "#ef4444" : status === "soon" ? "#f4a823" : "#4ade80";
+    const sc = status === "overdue" ? "var(--color-danger)" : status === "soon" ? "var(--color-primary)" : "var(--color-success)";
     const sbg = status === "overdue" ? "rgba(239,68,68,.08)" : status === "soon" ? "rgba(244,168,35,.06)" : "rgba(74,222,128,.05)";
     const sbd = status === "overdue" ? "rgba(239,68,68,.2)" : status === "soon" ? "rgba(244,168,35,.15)" : "rgba(74,222,128,.12)";
     const pc = PRI_COLOR[task.priority] || "#555";
@@ -355,7 +355,7 @@ function TasksTab({
       }
     }, /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#e2e5ed",
+        color: "var(--text-heading)",
         fontSize: 13,
         fontWeight: 600
       }
@@ -371,7 +371,7 @@ function TasksTab({
     }, task.priority), /*#__PURE__*/React.createElement("span", {
       style: {
         background: "rgba(96,165,250,.1)",
-        color: "#60a5fa",
+        color: "var(--color-accent-blue)",
         fontSize: 9,
         fontWeight: 700,
         borderRadius: 4,
@@ -397,12 +397,12 @@ function TasksTab({
       }
     }, "Due ", fmtDate(nextDue)), /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#2d3340",
+        color: "var(--text-disabled)",
         fontSize: 10
       }
     }, "Every ", task.freq, "d"), task.completedBy && /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontSize: 10,
         fontStyle: "italic"
       }
@@ -459,7 +459,7 @@ function TasksTab({
       transform: "translate(-50%,-50%)",
       width: "calc(100% - 40px)",
       maxWidth: 380,
-      background: "#0e1420",
+      background: "var(--bg-modal)",
       border: "1px solid rgba(255,255,255,.12)",
       borderRadius: 14,
       padding: "20px",
@@ -467,7 +467,7 @@ function TasksTab({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#4ade80",
+      color: "var(--color-success)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 15,
       fontWeight: 800,
@@ -475,7 +475,7 @@ function TasksTab({
     }
   }, "Mark as Done"), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#9ca3af",
+      color: "var(--text-secondary)",
       fontSize: 13,
       margin: "0 0 14px"
     }
@@ -502,7 +502,7 @@ function TasksTab({
         flex: 1, padding: "8px 4px", borderRadius: 8, border: "none", cursor: "pointer",
         fontSize: 11, fontWeight: 700, fontFamily: "'Syne',sans-serif",
         background: doneByState === val ? "rgba(74,222,128,.2)" : "rgba(255,255,255,.05)",
-        color: doneByState === val ? "#4ade80" : "var(--text-secondary)"
+        color: doneByState === val ? "var(--color-success)" : "var(--text-secondary)"
       }
     }, label)
   )), /*#__PURE__*/React.createElement("div", {
@@ -521,7 +521,7 @@ function TasksTab({
     }
   }, "Next due:"), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#4ade80",
+      color: "var(--color-success)",
       fontSize: 14,
       fontWeight: 700,
       margin: 0
@@ -536,8 +536,8 @@ function TasksTab({
     style: {
       flex: 1,
       padding: "12px 0",
-      background: "#4ade80",
-      color: "#080b11",
+      background: "var(--color-success)",
+      color: "var(--bg)",
       border: "none",
       borderRadius: 9,
       fontSize: 13,
@@ -576,7 +576,7 @@ function TasksTab({
       transform: "translate(-50%,-50%)",
       width: "calc(100% - 32px)",
       maxWidth: 420,
-      background: "#0e1420",
+      background: "var(--bg-modal)",
       border: "1px solid rgba(255,255,255,.12)",
       borderRadius: 14,
       padding: "20px",
@@ -586,7 +586,7 @@ function TasksTab({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 15,
       fontWeight: 800,
@@ -699,7 +699,7 @@ function TasksTab({
         borderRadius: 8,
         border: `1px solid ${sel ? "rgba(96,165,250,.4)" : "var(--card-bg-4)"}`,
         background: sel ? "rgba(96,165,250,.12)" : "transparent",
-        color: sel ? "#60a5fa" : "var(--text-secondary)",
+        color: sel ? "var(--color-accent-blue)" : "var(--text-secondary)",
         fontSize: 12,
         fontWeight: sel ? 700 : 400,
         cursor: "pointer"
@@ -709,7 +709,7 @@ function TasksTab({
     c: "Next Due"
   }), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontSize: 13,
       fontWeight: 700,
       margin: 0
@@ -729,8 +729,8 @@ function TasksTab({
     style: {
       flex: 1,
       padding: "12px 0",
-      background: editTask.name?.trim() ? "#f4a823" : "rgba(255,255,255,.05)",
-      color: editTask.name?.trim() ? "#080b11" : "var(--text-muted)",
+      background: editTask.name?.trim() ? "var(--color-primary)" : "rgba(255,255,255,.05)",
+      color: editTask.name?.trim() ? "var(--bg)" : "var(--text-muted)",
       border: "none",
       borderRadius: 9,
       fontSize: 13,
@@ -744,7 +744,7 @@ function TasksTab({
       padding: "12px 13px",
       background: "rgba(239,68,68,.1)",
       border: "1px solid rgba(239,68,68,.2)",
-      color: "#ef4444",
+      color: "var(--color-danger)",
       borderRadius: 9,
       fontSize: 13,
       cursor: "pointer"
@@ -832,7 +832,7 @@ function RemindersTab({ settings }) {
     await DB.set(hid ? KEYS.hhJointReminders() : KEYS.jointReminders(), items);
   };
 
-  const PRI_COLOR = { high: "#ef4444", medium: "#f4a823", low: "#60a5fa" };
+  const PRI_COLOR = { high: "var(--color-danger)", medium: "var(--color-primary)", low: "var(--color-accent-blue)" };
   const PRI_BG   = { high: "rgba(239,68,68,.12)", medium: "rgba(244,168,35,.12)", low: "rgba(96,165,250,.12)" };
   const PRI_BORDER = { high: "rgba(239,68,68,.3)", medium: "rgba(244,168,35,.3)", low: "rgba(96,165,250,.3)" };
 
@@ -1067,7 +1067,7 @@ function RemindersTab({ settings }) {
     [["me", "MINE"], ["partner", partnerName.toUpperCase().slice(0,8)], ["both", "BOTH"]].map(([v, l]) =>
       React.createElement("button", {
         key: v, onClick: () => onChange(v),
-        style: { flex: 1, padding: "5px 0", borderRadius: 6, border: "1px solid " + (value === v ? "rgba(167,139,250,.4)" : "rgba(255,255,255,.08)"), background: value === v ? "rgba(167,139,250,.15)" : "transparent", color: value === v ? "#a78bfa" : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+        style: { flex: 1, padding: "5px 0", borderRadius: 6, border: "1px solid " + (value === v ? "rgba(167,139,250,.4)" : "rgba(255,255,255,.08)"), background: value === v ? "rgba(167,139,250,.15)" : "transparent", color: value === v ? "var(--color-accent-purple)" : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
       }, l)
     )
   );
@@ -1080,7 +1080,7 @@ function RemindersTab({ settings }) {
     if (today_) return "DUE TODAY" + (r.dueTime ? " " + r.dueTime : "");
     return r.dueDate + (r.dueTime ? " " + r.dueTime : "");
   };
-  const dueDateColor = r => isOverdue(r) ? "#ef4444" : isDueToday(r) ? "#f4a823" : "var(--text-muted)";
+  const dueDateColor = r => isOverdue(r) ? "var(--color-danger)" : isDueToday(r) ? "var(--color-primary)" : "var(--text-muted)";
 
   // ── Input style for inline inputs ──
   const iStyle = { background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "7px 10px", color: "var(--text-primary)", fontSize: 13, outline: "none", fontFamily: "'DM Sans',sans-serif", width: "100%", boxSizing: "border-box" };
@@ -1091,8 +1091,8 @@ function RemindersTab({ settings }) {
     (overdueCount > 0 || dueTodayCount > 0) && React.createElement("div", {
       style: { background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", gap: 14, alignItems: "center" }
     },
-      overdueCount > 0 && React.createElement("span", { style: { color: "#ef4444", fontWeight: 800, fontSize: 12 } }, overdueCount + " overdue"),
-      dueTodayCount > 0 && React.createElement("span", { style: { color: "#f4a823", fontWeight: 700, fontSize: 12 } }, dueTodayCount + " due today")
+      overdueCount > 0 && React.createElement("span", { style: { color: "var(--color-danger)", fontWeight: 800, fontSize: 12 } }, overdueCount + " overdue"),
+      dueTodayCount > 0 && React.createElement("span", { style: { color: "var(--color-primary)", fontWeight: 700, fontSize: 12 } }, dueTodayCount + " due today")
     ),
 
     // ── AI Summary ──
@@ -1102,7 +1102,7 @@ function RemindersTab({ settings }) {
       }, aiSummary),
       React.createElement("button", {
         onClick: generateSummary, disabled: summaryLoading,
-        style: { background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "#a78bfa", fontWeight: 700, cursor: "pointer", opacity: summaryLoading ? .6 : 1 }
+        style: { background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "var(--color-accent-purple)", fontWeight: 700, cursor: "pointer", opacity: summaryLoading ? .6 : 1 }
       }, summaryLoading ? "Summarising..." : "\u2728 AI Brief")
     ),
 
@@ -1114,7 +1114,7 @@ function RemindersTab({ settings }) {
       React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: showDetails ? 12 : 0 } },
         React.createElement("button", {
           onClick: listening ? () => { voiceRef.current?.stop(); setListening(false); } : startVoice,
-          style: { width: 38, height: 38, borderRadius: "50%", flexShrink: 0, cursor: "pointer", fontSize: 15, background: listening ? "rgba(239,68,68,.2)" : "rgba(167,139,250,.12)", border: "1px solid " + (listening ? "rgba(239,68,68,.4)" : "rgba(167,139,250,.3)"), color: listening ? "#ef4444" : "#a78bfa", display: "flex", alignItems: "center", justifyContent: "center" }
+          style: { width: 38, height: 38, borderRadius: "50%", flexShrink: 0, cursor: "pointer", fontSize: 15, background: listening ? "rgba(239,68,68,.2)" : "rgba(167,139,250,.12)", border: "1px solid " + (listening ? "rgba(239,68,68,.4)" : "rgba(167,139,250,.3)"), color: listening ? "var(--color-danger)" : "var(--color-accent-purple)", display: "flex", alignItems: "center", justifyContent: "center" }
         }, listening ? "\u23F9" : "\uD83C\uDFA4"),
         React.createElement("input", {
           type: "text", value: newTitle,
@@ -1126,7 +1126,7 @@ function RemindersTab({ settings }) {
         }),
         React.createElement("button", {
           onClick: handleAdd, disabled: !newTitle.trim() || aiLoading,
-          style: { background: newTitle.trim() ? "#a78bfa" : "rgba(167,139,250,.2)", border: "none", borderRadius: 10, padding: "9px 16px", color: newTitle.trim() ? "#fff" : "var(--text-muted)", fontWeight: 700, fontSize: 13, cursor: newTitle.trim() ? "pointer" : "not-allowed", flexShrink: 0, fontFamily: "'Syne',sans-serif" }
+          style: { background: newTitle.trim() ? "var(--color-accent-purple)" : "rgba(167,139,250,.2)", border: "none", borderRadius: 10, padding: "9px 16px", color: newTitle.trim() ? "#fff" : "var(--text-muted)", fontWeight: 700, fontSize: 13, cursor: newTitle.trim() ? "pointer" : "not-allowed", flexShrink: 0, fontFamily: "'Syne',sans-serif" }
         }, aiLoading ? "\u2026" : "Add")
       ),
 
@@ -1156,10 +1156,10 @@ function RemindersTab({ settings }) {
 
     // ── Tabs ──
     React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 16, background: "rgba(255,255,255,.03)", borderRadius: 10, padding: 4 } },
-      tabBtn("mine", "MINE", mineItems.length, "#a78bfa"),
-      tabBtn("partner", partnerName.length > 8 ? partnerName.slice(0,8).toUpperCase() : partnerName.toUpperCase(), partnerItems.length, "#60a5fa"),
-      tabBtn("both", "BOTH", bothItems.length, "#fb923c"),
-      tabBtn("done", "DONE", doneAll.length, "#4ade80")
+      tabBtn("mine", "MINE", mineItems.length, "var(--color-accent-purple)"),
+      tabBtn("partner", partnerName.length > 8 ? partnerName.slice(0,8).toUpperCase() : partnerName.toUpperCase(), partnerItems.length, "var(--color-accent-blue)"),
+      tabBtn("both", "BOTH", bothItems.length, "var(--color-accent-orange)"),
+      tabBtn("done", "DONE", doneAll.length, "var(--color-success)")
     ),
 
     // ── Empty state ──
@@ -1188,10 +1188,10 @@ function RemindersTab({ settings }) {
           // Done toggle
           !isDoneView && React.createElement("button", {
             onClick: () => toggleDone(r, isJoint),
-            style: { width: 22, height: 22, borderRadius: "50%", flexShrink: 0, cursor: "pointer", marginTop: 1, background: "transparent", border: "2px solid " + (overdue ? "#ef4444" : pri === "high" ? "rgba(239,68,68,.5)" : "rgba(255,255,255,.2)"), color: "#4ade80", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }
+            style: { width: 22, height: 22, borderRadius: "50%", flexShrink: 0, cursor: "pointer", marginTop: 1, background: "transparent", border: "2px solid " + (overdue ? "var(--color-danger)" : pri === "high" ? "rgba(239,68,68,.5)" : "rgba(255,255,255,.2)"), color: "var(--color-success)", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }
           }, ""),
           isDoneView && React.createElement("div", {
-            style: { width: 22, height: 22, borderRadius: "50%", flexShrink: 0, marginTop: 1, background: "rgba(74,222,128,.15)", border: "2px solid #4ade80", color: "#4ade80", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }
+            style: { width: 22, height: 22, borderRadius: "50%", flexShrink: 0, marginTop: 1, background: "rgba(74,222,128,.15)", border: "2px solid #4ade80", color: "var(--color-success)", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }
           }, "\u2713"),
 
           // Content
@@ -1209,7 +1209,7 @@ function RemindersTab({ settings }) {
               }, "\uD83D\uDCC5 " + fmtDue(r)),
               // Assigned to
               r.assignedTo && r.assignedTo !== "me" && React.createElement("span", {
-                style: { fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "2px 7px", background: r.assignedTo === "both" ? "rgba(251,146,60,.12)" : "rgba(96,165,250,.12)", border: "1px solid " + (r.assignedTo === "both" ? "rgba(251,146,60,.3)" : "rgba(96,165,250,.25)"), color: r.assignedTo === "both" ? "#fb923c" : "#60a5fa" }
+                style: { fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "2px 7px", background: r.assignedTo === "both" ? "rgba(251,146,60,.12)" : "rgba(96,165,250,.12)", border: "1px solid " + (r.assignedTo === "both" ? "rgba(251,146,60,.3)" : "rgba(96,165,250,.25)"), color: r.assignedTo === "both" ? "var(--color-accent-orange)" : "var(--color-accent-blue)" }
               }, r.assignedTo === "both" ? "BOTH" : "\u2192 " + partnerName),
               r.googleTaskId && React.createElement("span", { style: { fontSize: 9, color: "var(--text-muted)" } }, "\u2713 Google"),
               isDoneView && r.doneAt && React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Done " + r.doneAt.slice(0, 10))
@@ -1226,7 +1226,7 @@ function RemindersTab({ settings }) {
 
         // ── Inline edit panel ──
         isEditing && React.createElement("div", null,
-          React.createElement("p", { style: { fontSize: 10, color: "#a78bfa", fontWeight: 700, letterSpacing: ".07em", margin: "0 0 10px", fontFamily: "'Syne',sans-serif" } }, "EDIT REMINDER"),
+          React.createElement("p", { style: { fontSize: 10, color: "var(--color-accent-purple)", fontWeight: 700, letterSpacing: ".07em", margin: "0 0 10px", fontFamily: "'Syne',sans-serif" } }, "EDIT REMINDER"),
           // Title
           React.createElement("input", {
             type: "text", value: editTitle, onChange: e => setEditTitle(e.target.value),
@@ -1261,7 +1261,7 @@ function RemindersTab({ settings }) {
           React.createElement("div", { style: { display: "flex", gap: 8 } },
             React.createElement("button", {
               onClick: () => saveEdit(r, isJoint),
-              style: { flex: 1, padding: "9px 0", background: "#a78bfa", border: "none", borderRadius: 8, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+              style: { flex: 1, padding: "9px 0", background: "var(--color-accent-purple)", border: "none", borderRadius: 8, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
             }, "Save"),
             React.createElement("button", {
               onClick: cancelEdit,
@@ -1277,7 +1277,7 @@ function RemindersTab({ settings }) {
       style: { marginTop: 24, padding: "14px 16px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 12 }
     },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
-        React.createElement("span", { style: { fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: hasGoogleToken ? "#4ade80" : "var(--text-muted)" } },
+        React.createElement("span", { style: { fontSize: 11, fontWeight: 700, letterSpacing: ".07em", color: hasGoogleToken ? "var(--color-success)" : "var(--text-muted)" } },
           hasGoogleToken ? "\u25CF GOOGLE TASKS CONNECTED" : "\u25CB GOOGLE TASKS"),
         React.createElement("button", {
           onClick: syncGoogleTasks, disabled: syncing,
@@ -1286,7 +1286,7 @@ function RemindersTab({ settings }) {
       ),
       !hasGoogleToken && React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5, margin: 0 } },
         "Sign out and sign back in to connect Google Tasks \u2014 grants permission once."),
-      syncMsg && React.createElement("p", { style: { fontSize: 11, color: "#4ade80", margin: "6px 0 0", fontWeight: 600 } }, syncMsg)
+      syncMsg && React.createElement("p", { style: { fontSize: 11, color: "var(--color-success)", margin: "6px 0 0", fontWeight: 600 } }, syncMsg)
     )
   );
 }

@@ -56,11 +56,11 @@
       sid,
       t: items.reduce((a, i) => a + i.prices[sid], 0)
     })).sort((a, b) => a.t - b.t);
-    return [mk("A", "Lowest Total Cost", "🟢", "#22c55e", "Cheapest price per item, any store, any card. May require multiple cards.", item => item.cheapest), mk("B", "Best Card Strategy", "💳", "#a78bfa", "Routes each item to the store where your best card earns the most — Cobalt 5x at Metro/Farm Boy, Costco MC at Costco, TD Aeroplan at Walmart.", item => {
+    return [mk("A", "Lowest Total Cost", "🟢", "#22c55e", "Cheapest price per item, any store, any card. May require multiple cards.", item => item.cheapest), mk("B", "Best Card Strategy", "💳", "var(--color-accent-purple)", "Routes each item to the store where your best card earns the most — Cobalt 5x at Metro/Farm Boy, Costco MC at Costco, TD Aeroplan at Walmart.", item => {
       if (item.preferred === "costco") return "costco";
       if (amexStores.includes(item.preferred)) return item.preferred;
       return "walmart";
-    }), mk("C", "Fewest Stops", "⚡", "#f4a823", `Everything from ${STORES[singles[0].sid]?.name}. One trip, one card.`, () => singles[0].sid)];
+    }), mk("C", "Fewest Stops", "⚡", "var(--color-primary)", `Everything from ${STORES[singles[0].sid]?.name}. One trip, one card.`, () => singles[0].sid)];
   }
   
   // ─────────────────────────────────────────────────────────────────────────────
@@ -296,9 +296,9 @@
     const [tab, setTab] = useState("info"); // "info" | "recipe"
     const [open, setOpen] = useState(false);
     const mealCats = Array.isArray(meal.cat) ? meal.cat : (meal.cat ? [meal.cat] : ["B"]);
-    const cc = C[mealCats[0]] || "#9ca3af";
+    const cc = C[mealCats[0]] || "var(--text-secondary)";
     const pm = pantryMatch(meal, pantryItems);
-    const pmColor = pm.pct >= 80 ? "#4ade80" : pm.pct >= 50 ? "#f4a823" : "var(--text-secondary)";
+    const pmColor = pm.pct >= 80 ? "var(--color-success)" : pm.pct >= 50 ? "var(--color-primary)" : "var(--text-secondary)";
     return /*#__PURE__*/React.createElement("div", {
       style: {
         borderRadius: 10,
@@ -324,15 +324,15 @@
         width: 22,
         height: 22,
         borderRadius: 6,
-        border: `2px solid ${picked ? "#4ade80" : "rgba(255,255,255,.2)"}`,
-        background: picked ? "#4ade80" : "transparent",
+        border: `2px solid ${picked ? "var(--color-success)" : "rgba(255,255,255,.2)"}`,
+        background: picked ? "var(--color-success)" : "transparent",
         cursor: "pointer",
         flexShrink: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 0,
-        color: "#080b11",
+        color: "var(--bg)",
         fontSize: 11,
         fontWeight: 800
       }
@@ -367,7 +367,7 @@
         flexShrink: 0
       }
     }, mealCats.map(c => CL[c] || c).join(" / ")), meal.fromInventory && /*#__PURE__*/React.createElement("span", {
-      style: { background: "rgba(96,165,250,.12)", color: "#60a5fa", fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "1px 6px", flexShrink: 0 }
+      style: { background: "rgba(96,165,250,.12)", color: "var(--color-accent-blue)", fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "1px 6px", flexShrink: 0 }
     }, "\uD83C\uDFE0 Home"), pantryItems.length > 0 && pm.total > 0 && /*#__PURE__*/React.createElement("span", {
       style: {
         background: `${pmColor}15`,
@@ -386,23 +386,23 @@
       }
     }, /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#f4a823",
+        color: "var(--color-primary)",
         fontSize: 10,
         fontWeight: 700
       }
     }, meal.cal, " cal"), /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#60a5fa",
+        color: "var(--color-accent-blue)",
         fontSize: 10
       }
     }, meal.prot, "g protein"), /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontSize: 10
       }
     }, "$", meal.cad.toFixed(2), "/srv"), /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#60a5fa",
+        color: "var(--color-accent-blue)",
         fontSize: 10,
         fontWeight: 600
       }
@@ -450,7 +450,7 @@
       key: t,
       style: {
         background: "var(--card-bg-3)",
-        color: "#6b7280",
+        color: "var(--text-muted)",
         fontSize: 10,
         borderRadius: 5,
         padding: "2px 7px"
@@ -469,14 +469,14 @@
       return /*#__PURE__*/React.createElement("p", {
         key: idx,
         style: {
-          color: inPantry ? "var(--text-secondary)" : "#9ca3af",
+          color: inPantry ? "var(--text-secondary)" : "var(--text-secondary)",
           fontSize: 12,
           margin: "0 0 3px",
           textDecoration: inPantry ? "none" : "none"
         }
       }, /*#__PURE__*/React.createElement("span", {
         style: {
-          color: inPantry ? "#4ade80" : "var(--text-muted)",
+          color: inPantry ? "var(--color-success)" : "var(--text-muted)",
           marginRight: 4
         }
       }, inPantry ? "✓" : "·"), i, inPantry && /*#__PURE__*/React.createElement("span", {
@@ -496,7 +496,7 @@
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#f4a823",
+        color: "var(--color-primary)",
         fontSize: 10,
         fontWeight: 700,
         margin: "0 0 3px"
@@ -504,7 +504,7 @@
     }, "Need to buy (", pm.missing.length, ")"), pm.missing.map((m, i) => /*#__PURE__*/React.createElement("p", {
       key: i,
       style: {
-        color: "#9ca3af",
+        color: "var(--text-secondary)",
         fontSize: 11,
         margin: "0 0 1px"
       }
@@ -527,7 +527,7 @@
       }
     }, "Prep"), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#60a5fa",
+        color: "var(--color-accent-blue)",
         fontSize: 12,
         fontWeight: 700,
         margin: 0
@@ -613,7 +613,7 @@
       }
     }, i + 1), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#c9ccd4",
+        color: "var(--text-primary)",
         fontSize: 12,
         margin: 0,
         lineHeight: 1.6
@@ -710,7 +710,7 @@
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontWeight: 700,
         fontSize: 13,
         margin: "0 0 5px"
@@ -729,7 +729,7 @@
         padding: "11px 0",
         background: "rgba(74,222,128,.15)",
         border: "1px solid rgba(74,222,128,.3)",
-        color: "#4ade80",
+        color: "var(--color-success)",
         borderRadius: 9,
         fontSize: 13,
         fontWeight: 700,
@@ -757,7 +757,7 @@
         }
       }, /*#__PURE__*/React.createElement("p", {
         style: {
-          color: dayIdx === i ? "#60a5fa" : ok ? "#4ade80" : "var(--text-secondary)",
+          color: dayIdx === i ? "var(--color-accent-blue)" : ok ? "var(--color-success)" : "var(--text-secondary)",
           fontSize: 9,
           fontWeight: dayIdx === i ? 800 : 500,
           margin: 0
@@ -778,7 +778,7 @@
       }
     }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#60a5fa",
+        color: "var(--color-accent-blue)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 16,
         fontWeight: 800,
@@ -827,7 +827,7 @@
         transform: "translate(-50%,-50%)",
         width: "calc(100% - 40px)",
         maxWidth: 420,
-        background: "#0e1420",
+        background: "var(--bg-modal)",
         border: "1px solid rgba(255,255,255,.12)",
         borderRadius: 14,
         padding: "20px",
@@ -835,7 +835,7 @@
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 15,
         fontWeight: 800,
@@ -860,7 +860,7 @@
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#6b7280",
+        color: "var(--text-muted)",
         fontSize: 10,
         fontWeight: 700,
         textTransform: "uppercase",
@@ -896,7 +896,7 @@
       }
     }, d.pantryItem.qty, " ", d.pantryItem.unit), /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#f4a823",
+        color: "var(--color-primary)",
         fontSize: 12,
         fontWeight: 700
       }
@@ -924,8 +924,8 @@
       style: {
         flex: 1,
         padding: "12px 0",
-        background: "#4ade80",
-        color: "#080b11",
+        background: "var(--color-success)",
+        color: "var(--bg)",
         border: "none",
         borderRadius: 9,
         fontSize: 14,
@@ -982,7 +982,7 @@
           borderRadius: 7,
           border: `1px solid ${isCooked ? "rgba(74,222,128,.35)" : "var(--card-border-2)"}`,
           background: isCooked ? "rgba(74,222,128,.1)" : "var(--card-bg-3)",
-          color: isCooked ? "#4ade80" : "var(--text-secondary)",
+          color: isCooked ? "var(--color-success)" : "var(--text-secondary)",
           fontSize: 11,
           fontWeight: isCooked ? 700 : 400,
           cursor: isCooked ? "default" : "pointer",
@@ -993,13 +993,13 @@
           width: 14,
           height: 14,
           borderRadius: 3,
-          border: `2px solid ${isCooked ? "#4ade80" : "rgba(255,255,255,.25)"}`,
-          background: isCooked ? "#4ade80" : "transparent",
+          border: `2px solid ${isCooked ? "var(--color-success)" : "rgba(255,255,255,.25)"}`,
+          background: isCooked ? "var(--color-success)" : "transparent",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontSize: 9,
-          color: "#080b11",
+          color: "var(--bg)",
           fontWeight: 800,
           flexShrink: 0
         }
@@ -1086,7 +1086,7 @@
         transform: "translateX(-50%)",
         width: "100%",
         maxWidth: 490,
-        background: "#0d111a",
+        background: "var(--bg-modal)",
         border: "1px solid rgba(255,255,255,.12)",
         borderRadius: "16px 16px 0 0",
         padding: "16px 16px 32px",
@@ -1114,7 +1114,7 @@
       style: {
         background: "transparent",
         border: "1px solid rgba(255,255,255,.1)",
-        color: "#9ca3af",
+        color: "var(--text-secondary)",
         borderRadius: 8,
         padding: "5px 14px",
         fontSize: 12,
@@ -1226,9 +1226,9 @@
       // ── Section switcher: Default / Mine / Imported ──
       React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 14, background: "rgba(255,255,255,.03)", borderRadius: 10, padding: 4 } },
         [
-          ["default", "DEFAULT (" + MEALS_DB.length + ")", "#f4a823"],
-          ["custom", "MINE (" + customMeals.length + ")", "#60a5fa"],
-          ...(importedMeals.length > 0 ? [["imported", "\uD83D\uDCD6 STARTER (" + importedMeals.length + ")", "#a78bfa"]] : [])
+          ["default", "DEFAULT (" + MEALS_DB.length + ")", "var(--color-primary)"],
+          ["custom", "MINE (" + customMeals.length + ")", "var(--color-accent-blue)"],
+          ...(importedMeals.length > 0 ? [["imported", "\uD83D\uDCD6 STARTER (" + importedMeals.length + ")", "var(--color-accent-purple)"]] : [])
         ].map(([id, label, col]) =>
           React.createElement("button", {
             key: id, onClick: () => { setLibSection(id); setCat("All"); setBase("All"); setSearch(""); },
@@ -1241,7 +1241,7 @@
       libSection === "imported" && importedLibMeta.length > 0 && React.createElement("div", {
         style: { background: "rgba(167,139,250,.08)", border: "1px solid rgba(167,139,250,.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 12 }
       },
-        React.createElement("p", { style: { color: "#a78bfa", fontWeight: 800, fontSize: 12, margin: "0 0 2px", fontFamily: "'Syne',sans-serif" } }, "\uD83D\uDCD6 " + (importedLibMeta[0].name || "Starter Library")),
+        React.createElement("p", { style: { color: "var(--color-accent-purple)", fontWeight: 800, fontSize: 12, margin: "0 0 2px", fontFamily: "'Syne',sans-serif" } }, "\uD83D\uDCD6 " + (importedLibMeta[0].name || "Starter Library")),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: 0 } }, "Curated by " + (importedLibMeta[0].author || "Ryan") + " \xB7 Read-only \xB7 Available in your week planner")
       ),
 
@@ -1263,7 +1263,7 @@
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#f4a823",
+        color: "var(--color-primary)",
         fontSize: 11,
         fontWeight: 700,
         margin: "0 0 1px"
@@ -1276,7 +1276,7 @@
       }
     }, canMakeNow > 0 ? /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontWeight: 700
       }
     }, canMakeNow), " meals 80%+ covered by your pantry") : "Tap any card for ingredients + steps")),
@@ -1287,7 +1287,7 @@
         padding: "10px 14px",
         background: "rgba(244,168,35,.15)",
         border: "1px solid rgba(244,168,35,.35)",
-        color: "#f4a823",
+        color: "var(--color-primary)",
         borderRadius: 10,
         fontSize: 12,
         fontWeight: 800,
@@ -1305,7 +1305,7 @@
         flexWrap: "wrap"
       }
     }, Object.keys(catMap).map(c => {
-      const cc = C[catMap[c]] || "#f4a823";
+      const cc = C[catMap[c]] || "var(--color-primary)";
       return /*#__PURE__*/React.createElement("button", {
         key: c,
         onClick: () => setCat(c),
@@ -1325,8 +1325,8 @@
     // ── Protein base filter row ──
     React.createElement("div", { style: { display: "flex", gap: 5, marginBottom: 10, flexWrap: "wrap" } },
       BASES.map(b => {
-        const baseColors = { "Chicken": "#fb923c", "Turkey": "#f59e0b", "Seafood": "#60a5fa", "Beef": "#ef4444", "Pork": "#f472b6", "Plant-Based": "#4ade80", "All": "#6b7280" };
-        const bc = baseColors[b] || "#6b7280";
+        const baseColors = { "Chicken": "var(--color-accent-orange)", "Turkey": "var(--color-accent-yellow)", "Seafood": "var(--color-accent-blue)", "Beef": "var(--color-danger)", "Pork": "var(--color-accent-pink)", "Plant-Based": "var(--color-success)", "All": "var(--text-muted)" };
+        const bc = baseColors[b] || "var(--text-muted)";
         const cnt = b === "All" ? sectionPool.length : (baseCounts[b] || 0);
         if (b !== "All" && cnt === 0) return null;
         return React.createElement("button", {
@@ -1339,7 +1339,7 @@
             cursor: "pointer",
             border: `1px solid ${base === b ? bc : "rgba(255,255,255,.08)"}`,
             background: base === b ? `${bc}22` : "transparent",
-            color: base === b ? bc : "#6b7280",
+            color: base === b ? bc : "var(--text-muted)",
             fontWeight: base === b ? 700 : 400,
             whiteSpace: "nowrap"
           }
@@ -1405,7 +1405,7 @@
           right: 8,
           background: "rgba(239,68,68,.15)",
           border: "1px solid rgba(239,68,68,.2)",
-          color: "#ef4444",
+          color: "var(--color-danger)",
           borderRadius: 6,
           padding: "2px 7px",
           fontSize: 10,
@@ -1619,7 +1619,7 @@
       });
       if (!d) return null;
       const dCats = d.cat || ["D"];
-      const cc = C[dCats[0]] || "#9ca3af";
+      const cc = C[dCats[0]] || "var(--text-secondary)";
       return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
         style: {
           background: "rgba(74,222,128,.07)",
@@ -1630,7 +1630,7 @@
         }
       }, /*#__PURE__*/React.createElement("p", {
         style: {
-          color: "#4ade80",
+          color: "var(--color-success)",
           fontSize: 11,
           fontWeight: 700,
           margin: "0 0 2px"
@@ -1653,7 +1653,7 @@
         }
       }, /*#__PURE__*/React.createElement("p", {
         style: {
-          color: "#6b7280",
+          color: "var(--text-muted)",
           fontSize: 10,
           margin: "0 0 4px",
           textTransform: "uppercase",
@@ -1675,7 +1675,7 @@
         }
       }, /*#__PURE__*/React.createElement("p", {
         style: {
-          color: "#6b7280",
+          color: "var(--text-muted)",
           fontSize: 10,
           margin: "0 0 4px",
           textTransform: "uppercase",
@@ -1685,7 +1685,7 @@
         style: { display: "flex", gap: 5, flexWrap: "wrap", marginTop: 4 }
       }, [["B", "Breakfast"], ["L", "Lunch"], ["D", "Dinner"], ["S", "Snack"]].map(([code, label]) => {
         const sel = dCats.includes(code);
-        const col = C[code] || "#9ca3af";
+        const col = C[code] || "var(--text-secondary)";
         return /*#__PURE__*/React.createElement("button", {
           key: code,
           onClick: () => {
@@ -1700,7 +1700,7 @@
           gap: 6,
           marginBottom: 10
         }
-      }, [["cal", "Cal", "#f4a823"], ["prot", "Protein (g)", "#60a5fa"], ["carbs", "Carbs (g)", "#a78bfa"], ["fat", "Fat (g)", "#fb923c"]].map(([k, lbl, c]) => /*#__PURE__*/React.createElement("div", {
+      }, [["cal", "Cal", "var(--color-primary)"], ["prot", "Protein (g)", "var(--color-accent-blue)"], ["carbs", "Carbs (g)", "var(--color-accent-purple)"], ["fat", "Fat (g)", "var(--color-accent-orange)"]].map(([k, lbl, c]) => /*#__PURE__*/React.createElement("div", {
         key: k,
         style: {
           flex: 1
@@ -1733,14 +1733,14 @@
           gap: 6,
           marginBottom: 10
         }
-      }, [["prep", "Prep (min)", "#4ade80"], ["cook", "Cook (min)", "#4ade80"], ["cad", "$/serve (CAD)", "#34d399"]].map(([k, lbl, c]) => /*#__PURE__*/React.createElement("div", {
+      }, [["prep", "Prep (min)", "var(--color-success)"], ["cook", "Cook (min)", "var(--color-success)"], ["cad", "$/serve (CAD)", "var(--color-accent-teal)"]].map(([k, lbl, c]) => /*#__PURE__*/React.createElement("div", {
         key: k,
         style: {
           flex: 1
         }
       }, /*#__PURE__*/React.createElement("p", {
         style: {
-          color: "#6b7280",
+          color: "var(--text-muted)",
           fontSize: 9,
           margin: "0 0 3px",
           textTransform: "uppercase",
@@ -1765,7 +1765,7 @@
         }
       }, /*#__PURE__*/React.createElement("p", {
         style: {
-          color: "#6b7280",
+          color: "var(--text-muted)",
           fontSize: 10,
           margin: "0 0 5px",
           textTransform: "uppercase",
@@ -1783,7 +1783,7 @@
       }, (d.ing || []).map((ing, i) => /*#__PURE__*/React.createElement("p", {
         key: i,
         style: {
-          color: "#9ca3af",
+          color: "var(--text-secondary)",
           fontSize: 12,
           margin: "0 0 3px"
         }
@@ -1793,7 +1793,7 @@
         }
       }, /*#__PURE__*/React.createElement("p", {
         style: {
-          color: "#6b7280",
+          color: "var(--text-muted)",
           fontSize: 10,
           margin: "0 0 5px",
           textTransform: "uppercase",
@@ -1825,7 +1825,7 @@
         }
       }, i + 1, "."), /*#__PURE__*/React.createElement("p", {
         style: {
-          color: "#9ca3af",
+          color: "var(--text-secondary)",
           fontSize: 12,
           margin: 0,
           lineHeight: 1.5
@@ -1838,7 +1838,7 @@
           width: "100%", padding: "10px 14px", borderRadius: 10,
           border: `1px solid ${d.fromInventory ? "rgba(96,165,250,.4)" : "rgba(255,255,255,.1)"}`,
           background: d.fromInventory ? "rgba(96,165,250,.12)" : "transparent",
-          color: d.fromInventory ? "#60a5fa" : "var(--text-muted)",
+          color: d.fromInventory ? "var(--color-accent-blue)" : "var(--text-muted)",
           fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left"
         }
       }, d.fromInventory ? "\uD83C\uDFE0 Made at home \u2014 will deduct from inventory when logged" : "\uD83C\uDFE0 Mark as home-cooked (deduct from inventory)")), /*#__PURE__*/React.createElement("div", {
@@ -1852,8 +1852,8 @@
         style: {
           flex: 1,
           padding: "13px 0",
-          background: d.name?.trim() ? "#4ade80" : "rgba(255,255,255,.05)",
-          color: d.name?.trim() ? "#080b11" : "var(--text-muted)",
+          background: d.name?.trim() ? "var(--color-success)" : "rgba(255,255,255,.05)",
+          color: d.name?.trim() ? "var(--bg)" : "var(--text-muted)",
           border: "none",
           borderRadius: 10,
           fontSize: 14,
@@ -1898,7 +1898,7 @@
         width: "calc(100% - 32px)",
         maxWidth: 458,
         maxHeight: "90vh",
-        background: "#0e1420",
+        background: "var(--bg-modal)",
         border: "1px solid rgba(255,255,255,.12)",
         borderRadius: 16,
         zIndex: 201,
@@ -1917,7 +1917,7 @@
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#f4a823",
+        color: "var(--color-primary)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 15,
         fontWeight: 800,
@@ -1929,7 +1929,7 @@
       style: {
         background: "transparent",
         border: "1px solid rgba(255,255,255,.1)",
-        color: "#9ca3af",
+        color: "var(--text-secondary)",
         borderRadius: 8,
         padding: "5px 14px",
         fontSize: 12,
@@ -1963,7 +1963,7 @@
         border: "none",
         borderRadius: 6,
         background: mode === m ? "var(--card-bg-4)" : "transparent",
-        color: mode === m ? "#f4a823" : "var(--text-secondary)",
+        color: mode === m ? "var(--color-primary)" : "var(--text-secondary)",
         fontSize: 11,
         fontWeight: mode === m ? 700 : 400,
         cursor: "pointer",
@@ -1971,13 +1971,13 @@
         letterSpacing: ".04em"
       }
     }, l))), mode === "photo" && /*#__PURE__*/React.createElement("div", null,
-      /*#__PURE__*/React.createElement("p", { style: { color: "#9ca3af", fontSize: 13, margin: "0 0 14px", lineHeight: 1.6 } }, "Recipe cards typically have 2 sides. Upload the front (ingredients) and back (instructions) — Claude combines both into one complete recipe."),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 13, margin: "0 0 14px", lineHeight: 1.6 } }, "Recipe cards typically have 2 sides. Upload the front (ingredients) and back (instructions) — Claude combines both into one complete recipe."),
       /*#__PURE__*/React.createElement("input", { ref: fileRef, type: "file", accept: "image/*", capture: "environment", style: { display: "none" }, onChange: e => { if (e.target.files[0]) setFrontFile(e.target.files[0]); } }),
       /*#__PURE__*/React.createElement("input", { ref: backRef, type: "file", accept: "image/*", capture: "environment", style: { display: "none" }, onChange: e => { if (e.target.files[0]) setBackFile(e.target.files[0]); } }),
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
         /*#__PURE__*/React.createElement("button", {
           onClick: () => fileRef.current?.click(),
-          style: { flex: 1, padding: "24px 8px", background: frontFile ? "rgba(74,222,128,.08)" : "var(--card-bg)", border: frontFile ? "2px solid rgba(74,222,128,.4)" : "2px dashed rgba(244,168,35,.3)", borderRadius: 12, color: frontFile ? "#4ade80" : "#f4a823", fontSize: 12, cursor: "pointer", fontWeight: 600, textAlign: "center" }
+          style: { flex: 1, padding: "24px 8px", background: frontFile ? "rgba(74,222,128,.08)" : "var(--card-bg)", border: frontFile ? "2px solid rgba(74,222,128,.4)" : "2px dashed rgba(244,168,35,.3)", borderRadius: 12, color: frontFile ? "var(--color-success)" : "var(--color-primary)", fontSize: 12, cursor: "pointer", fontWeight: 600, textAlign: "center" }
         },
           /*#__PURE__*/React.createElement("span", { style: { display: "block", fontSize: 24, marginBottom: 6 } }, frontFile ? "\u2713" : "\uD83D\uDCF7"),
           frontFile ? "Front \u2713" : "Front Side",
@@ -1985,7 +1985,7 @@
         ),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => backRef.current?.click(),
-          style: { flex: 1, padding: "24px 8px", background: backFile ? "rgba(74,222,128,.08)" : "var(--card-bg)", border: backFile ? "2px solid rgba(74,222,128,.4)" : "2px dashed rgba(96,165,250,.2)", borderRadius: 12, color: backFile ? "#4ade80" : "#60a5fa", fontSize: 12, cursor: "pointer", fontWeight: 600, textAlign: "center" }
+          style: { flex: 1, padding: "24px 8px", background: backFile ? "rgba(74,222,128,.08)" : "var(--card-bg)", border: backFile ? "2px solid rgba(74,222,128,.4)" : "2px dashed rgba(96,165,250,.2)", borderRadius: 12, color: backFile ? "var(--color-success)" : "var(--color-accent-blue)", fontSize: 12, cursor: "pointer", fontWeight: 600, textAlign: "center" }
         },
           /*#__PURE__*/React.createElement("span", { style: { display: "block", fontSize: 24, marginBottom: 6 } }, backFile ? "\u2713" : "\uD83D\uDCF7"),
           backFile ? "Back \u2713" : "Back Side",
@@ -1994,18 +1994,18 @@
       ),
       frontFile && /*#__PURE__*/React.createElement("button", {
         onClick: () => handlePhotos(frontFile, backFile),
-        style: { width: "100%", padding: "13px 0", background: "#f4a823", border: "none", borderRadius: 10, color: "#080b11", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", marginBottom: 8 }
+        style: { width: "100%", padding: "13px 0", background: "var(--color-primary)", border: "none", borderRadius: 10, color: "var(--bg)", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", marginBottom: 8 }
       }, backFile ? "\uD83E\uDDE0  Extract from Both Sides" : "\uD83E\uDDE0  Extract from Front Side Only"),
       /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "4px 0 0", textAlign: "center" } }, frontFile ? (backFile ? "Both sides ready — tap to extract" : "Front uploaded \xB7 Back side is optional") : "Upload the front side to get started")), mode === "url" && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#9ca3af",
+        color: "var(--text-secondary)",
         fontSize: 13,
         margin: "0 0 14px",
         lineHeight: 1.6
       }
     }, "Paste any recipe website URL \u2014 AllRecipes, Food Network, NYT Cooking, Serious Eats, personal blogs, etc."), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#6b7280",
+        color: "var(--text-muted)",
         fontSize: 10,
         margin: "0 0 5px",
         textTransform: "uppercase",
@@ -2029,7 +2029,7 @@
         padding: "13px 0",
         background: url.trim() && status !== "loading" ? "rgba(244,168,35,.15)" : "var(--card-bg-3)",
         border: `1px solid ${url.trim() && status !== "loading" ? "rgba(244,168,35,.3)" : "var(--card-border)"}`,
-        color: url.trim() && status !== "loading" ? "#f4a823" : "var(--text-muted)",
+        color: url.trim() && status !== "loading" ? "var(--color-primary)" : "var(--text-muted)",
         borderRadius: 10,
         fontSize: 14,
         fontWeight: 700,
@@ -2045,7 +2045,7 @@
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#a78bfa",
+        color: "var(--color-accent-purple)",
         fontSize: 11,
         fontWeight: 700,
         margin: "0 0 3px"
@@ -2059,11 +2059,11 @@
       }
     }, "For best results: paste the URL ", /*#__PURE__*/React.createElement("strong", {
       style: {
-        color: "#9ca3af"
+        color: "var(--text-secondary)"
       }
     }, "and"), " copy-paste the caption or recipe description from the post into the text field below.")), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#6b7280",
+        color: "var(--text-muted)",
         fontSize: 10,
         margin: "0 0 5px",
         textTransform: "uppercase",
@@ -2080,7 +2080,7 @@
       }
     }), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#6b7280",
+        color: "var(--text-muted)",
         fontSize: 10,
         margin: "0 0 5px",
         textTransform: "uppercase",
@@ -2112,7 +2112,7 @@
         padding: "13px 0",
         background: (url.trim() || caption.trim()) && status !== "loading" ? "rgba(167,139,250,.15)" : "var(--card-bg-3)",
         border: `1px solid ${(url.trim() || caption.trim()) && status !== "loading" ? "rgba(167,139,250,.3)" : "var(--card-border)"}`,
-        color: (url.trim() || caption.trim()) && status !== "loading" ? "#a78bfa" : "var(--text-muted)",
+        color: (url.trim() || caption.trim()) && status !== "loading" ? "var(--color-accent-purple)" : "var(--text-muted)",
         borderRadius: 10,
         fontSize: 14,
         fontWeight: 700,
@@ -2137,12 +2137,12 @@
         width: 7,
         height: 7,
         borderRadius: "50%",
-        background: "#f4a823",
+        background: "var(--color-primary)",
         animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`
       }
     }))), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#9ca3af",
+        color: "var(--text-secondary)",
         fontSize: 12,
         margin: 0
       }
@@ -2156,14 +2156,14 @@
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#ef4444",
+        color: "var(--color-danger)",
         fontSize: 12,
         fontWeight: 600,
         margin: "0 0 4px"
       }
     }, "Extraction failed"), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#9ca3af",
+        color: "var(--text-secondary)",
         fontSize: 11,
         margin: "0 0 10px",
         lineHeight: 1.5
@@ -2177,7 +2177,7 @@
         padding: "6px 14px",
         background: "rgba(255,255,255,.05)",
         border: "1px solid rgba(255,255,255,.1)",
-        color: "#9ca3af",
+        color: "var(--text-secondary)",
         borderRadius: 7,
         fontSize: 11,
         cursor: "pointer"
@@ -2291,7 +2291,7 @@
       }
     }, card.name), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontSize: 10,
         margin: "0 0 1px"
       }
@@ -2311,7 +2311,7 @@
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#ef4444",
+        color: "var(--color-danger)",
         fontSize: 10,
         margin: "0 0 1px",
         fontWeight: 700
@@ -2380,7 +2380,7 @@
     }, s.priceTier), /*#__PURE__*/React.createElement("span", {
       style: {
         background: "var(--card-bg-2)",
-        color: "#9ca3af",
+        color: "var(--text-secondary)",
         fontSize: 9,
         fontWeight: 600,
         borderRadius: 4,
@@ -2394,7 +2394,7 @@
       }
     }, s.cardNote)), /*#__PURE__*/React.createElement("span", {
       style: {
-        color: s.priceRank <= 2 ? "#4ade80" : s.priceRank === 3 ? "#f4a823" : "#fb923c",
+        color: s.priceRank <= 2 ? "var(--color-success)" : s.priceRank === 3 ? "var(--color-primary)" : "var(--color-accent-orange)",
         fontSize: 11,
         fontWeight: 700,
         flexShrink: 0
@@ -2488,14 +2488,14 @@
         }
       }, r.stops, " stop", r.stops !== 1 ? "s" : "", " \xB7 ", allIng.length, " items"))), /*#__PURE__*/React.createElement("p", {
         style: {
-          color: "#6b7280",
+          color: "var(--text-muted)",
           fontSize: 11,
           margin: "4px 0 0",
           lineHeight: 1.4
         }
       }, r.note), r.cobaltTotal > 0 && /*#__PURE__*/React.createElement("p", {
         style: {
-          color: "#a78bfa",
+          color: "var(--color-accent-purple)",
           fontSize: 10,
           margin: "3px 0 0"
         }
@@ -2536,7 +2536,7 @@
         style: {
           height: "100%",
           width: `${pct}%`,
-          background: "#4ade80",
+          background: "var(--color-success)",
           borderRadius: 2
         }
       })));
@@ -2638,21 +2638,21 @@
             width: 18,
             height: 18,
             borderRadius: 5,
-            border: `2px solid ${done ? "#4ade80" : "rgba(255,255,255,.2)"}`,
-            background: done ? "#4ade80" : "transparent",
+            border: `2px solid ${done ? "var(--color-success)" : "rgba(255,255,255,.2)"}`,
+            background: done ? "var(--color-success)" : "transparent",
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontSize: 10,
             fontWeight: 800,
-            color: "#080b11"
+            color: "var(--bg)"
           }
         }, done ? "✓" : ""), /*#__PURE__*/React.createElement("span", {
           style: {
             flex: 1,
             fontSize: 12,
-            color: done ? "#6b7280" : "var(--text-primary)",
+            color: done ? "var(--text-muted)" : "var(--text-primary)",
             textDecoration: done ? "line-through" : "none"
           }
         }, item.ing), /*#__PURE__*/React.createElement("div", {
@@ -2701,7 +2701,7 @@
         }
       }, /*#__PURE__*/React.createElement("p", {
         style: {
-          color: "#9ca3af",
+          color: "var(--text-secondary)",
           fontSize: 10,
           margin: 0
         }
@@ -2850,11 +2850,11 @@
           style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px 10px", borderBottom: "1px solid rgba(255,255,255,.07)" }
         },
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
-            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#fb923c", textTransform: "uppercase", letterSpacing: ".06em" } }, slot),
+            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "var(--color-accent-orange)", textTransform: "uppercase", letterSpacing: ".06em" } }, slot),
             /*#__PURE__*/React.createElement("div", { style: { display: "flex", background: "rgba(255,255,255,.06)", borderRadius: 8, padding: 2 } },
               ["chat", "pick"].map(m => /*#__PURE__*/React.createElement("button", {
                 key: m, onClick: () => setMode(m),
-                style: { padding: "4px 10px", borderRadius: 6, border: "none", background: mode === m ? "rgba(251,146,60,.2)" : "transparent", color: mode === m ? "#fb923c" : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer" }
+                style: { padding: "4px 10px", borderRadius: 6, border: "none", background: mode === m ? "rgba(251,146,60,.2)" : "transparent", color: mode === m ? "var(--color-accent-orange)" : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer" }
               }, m === "chat" ? "\uD83D\uDCAC Chat" : "\uD83D\uDCDA Library"))
             )
           ),
@@ -2888,12 +2888,12 @@
                   /*#__PURE__*/React.createElement("div", null,
                     /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 600, margin: "0 0 3px" } }, m.name),
                     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 5, flexWrap: "wrap" } },
-                      mCats.map(c => /*#__PURE__*/React.createElement("span", { key: c, style: { fontSize: 9, color: C[c] || "#9ca3af", fontWeight: 700 } }, CL[c] || c)),
-                      m.fromInventory && /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "#60a5fa", fontWeight: 700 } }, "\uD83C\uDFE0 Home")
+                      mCats.map(c => /*#__PURE__*/React.createElement("span", { key: c, style: { fontSize: 9, color: C[c] || "var(--text-secondary)", fontWeight: 700 } }, CL[c] || c)),
+                      m.fromInventory && /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "var(--color-accent-blue)", fontWeight: 700 } }, "\uD83C\uDFE0 Home")
                     )
                   ),
                   /*#__PURE__*/React.createElement("div", { style: { textAlign: "right", flexShrink: 0 } },
-                    /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "#f4a823", fontWeight: 700, margin: "0 0 1px" } }, (m.cal || m.calories || 0) + " cal"),
+                    /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--color-primary)", fontWeight: 700, margin: "0 0 1px" } }, (m.cal || m.calories || 0) + " cal"),
                     /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, (m.prot || m.protein || 0) + "g P")
                   )
                 )
@@ -2921,10 +2921,10 @@
         confirmed && /*#__PURE__*/React.createElement("div", {
           style: { margin: "0 16px 10px", padding: "12px 14px", background: "rgba(74,222,128,.1)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }
         },
-          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "#4ade80", fontWeight: 600 } }, confirmed.calories + "cal \xB7 " + confirmed.protein + "g P"),
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--color-success)", fontWeight: 600 } }, confirmed.calories + "cal \xB7 " + confirmed.protein + "g P"),
           /*#__PURE__*/React.createElement("button", {
             onClick: handleConfirm,
-            style: { background: "#4ade80", border: "none", borderRadius: 8, padding: "8px 18px", color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+            style: { background: "var(--color-success)", border: "none", borderRadius: 8, padding: "8px 18px", color: "var(--bg)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
           }, "SAVE")
         ),
         // Input row
@@ -2933,7 +2933,7 @@
         },
           /*#__PURE__*/React.createElement("button", {
             onClick: listening ? () => { voiceRef.current?.stop(); setListening(false); } : startVoice,
-            style: { width: 38, height: 38, borderRadius: "50%", flexShrink: 0, background: listening ? "rgba(239,68,68,.2)" : "rgba(167,139,250,.15)", border: `1px solid ${listening ? "rgba(239,68,68,.4)" : "rgba(167,139,250,.3)"}`, color: listening ? "#ef4444" : "#a78bfa", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }
+            style: { width: 38, height: 38, borderRadius: "50%", flexShrink: 0, background: listening ? "rgba(239,68,68,.2)" : "rgba(167,139,250,.15)", border: `1px solid ${listening ? "rgba(239,68,68,.4)" : "rgba(167,139,250,.3)"}`, color: listening ? "var(--color-danger)" : "var(--color-accent-purple)", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }
           }, listening ? "\u23F9" : "\uD83C\uDFA4"),
           /*#__PURE__*/React.createElement("input", {
             type: "text", value: input, onChange: e => setInput(e.target.value),
@@ -2943,7 +2943,7 @@
           }),
           /*#__PURE__*/React.createElement("button", {
             onClick: () => send(input), disabled: !input.trim() || loading,
-            style: { background: "#a78bfa", border: "none", borderRadius: 10, padding: "9px 14px", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", flexShrink: 0, opacity: !input.trim() || loading ? .4 : 1 }
+            style: { background: "var(--color-accent-purple)", border: "none", borderRadius: 10, padding: "9px 14px", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", flexShrink: 0, opacity: !input.trim() || loading ? .4 : 1 }
           }, "\u2192")
         ))
       )
@@ -2972,14 +2972,14 @@
       style: { background: over ? "rgba(239,68,68,.07)" : "rgba(255,255,255,.03)", border: `1px solid ${over ? "rgba(239,68,68,.2)" : "rgba(255,255,255,.07)"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16 }
     },
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 } },
-        /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: over ? "#ef4444" : "#4ade80", letterSpacing: ".06em" } },
+        /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: over ? "var(--color-danger)" : "var(--color-success)", letterSpacing: ".06em" } },
           over ? "OVER TARGET" : calPct + "% OF DAILY GOAL"
         ),
         /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-primary)", fontWeight: 700 } }, (logged.calories || 0) + " / " + targets.calories + " cal")
       ),
-      barRow("PROT", logged.protein || 0, targets.protein, protPct, "#fb923c"),
-      barRow("CARB", logged.carbs || 0, targets.carbs, carbPct, "#f4a823"),
-      barRow("FAT", logged.fat || 0, targets.fat, fatPct, "#60a5fa")
+      barRow("PROT", logged.protein || 0, targets.protein, protPct, "var(--color-accent-orange)"),
+      barRow("CARB", logged.carbs || 0, targets.carbs, carbPct, "var(--color-primary)"),
+      barRow("FAT", logged.fat || 0, targets.fat, fatPct, "var(--color-accent-blue)")
     );
   }
   
@@ -3245,8 +3245,8 @@
     const canMake = pantryItems.length > 0 ? allMeals.filter(m => pantryMatch(m, pantryItems).pct >= 80).length : 0;
     // health mode: LOG only. home mode: WEEK / LIBRARY / GROCERY only.
     const subTabs = mode === "home"
-      ? [{ id: "plan", l: "WEEK", c: "#4ade80" }, { id: "library", l: "LIBRARY", c: "#f4a823" }, { id: "grocery", l: "GROCERY", c: "#a78bfa" }]
-      : [{ id: "log", l: "LOG", c: "#fb923c" }];
+      ? [{ id: "plan", l: "WEEK", c: "var(--color-success)" }, { id: "library", l: "LIBRARY", c: "var(--color-primary)" }, { id: "grocery", l: "GROCERY", c: "var(--color-accent-purple)" }]
+      : [{ id: "log", l: "LOG", c: "var(--color-accent-orange)" }];
     if (loadingFood) return /*#__PURE__*/React.createElement("div", {
       style: {
         padding: "32px 0",
@@ -3265,7 +3265,7 @@
       }
     }, /*#__PURE__*/React.createElement(SectionHead, {
       label: mode === "home" ? "Food Planning" : "Food Log",
-      color: mode === "home" ? "#4ade80" : "#fb923c"
+      color: mode === "home" ? "var(--color-success)" : "var(--color-accent-orange)"
     }), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
@@ -3281,7 +3281,7 @@
       }
     }, allMeals.length, " meals"), canMake > 0 && /*#__PURE__*/React.createElement("span", {
       style: {
-        color: "#4ade80",
+        color: "var(--color-success)",
         fontSize: 10,
         fontWeight: 700
       }
@@ -3321,9 +3321,9 @@
             key: d,
             onClick: () => setLogDate(d),
             style: {
-              padding: "5px 12px", borderRadius: 20, border: `1px solid ${active ? "#fb923c" : "rgba(255,255,255,.08)"}`,
+              padding: "5px 12px", borderRadius: 20, border: `1px solid ${active ? "var(--color-accent-orange)" : "rgba(255,255,255,.08)"}`,
               background: active ? "rgba(251,146,60,.15)" : "transparent",
-              color: active ? "#fb923c" : "#6b7280",
+              color: active ? "var(--color-accent-orange)" : "var(--text-muted)",
               fontSize: 11, fontWeight: active ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap"
             }
           }, label);
@@ -3343,7 +3343,7 @@
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
         /*#__PURE__*/React.createElement("button", {
           onClick: () => handleSabrinaResponse(activeSabrinaPrompt, true),
-          style: { flex: 1, background: "rgba(74,222,128,.15)", border: "1px solid rgba(74,222,128,.3)", borderRadius: 8, padding: "8px 0", color: "#4ade80", fontWeight: 700, fontSize: 12, cursor: "pointer" }
+          style: { flex: 1, background: "rgba(74,222,128,.15)", border: "1px solid rgba(74,222,128,.3)", borderRadius: 8, padding: "8px 0", color: "var(--color-success)", fontWeight: 700, fontSize: 12, cursor: "pointer" }
         }, "Yes, same meal"),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => handleSabrinaResponse(activeSabrinaPrompt, false),
@@ -3359,7 +3359,7 @@
     }, "\uD83E\uDD16 ", macroTargets.rationale, " ",
       /*#__PURE__*/React.createElement("button", {
         onClick: () => generateMacroTargets(settings?.currentWeight),
-        style: { background: "transparent", border: "none", color: "#a78bfa", fontSize: 11, cursor: "pointer", padding: 0, textDecoration: "underline" }
+        style: { background: "transparent", border: "none", color: "var(--color-accent-purple)", fontSize: 11, cursor: "pointer", padding: 0, textDecoration: "underline" }
       }, "Recalculate")
     ),
   
@@ -3374,9 +3374,9 @@
           style: { background: "rgba(255,255,255,.04)", border: `1px solid ${logged ? "rgba(74,222,128,.25)" : "rgba(255,255,255,.08)"}`, borderRadius: 12, padding: "13px 15px", marginBottom: 10, cursor: "pointer" }
         },
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: logged ? 6 : 0 } },
-            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: logged ? "#4ade80" : "var(--text-secondary)", letterSpacing: ".06em", textTransform: "uppercase" } }, slot),
+            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: logged ? "var(--color-success)" : "var(--text-secondary)", letterSpacing: ".06em", textTransform: "uppercase" } }, slot),
             logged
-              ? /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "#4ade80", fontWeight: 700 } }, logged.calories + " cal")
+              ? /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--color-success)", fontWeight: 700 } }, logged.calories + " cal")
               : /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "tap to log \u203A")
           ),
           logged && /*#__PURE__*/React.createElement("div", null,
@@ -3394,7 +3394,7 @@
           /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", letterSpacing: ".06em" } }, "SNACKS"),
           /*#__PURE__*/React.createElement("button", {
             onClick: () => setOpenSlot("snack"),
-            style: { background: "rgba(251,146,60,.12)", border: "1px solid rgba(251,146,60,.25)", borderRadius: 8, padding: "5px 12px", fontSize: 10, color: "#fb923c", fontWeight: 700, cursor: "pointer" }
+            style: { background: "rgba(251,146,60,.12)", border: "1px solid rgba(251,146,60,.25)", borderRadius: 8, padding: "5px 12px", fontSize: 10, color: "var(--color-accent-orange)", fontWeight: 700, cursor: "pointer" }
           }, "+ Add Snack")
         ),
         (mealLog.snacks || []).length === 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "12px 0" } }, "No snacks logged"),
@@ -3406,7 +3406,7 @@
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 500 } }, s.name),
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, s.timestamp ? new Date(s.timestamp).toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit" }) : "")
           ),
-          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "#fb923c", fontWeight: 700 } }, s.calories + " cal")
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--color-accent-orange)", fontWeight: 700 } }, s.calories + " cal")
         ))
       )
     ),
