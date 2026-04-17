@@ -40,7 +40,7 @@ function PantryItemCard({
   const expDate = item.expiry ? new Date(item.expiry + "T12:00:00") : null;
   const today = new Date();
   const daysToExp = expDate ? Math.round((expDate - today) / 86400000) : null;
-  const expColor = daysToExp === null ? "var(--text-muted)" : daysToExp < 0 ? "#ef4444" : daysToExp <= 7 ? "#f4a823" : daysToExp <= 30 ? "#facc15" : "#4ade80";
+  const expColor = daysToExp === null ? "var(--text-muted)" : daysToExp < 0 ? "var(--color-danger)" : daysToExp <= 7 ? "var(--color-primary)" : daysToExp <= 30 ? "var(--color-accent-yellow)" : "var(--color-success)";
   const expLabel = daysToExp === null ? "" : daysToExp < 0 ? `Expired ${Math.abs(daysToExp)}d ago` : daysToExp === 0 ? "Expires today" : daysToExp <= 30 ? `${daysToExp}d left` : "";
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -77,7 +77,7 @@ function PantryItemCard({
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontSize: 11,
       fontWeight: 700
     }
@@ -115,7 +115,7 @@ function PantryItemCard({
       padding: "5px 9px",
       background: "rgba(239,68,68,.08)",
       border: "1px solid rgba(239,68,68,.18)",
-      color: "#ef4444",
+      color: "var(--color-danger)",
       borderRadius: 7,
       fontSize: 10,
       cursor: "pointer"
@@ -160,7 +160,7 @@ function PantryEditModal({
       transform: "translate(-50%,-50%)",
       width: "calc(100% - 32px)",
       maxWidth: 420,
-      background: "#0e1420",
+      background: "var(--bg-modal)",
       border: "1px solid rgba(255,255,255,.12)",
       borderRadius: 14,
       padding: "20px",
@@ -168,7 +168,7 @@ function PantryEditModal({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 15,
       fontWeight: 800,
@@ -265,7 +265,7 @@ function PantryEditModal({
       borderRadius: 8,
       border: "1px solid " + (form.consumable ? "rgba(96,165,250,.4)" : "rgba(255,255,255,.1)"),
       background: form.consumable ? "rgba(96,165,250,.15)" : "transparent",
-      color: form.consumable ? "#60a5fa" : "var(--text-muted)",
+      color: form.consumable ? "var(--color-accent-blue)" : "var(--text-muted)",
       fontSize: 11,
       fontWeight: 700,
       cursor: "pointer"
@@ -297,8 +297,8 @@ function PantryEditModal({
     style: {
       flex: 1,
       padding: "12px 0",
-      background: form.name.trim() ? "#f4a823" : "rgba(255,255,255,.05)",
-      color: form.name.trim() ? "#080b11" : "var(--text-muted)",
+      background: form.name.trim() ? "var(--color-primary)" : "rgba(255,255,255,.05)",
+      color: form.name.trim() ? "var(--bg)" : "var(--text-muted)",
       border: "none",
       borderRadius: 9,
       fontSize: 13,
@@ -507,7 +507,7 @@ Return ONLY valid JSON. No markdown fences.`;
       width: 7,
       height: 7,
       borderRadius: "50%",
-      background: "#f4a823",
+      background: "var(--color-primary)",
       animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`
     }
   })), /*#__PURE__*/React.createElement("style", null, `@keyframes pulse{0%,100%{opacity:.2}50%{opacity:1}}`)), /*#__PURE__*/React.createElement("div", {
@@ -518,14 +518,14 @@ Return ONLY valid JSON. No markdown fences.`;
     /*#__PURE__*/React.createElement("div", {
       style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }
     },
-      /*#__PURE__*/React.createElement("p", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700, margin: 0 } },
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--color-success)", fontSize: 11, fontWeight: 700, margin: 0 } },
         extracted.length > 0 ? extracted.length + " to add" : "",
         extracted.length > 0 && pendingEdits.length > 0 ? " \xB7 " : "",
         pendingEdits.length > 0 ? pendingEdits.length + " to update" : ""
       ),
       /*#__PURE__*/React.createElement("button", {
         onClick: confirm,
-        style: { padding: "6px 14px", background: "#4ade80", color: "#080b11", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+        style: { padding: "6px 14px", background: "var(--color-success)", color: "var(--bg)", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
       }, "APPLY ALL \u2192")
     ),
     /*#__PURE__*/React.createElement("div", {
@@ -536,7 +536,7 @@ Return ONLY valid JSON. No markdown fences.`;
         style: { display: "flex", justifyContent: "space-between", padding: "6px 10px", background: "rgba(74,222,128,.06)", border: "1px solid rgba(74,222,128,.15)", borderRadius: 7 }
       },
         /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12 } }, "\u2795 ", item.name),
-        /*#__PURE__*/React.createElement("span", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700 } }, item.qty, " ", item.unit, item.expiry ? " \xB7 " + item.expiry : "")
+        /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-success)", fontSize: 11, fontWeight: 700 } }, item.qty, " ", item.unit, item.expiry ? " \xB7 " + item.expiry : "")
       )),
       pendingEdits.map((edit, i) => {
         const c = edit.changes || {};
@@ -552,7 +552,7 @@ Return ONLY valid JSON. No markdown fences.`;
           style: { display: "flex", justifyContent: "space-between", padding: "6px 10px", background: "rgba(96,165,250,.06)", border: "1px solid rgba(96,165,250,.15)", borderRadius: 7, gap: 8 }
         },
           /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12 } }, "\u270F ", edit.match),
-          /*#__PURE__*/React.createElement("span", { style: { color: "#60a5fa", fontSize: 11, fontWeight: 700 } }, parts.join(" \xB7 ") || "update")
+          /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-accent-blue)", fontSize: 11, fontWeight: 700 } }, parts.join(" \xB7 ") || "update")
         );
       })
     )
@@ -567,7 +567,7 @@ Return ONLY valid JSON. No markdown fences.`;
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#4ade80",
+      color: "var(--color-success)",
       fontSize: 13,
       fontWeight: 700,
       margin: "0 0 6px"
@@ -578,7 +578,7 @@ Return ONLY valid JSON. No markdown fences.`;
       padding: "7px 16px",
       background: "rgba(74,222,128,.15)",
       border: "1px solid rgba(74,222,128,.3)",
-      color: "#4ade80",
+      color: "var(--color-success)",
       borderRadius: 8,
       fontSize: 12,
       fontWeight: 700,
@@ -636,7 +636,7 @@ Return ONLY valid JSON. No markdown fences.`;
       padding: "10px 14px",
       background: input.trim() && !loading ? "rgba(96,165,250,.15)" : "var(--card-bg-3)",
       border: `1px solid ${input.trim() && !loading ? "rgba(96,165,250,.3)" : "var(--card-border)"}`,
-      color: input.trim() && !loading ? "#60a5fa" : "var(--text-muted)",
+      color: input.trim() && !loading ? "var(--color-accent-blue)" : "var(--text-muted)",
       borderRadius: 9,
       fontSize: 13,
       fontWeight: 700,
@@ -783,7 +783,7 @@ function PantryBarcodeScanner({
   if (status === "error") return /*#__PURE__*/React.createElement("div", {
     style: { textAlign: "center", padding: "24px 16px" }
   }, /*#__PURE__*/React.createElement("p", {
-    style: { color: "#ef4444", fontSize: 14, fontWeight: 700, margin: "0 0 8px" }
+    style: { color: "var(--color-danger)", fontSize: 14, fontWeight: 700, margin: "0 0 8px" }
   }, "Camera error"), /*#__PURE__*/React.createElement("p", {
     style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 14px", lineHeight: 1.6 }
   }, errorMsg || "Could not open camera. Try the voice/text method instead."), /*#__PURE__*/React.createElement("button", {
@@ -800,7 +800,7 @@ function PantryBarcodeScanner({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#4ade80",
+      color: "var(--color-success)",
       fontSize: 11,
       fontWeight: 700,
       margin: "0 0 3px"
@@ -913,8 +913,8 @@ function PantryBarcodeScanner({
     style: {
       flex: 1,
       padding: "12px 0",
-      background: "#f4a823",
-      color: "#080b11",
+      background: "var(--color-primary)",
+      color: "var(--bg)",
       border: "none",
       borderRadius: 9,
       fontSize: 14,
@@ -953,12 +953,12 @@ function PantryBarcodeScanner({
       width: 8,
       height: 8,
       borderRadius: "50%",
-      background: "#f4a823",
+      background: "var(--color-primary)",
       animation: `pulse 1.2s ${i * 0.2}s ease-in-out infinite`
     }
   }))), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontSize: 13,
       fontWeight: 700,
       margin: 0
@@ -990,7 +990,7 @@ function PantryBarcodeScanner({
       background: "rgba(244,168,35,.1)",
       border: "2px dashed rgba(244,168,35,.3)",
       borderRadius: 12,
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontSize: 14,
       fontWeight: 700,
       cursor: "pointer",
@@ -1009,7 +1009,7 @@ function PantryBarcodeScanner({
       padding: "11px 0",
       background: "rgba(239,68,68,.1)",
       border: "1px solid rgba(239,68,68,.2)",
-      color: "#ef4444",
+      color: "var(--color-danger)",
       borderRadius: 9,
       fontSize: 13,
       fontWeight: 700,
@@ -1233,14 +1233,14 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
       style: { background: "rgba(167,139,250,.06)", border: "2px dashed rgba(167,139,250,.25)", borderRadius: 14, padding: "32px 20px", textAlign: "center", marginBottom: 14 }
     },
       /*#__PURE__*/React.createElement("div", { style: { fontSize: 40, marginBottom: 10 } }, "\uD83E\uDDFE"),
-      /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 6px" } }, "Scan a Receipt"),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--color-accent-purple)", fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 6px" } }, "Scan a Receipt"),
       /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 20px", lineHeight: 1.6 } }, "Take a photo of your grocery receipt. Claude will read it and match items to your inventory automatically."),
       /*#__PURE__*/React.createElement("button", {
         onClick: () => fileRef.current?.click(),
-        style: { width: "100%", padding: "14px", background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 10, color: "#a78bfa", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif", marginBottom: 8 }
+        style: { width: "100%", padding: "14px", background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 10, color: "var(--color-accent-purple)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif", marginBottom: 8 }
       }, "\uD83D\uDCF8 Take Photo / Upload Receipt")
     ),
-    procError && /*#__PURE__*/React.createElement("p", { style: { color: "#ef4444", fontSize: 11, textAlign: "center", margin: "0 0 12px" } }, procError),
+    procError && /*#__PURE__*/React.createElement("p", { style: { color: "var(--color-danger)", fontSize: 11, textAlign: "center", margin: "0 0 12px" } }, procError),
     /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, textAlign: "center" } }, "Uses your Claude API key \xB7 Works on any grocery receipt")
   );
 
@@ -1248,17 +1248,17 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
   if (phase === "processing") return /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "40px 16px" } },
     imagePreview && /*#__PURE__*/React.createElement("img", { src: imagePreview, style: { width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 10, marginBottom: 16, opacity: 0.6 } }),
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, justifyContent: "center", marginBottom: 12 } },
-      [0,1,2].map(i => /*#__PURE__*/React.createElement("div", { key: i, style: { width: 8, height: 8, borderRadius: "50%", background: "#a78bfa", animation: "pulse 1.2s " + (i*0.2) + "s ease-in-out infinite" } }))
+      [0,1,2].map(i => /*#__PURE__*/React.createElement("div", { key: i, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--color-accent-purple)", animation: "pulse 1.2s " + (i*0.2) + "s ease-in-out infinite" } }))
     ),
-    /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: "0 0 4px" } }, "Reading your receipt\u2026"),
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--color-accent-purple)", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: "0 0 4px" } }, "Reading your receipt\u2026"),
     /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11 } }, "Claude is extracting items and matching them to your inventory")
   );
 
   // ── Review ──
   if (phase === "review") return /*#__PURE__*/React.createElement("div", null,
-    /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: "0 0 14px" } }, "Receipt Review"),
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--color-accent-purple)", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: "0 0 14px" } }, "Receipt Review"),
     matched.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 14 } },
-      /*#__PURE__*/React.createElement("p", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700, margin: "0 0 8px" } }, "\u2713 " + matched.length + " matched to your inventory"),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--color-success)", fontSize: 11, fontWeight: 700, margin: "0 0 8px" } }, "\u2713 " + matched.length + " matched to your inventory"),
       matched.map((m, i) => /*#__PURE__*/React.createElement("div", {
         key: i,
         onClick: () => setSelectedMatched(prev => ({ ...prev, [i]: !prev[i] })),
@@ -1269,11 +1269,11 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
           /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 12, fontWeight: 600, margin: "0 0 1px" } }, m.pantryItem.name),
           /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, "from: " + m.extracted.rawText)
         ),
-        /*#__PURE__*/React.createElement("span", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700, flexShrink: 0 } }, "+" + m.extracted.qty + " " + (m.extracted.unit || ""))
+        /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-success)", fontSize: 11, fontWeight: 700, flexShrink: 0 } }, "+" + m.extracted.qty + " " + (m.extracted.unit || ""))
       ))
     ),
     unknowns.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 14 } },
-      /*#__PURE__*/React.createElement("p", { style: { color: "#f4a823", fontSize: 11, fontWeight: 700, margin: "0 0 8px" } }, "\u2753 " + unknowns.length + " item" + (unknowns.length !== 1 ? "s" : "") + " need clarification"),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--color-primary)", fontSize: 11, fontWeight: 700, margin: "0 0 8px" } }, "\u2753 " + unknowns.length + " item" + (unknowns.length !== 1 ? "s" : "") + " need clarification"),
       unknowns.map((u, i) => /*#__PURE__*/React.createElement("div", {
         key: i,
         style: { padding: "8px 12px", background: "rgba(244,168,35,.05)", border: "1px solid rgba(244,168,35,.18)", borderRadius: 9, marginBottom: 5 }
@@ -1286,7 +1286,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginTop: 8 } },
       unknowns.length > 0 && /*#__PURE__*/React.createElement("button", {
         onClick: startClarify,
-        style: { width: "100%", padding: "13px", background: "#f4a823", border: "none", borderRadius: 10, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+        style: { width: "100%", padding: "13px", background: "var(--color-primary)", border: "none", borderRadius: 10, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
       }, "Clarify " + unknowns.length + " Unknown Item" + (unknowns.length !== 1 ? "s" : "") + " \u2192"),
       /*#__PURE__*/React.createElement("button", {
         onClick: unknowns.length > 0 ? skipAllUnknowns : applyAll,
@@ -1298,12 +1298,12 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
   // ── Clarify ──
   if (phase === "clarify" || phase === "done") return /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "58vh" } },
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
-      /*#__PURE__*/React.createElement("p", { style: { color: "#f4a823", fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, margin: 0 } },
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--color-primary)", fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, margin: 0 } },
         phase === "done" ? "All clarified \u2713" : ("Item " + (clarifyIdx + 1) + " of " + unknowns.length)
       ),
       phase === "done" && /*#__PURE__*/React.createElement("button", {
         onClick: applyAll,
-        style: { padding: "8px 18px", background: "#4ade80", border: "none", borderRadius: 8, color: "#080b11", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+        style: { padding: "8px 18px", background: "var(--color-success)", border: "none", borderRadius: 8, color: "var(--bg)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
       }, "Apply to Inventory \u2192")
     ),
     /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", paddingBottom: 8 } },
@@ -1318,7 +1318,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
         )
       )),
       clarifyLoading && /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 5, padding: "8px 13px", background: "var(--card-bg-3)", borderRadius: 12, width: "fit-content" } },
-        [0,1,2].map(i => /*#__PURE__*/React.createElement("div", { key: i, style: { width: 7, height: 7, borderRadius: "50%", background: "#f4a823", animation: "pulse 1.2s " + (i*0.2) + "s ease-in-out infinite" } }))
+        [0,1,2].map(i => /*#__PURE__*/React.createElement("div", { key: i, style: { width: 7, height: 7, borderRadius: "50%", background: "var(--color-primary)", animation: "pulse 1.2s " + (i*0.2) + "s ease-in-out infinite" } }))
       ),
       /*#__PURE__*/React.createElement("div", { ref: chatEndRef })
     ),
@@ -1339,7 +1339,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
       /*#__PURE__*/React.createElement("button", {
         onClick: () => sendClarify(clarifyInput),
         disabled: !clarifyInput.trim() || clarifyLoading,
-        style: { padding: "10px 14px", background: clarifyInput.trim() && !clarifyLoading ? "rgba(167,139,250,.15)" : "var(--card-bg-3)", border: "1px solid " + (clarifyInput.trim() && !clarifyLoading ? "rgba(167,139,250,.3)" : "var(--card-border)"), color: clarifyInput.trim() && !clarifyLoading ? "#a78bfa" : "var(--text-muted)", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: clarifyInput.trim() && !clarifyLoading ? "pointer" : "default" }
+        style: { padding: "10px 14px", background: clarifyInput.trim() && !clarifyLoading ? "rgba(167,139,250,.15)" : "var(--card-bg-3)", border: "1px solid " + (clarifyInput.trim() && !clarifyLoading ? "rgba(167,139,250,.3)" : "var(--card-border)"), color: clarifyInput.trim() && !clarifyLoading ? "var(--color-accent-purple)" : "var(--text-muted)", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: clarifyInput.trim() && !clarifyLoading ? "pointer" : "default" }
       }, "Send")
     )
   );
@@ -1422,7 +1422,7 @@ function PantryTab({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 14,
       fontWeight: 800,
@@ -1454,7 +1454,7 @@ function PantryTab({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#60a5fa",
+      color: "var(--color-accent-blue)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 14,
       fontWeight: 800,
@@ -1478,7 +1478,7 @@ function PantryTab({
 
   if (mode === "receipt") return /*#__PURE__*/React.createElement("div", null,
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
-      /*#__PURE__*/React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: 0 } }, "\uD83E\uDDFE Receipt Scanner"),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--color-accent-purple)", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: 0 } }, "\uD83E\uDDFE Receipt Scanner"),
       /*#__PURE__*/React.createElement("button", { onClick: () => setMode("list"), style: { padding: "5px 12px", background: "transparent", border: "1px solid var(--card-border)", color: "var(--text-secondary)", borderRadius: 7, fontSize: 11, cursor: "pointer" } }, "\u2190 Back")
     ),
     /*#__PURE__*/React.createElement(PantryReceiptScanner, {
@@ -1502,7 +1502,7 @@ function PantryTab({
       padding: "10px 0",
       background: "rgba(244,168,35,.1)",
       border: "1px solid rgba(244,168,35,.25)",
-      color: "#f4a823",
+      color: "var(--color-primary)",
       borderRadius: 9,
       fontSize: 11,
       fontWeight: 700,
@@ -1516,7 +1516,7 @@ function PantryTab({
       padding: "10px 0",
       background: "rgba(96,165,250,.1)",
       border: "1px solid rgba(96,165,250,.25)",
-      color: "#60a5fa",
+      color: "var(--color-accent-blue)",
       borderRadius: 9,
       fontSize: 11,
       fontWeight: 700,
@@ -1530,7 +1530,7 @@ function PantryTab({
       padding: "10px 0",
       background: "rgba(167,139,250,.1)",
       border: "1px solid rgba(167,139,250,.25)",
-      color: "#a78bfa",
+      color: "var(--color-accent-purple)",
       borderRadius: 9,
       fontSize: 11,
       fontWeight: 700,
@@ -1563,7 +1563,7 @@ function PantryItemRow({
   const daysToExp = expiry ? Math.round((expiry - new Date()) / 86400000) : null;
   const isExpiring = daysToExp !== null && daysToExp <= 7;
   const isExpired = daysToExp !== null && daysToExp < 0;
-  const statusColor = qty === 0 ? "#ef4444" : isLow ? "#f4a823" : isExpired ? "#ef4444" : isExpiring ? "#facc15" : "#4ade80";
+  const statusColor = qty === 0 ? "var(--color-danger)" : isLow ? "var(--color-primary)" : isExpired ? "var(--color-danger)" : isExpiring ? "var(--color-accent-yellow)" : "var(--color-success)";
   const daysSinceUpdate = item.lastUpdated ? Math.round((new Date() - new Date(item.lastUpdated)) / 86400000) : null;
   const spiceWeighDue = item.cat === "Spices" && daysSinceUpdate !== null && daysSinceUpdate >= 90;
   const consumableCheckDue = item.consumable && daysSinceUpdate !== null && item.restockCycle && daysSinceUpdate >= item.restockCycle;
@@ -1614,7 +1614,7 @@ function PantryItemRow({
   }, item.cat || "Other"), qty === 0 && /*#__PURE__*/React.createElement("span", {
     style: {
       background: "rgba(239,68,68,.15)",
-      color: "#ef4444",
+      color: "var(--color-danger)",
       fontSize: 9,
       fontWeight: 700,
       borderRadius: 4,
@@ -1623,7 +1623,7 @@ function PantryItemRow({
   }, "OUT"), qty > 0 && isLow && /*#__PURE__*/React.createElement("span", {
     style: {
       background: "rgba(244,168,35,.15)",
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontSize: 9,
       fontWeight: 700,
       borderRadius: 4,
@@ -1632,16 +1632,16 @@ function PantryItemRow({
   }, "LOW"), expLabel && /*#__PURE__*/React.createElement("span", {
     style: {
       background: "rgba(244,168,35,.12)",
-      color: isExpired ? "#ef4444" : "#facc15",
+      color: isExpired ? "var(--color-danger)" : "var(--color-accent-yellow)",
       fontSize: 9,
       fontWeight: 700,
       borderRadius: 4,
       padding: "1px 6px"
     }
   }, expLabel), spiceWeighDue && /*#__PURE__*/React.createElement("span", {
-    style: { background: "rgba(167,139,250,.15)", color: "#a78bfa", fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "1px 6px" }
+    style: { background: "rgba(167,139,250,.15)", color: "var(--color-accent-purple)", fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "1px 6px" }
   }, "\u2696\uFE0F Weigh due"), consumableCheckDue && /*#__PURE__*/React.createElement("span", {
-    style: { background: "rgba(96,165,250,.12)", color: "#60a5fa", fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "1px 6px" }
+    style: { background: "rgba(96,165,250,.12)", color: "var(--color-accent-blue)", fontSize: 9, fontWeight: 700, borderRadius: 4, padding: "1px 6px" }
   }, "\u267B\uFE0F Check stock")), (item.brand || item.location || item.consumable || lastUpdatedLabel) && /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" } },
     item.brand && /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, item.brand),
     item.location && /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, "\uD83D\uDCCD " + item.location),
@@ -1741,7 +1741,7 @@ function PantryItemRow({
       borderRadius: 6,
       border: "1px solid " + (item.essential === false ? "var(--card-border)" : "rgba(244,168,35,.35)"),
       background: item.essential === false ? "transparent" : "rgba(244,168,35,.1)",
-      color: item.essential === false ? "var(--text-muted)" : "#f4a823",
+      color: item.essential === false ? "var(--text-muted)" : "var(--color-primary)",
       cursor: "pointer",
       fontSize: 12,
       display: "flex",
@@ -1775,7 +1775,7 @@ function PantryLowStockBanner({
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#ef4444",
+      color: "var(--color-danger)",
       fontSize: 12,
       fontWeight: 800,
       margin: "0 0 2px"
@@ -1809,7 +1809,7 @@ function PantryLowStockBanner({
       padding: "5px 11px",
       background: "rgba(239,68,68,.15)",
       border: "1px solid rgba(239,68,68,.3)",
-      color: "#ef4444",
+      color: "var(--color-danger)",
       borderRadius: 7,
       fontSize: 10,
       fontWeight: 700,
@@ -1841,7 +1841,7 @@ function PantryLowStockBanner({
       }
     }, item.name), /*#__PURE__*/React.createElement("span", {
       style: {
-        color: qty === 0 ? "#ef4444" : "#f4a823",
+        color: qty === 0 ? "var(--color-danger)" : "var(--color-primary)",
         fontSize: 11,
         fontWeight: 700
       }
@@ -1873,7 +1873,7 @@ function PantryExpiryBanner({
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontSize: 12,
       fontWeight: 800,
       margin: "0 0 2px"
@@ -1905,7 +1905,7 @@ function PantryExpiryBanner({
   }, expiringItems.map(item => {
     const d = item.expiry ? new Date(item.expiry + "-01") : null;
     const days = d ? Math.round((d - new Date()) / 86400000) : null;
-    const c = days < 0 ? "#ef4444" : days === 0 ? "#f4a823" : "#facc15";
+    const c = days < 0 ? "var(--color-danger)" : days === 0 ? "var(--color-primary)" : "var(--color-accent-yellow)";
     const label = days < 0 ? `${Math.abs(days)}d ago` : days === 0 ? "Today" : `${days}d`;
     return /*#__PURE__*/React.createElement("div", {
       key: item.id,
@@ -2052,15 +2052,15 @@ function PantryEditor({
   }, {
     l: "Out",
     v: outCount,
-    c: "#ef4444"
+    c: "var(--color-danger)"
   }, {
     l: "Low",
     v: lowCount,
-    c: "#f4a823"
+    c: "var(--color-primary)"
   }, {
     l: "Expiring",
     v: expiringCount + expiredCount,
-    c: "#facc15"
+    c: "var(--color-accent-yellow)"
   }].map(({
     l,
     v,
@@ -2111,7 +2111,7 @@ function PantryEditor({
       padding: "8px 14px",
       background: "rgba(251,146,60,.15)",
       border: "1px solid rgba(251,146,60,.3)",
-      color: "#fb923c",
+      color: "var(--color-accent-orange)",
       borderRadius: 8,
       fontSize: 12,
       fontWeight: 800,
@@ -2150,7 +2150,7 @@ function PantryEditor({
       cursor: "pointer",
       border: `1px solid ${statusFilter === id ? "rgba(251,146,60,.4)" : "var(--card-bg-4)"}`,
       background: statusFilter === id ? "rgba(251,146,60,.12)" : "transparent",
-      color: statusFilter === id ? "#fb923c" : "var(--text-secondary)",
+      color: statusFilter === id ? "var(--color-accent-orange)" : "var(--text-secondary)",
       fontWeight: statusFilter === id ? 700 : 400
     }
   }, l))), /*#__PURE__*/React.createElement("div", {
@@ -2170,7 +2170,7 @@ function PantryEditor({
       cursor: "pointer",
       border: `1px solid ${catFilter === c ? "rgba(251,146,60,.3)" : "var(--card-border)"}`,
       background: catFilter === c ? "rgba(251,146,60,.08)" : "transparent",
-      color: catFilter === c ? "#fb923c" : "var(--text-muted)",
+      color: catFilter === c ? "var(--color-accent-orange)" : "var(--text-muted)",
       fontWeight: catFilter === c ? 700 : 400
     }
   }, c))), /*#__PURE__*/React.createElement("p", {
@@ -2228,12 +2228,12 @@ function PantryEditor({
           style: { display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 9, marginBottom: 5, opacity: 0.6 }
         },
           /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-            /*#__PURE__*/React.createElement("span", { style: { color: "#6b7280", fontSize: 13, fontWeight: 600 } }, item.name),
+            /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 13, fontWeight: 600 } }, item.name),
             /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10, marginLeft: 8 } }, item.cat || "Other")
           ),
           /*#__PURE__*/React.createElement("button", {
             onClick: () => toggleEssential(item),
-            style: { padding: "4px 10px", background: "rgba(244,168,35,.1)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 7, color: "#f4a823", fontSize: 11, fontWeight: 700, cursor: "pointer" }
+            style: { padding: "4px 10px", background: "rgba(244,168,35,.1)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 7, color: "var(--color-primary)", fontSize: 11, fontWeight: 700, cursor: "pointer" }
           }, "\u2605 Restore")
         )
       )

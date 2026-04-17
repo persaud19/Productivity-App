@@ -10,7 +10,7 @@
   // ── Local helpers not in window.__ml ──
   const fmtShort = d => new Date(d + "T12:00:00").toLocaleDateString("en-CA", { weekday: "short" });
   const Card = ({ ch, s = {} }) => React.createElement("div", { style: { background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "15px 17px", ...s } }, ch);
-  const Dots = ({ val, set, max = 5, col = "#f4a823", sz = 26 }) => React.createElement("div", { style: { display: "flex", gap: 7, alignItems: "center" } },
+  const Dots = ({ val, set, max = 5, col = "var(--color-primary)", sz = 26 }) => React.createElement("div", { style: { display: "flex", gap: 7, alignItems: "center" } },
     Array.from({ length: max }).map((_, i) => React.createElement("button", {
       key: i, onClick: () => set(i + 1),
       style: { width: sz, height: sz, borderRadius: "50%", padding: 0, cursor: "pointer", background: i < val ? col : "rgba(255,255,255,0.06)", border: `2px solid ${i < val ? col : "rgba(255,255,255,0.11)"}`, transform: i < val ? "scale(1.07)" : "scale(1)", transition: "all .12s" }
@@ -23,31 +23,31 @@
   const PILLARS = [{
     id: "family",
     l: "Family & Friends",
-    c: "#f4a823"
+    c: "var(--color-primary)"
   }, {
     id: "faith",
     l: "Faith",
-    c: "#a78bfa"
+    c: "var(--color-accent-purple)"
   }, {
     id: "fitness",
     l: "Fitness & Health",
-    c: "#4ade80"
+    c: "var(--color-success)"
   }, {
     id: "finance",
     l: "Finance",
-    c: "#34d399"
+    c: "var(--color-accent-teal)"
   }, {
     id: "learning",
     l: "Learning & Growth",
-    c: "#60a5fa"
+    c: "var(--color-accent-blue)"
   }, {
     id: "fun",
     l: "Fun & Social",
-    c: "#fb923c"
+    c: "var(--color-accent-orange)"
   }, {
     id: "marriage",
     l: "Marriage",
-    c: "#f472b6"
+    c: "var(--color-accent-pink)"
   }];
 
   function SundayBrief({
@@ -132,7 +132,7 @@
       setLoading(false);
     };
     const lines = brief ? brief.split("\n").filter(l => l.trim()) : [];
-    const lc = ["#f4a823", "#ef4444", "#4ade80", "#60a5fa", "#a78bfa"];
+    const lc = ["var(--color-primary)", "var(--color-danger)", "var(--color-success)", "var(--color-accent-blue)", "var(--color-accent-purple)"];
     const ll = ["Result", "Gap", "Win", "Focus", "Close"];
     return React.createElement("div", {
       style: { marginBottom: 20 }
@@ -147,7 +147,7 @@
       style: {
         background: copied ? "rgba(74,222,128,.15)" : "var(--card-bg-3)",
         border: `1px solid ${copied ? "rgba(74,222,128,.3)" : "var(--card-border-2)"}`,
-        color: copied ? "#4ade80" : "var(--text-secondary)",
+        color: copied ? "var(--color-success)" : "var(--text-secondary)",
         borderRadius: 6, padding: "3px 10px", fontSize: 10, cursor: "pointer", fontWeight: copied ? 700 : 400
       }
     }, copied ? "COPIED ✓" : "COPY")), !generated && !loading && React.createElement("div", {
@@ -156,15 +156,15 @@
       style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 12px", lineHeight: 1.6 }
     }, "5-line brief from your week data + all previous Sunday history."), React.createElement("button", {
       onClick: generate,
-      style: { width: "100%", padding: "13px 0", background: "linear-gradient(135deg,rgba(167,139,250,.2),rgba(96,165,250,.2))", border: "1px solid rgba(167,139,250,.35)", color: "#c4b5fd", borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
+      style: { width: "100%", padding: "13px 0", background: "linear-gradient(135deg,rgba(167,139,250,.2),rgba(96,165,250,.2))", border: "1px solid rgba(167,139,250,.35)", color: "var(--color-accent-purple)", borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
     }, "GENERATE THIS WEEK'S BRIEF \u2192")), loading && React.createElement("div", {
       style: { background: "rgba(167,139,250,.06)", border: "1px solid rgba(167,139,250,.15)", borderRadius: 12, padding: "18px", display: "flex", alignItems: "center", gap: 10 }
     }, React.createElement("div", {
       style: { display: "flex", gap: 4 }
     }, [0, 1, 2].map(i => React.createElement("div", {
       key: i,
-      style: { width: 6, height: 6, borderRadius: "50%", background: "#a78bfa", animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }
-    }))), React.createElement("p", { style: { color: "#a78bfa", fontSize: 12, margin: 0 } }, "Reading your week..."), React.createElement("style", null, `@keyframes pulse{0%,100%{opacity:.2}50%{opacity:1}}`)), generated && !loading && lines.length > 0 && React.createElement("div", {
+      style: { width: 6, height: 6, borderRadius: "50%", background: "var(--color-accent-purple)", animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }
+    }))), React.createElement("p", { style: { color: "var(--color-accent-purple)", fontSize: 12, margin: 0 } }, "Reading your week..."), React.createElement("style", null, `@keyframes pulse{0%,100%{opacity:.2}50%{opacity:1}}`)), generated && !loading && lines.length > 0 && React.createElement("div", {
       style: { background: "rgba(255,255,255,.025)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 12, overflow: "hidden" }
     }, lines.map((line, i) => React.createElement("div", {
       key: i,
@@ -518,7 +518,7 @@
     const shortSleep = sleepCorr.filter(s => s.h < 6), longSleep = sleepCorr.filter(s => s.h >= 6);
     const avgEnShort = shortSleep.length ? (shortSleep.reduce((a, s) => a + s.en, 0) / shortSleep.length).toFixed(1) : null;
     const avgEnLong = longSleep.length ? (longSleep.reduce((a, s) => a + s.en, 0) / longSleep.length).toFixed(1) : null;
-    const ttStyle = { background: "#111520", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, fontSize: 12 };
+    const ttStyle = { background: "var(--bg-tooltip)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, fontSize: 12 };
     const toggleSundayOpt = async key => {
       const updated = { ...sundayOpts, [key]: !sundayOpts[key] };
       setSundayOpts(updated);
@@ -538,14 +538,14 @@
       const d = dayLogMap[date];
       return { d: fmtShort(date), mood: d?.morning?.mood > 0 ? d.morning.mood : null, energy: d?.morning?.energy > 0 ? d.morning.energy : null };
     });
-    const SC = ({ lbl, val, sub, c = "#f4a823" }) => React.createElement("div", {
+    const SC = ({ lbl, val, sub, c = "var(--color-primary)" }) => React.createElement("div", {
       style: { background: "var(--card-bg-3)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10, padding: "11px 12px", flex: "1 1 76px" }
     }, React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".07em", margin: "0 0 2px" } }, lbl),
       React.createElement("p", { style: { color: c, fontSize: 20, fontWeight: 800, margin: "0 0 1px", fontFamily: "'Syne',sans-serif" } }, val ?? "-"),
       sub && React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, margin: 0 } }, sub));
 
     // Helper components defined in function scope
-    const ChipSelect = ({ options, selected, onToggle, col = "#60a5fa" }) =>
+    const ChipSelect = ({ options, selected, onToggle, col = "var(--color-accent-blue)" }) =>
       React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
         options.map(([val, label]) =>
           React.createElement("button", {
@@ -553,7 +553,7 @@
             onClick: () => onToggle(val),
             style: { padding: "6px 12px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700,
               background: selected.includes(val) ? col + "33" : "rgba(255,255,255,.05)",
-              color: selected.includes(val) ? col : "#374151" }
+              color: selected.includes(val) ? col : "var(--text-disabled)" }
           }, (selected.includes(val) ? "✓ " : "") + label)
         )
       );
@@ -561,15 +561,15 @@
     const Stepper = ({ val, set, min = 0, max = 14, label = "" }) =>
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
         React.createElement("button", { onClick: () => set(Math.max(min, val - 1)), style: { width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.05)", color: "var(--text-secondary)", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" } }, "\u2212"),
-        React.createElement("span", { style: { color: "#d1d5db", fontSize: 18, fontWeight: 800, minWidth: 32, textAlign: "center", fontFamily: "'Syne',sans-serif" } }, val),
+        React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 18, fontWeight: 800, minWidth: 32, textAlign: "center", fontFamily: "'Syne',sans-serif" } }, val),
         React.createElement("button", { onClick: () => set(Math.min(max, val + 1)), style: { width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.05)", color: "var(--text-secondary)", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" } }, "+"),
         label && React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 11 } }, label)
       );
-    const FieldLabel = ({ t }) => React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 6px" } }, t);
+    const FieldLabel = ({ t }) => React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 6px" } }, t);
     const YesNo = ({ val, set, yesLabel = "Yes", noLabel = "No" }) =>
       React.createElement("div", { style: { display: "flex", gap: 8 } },
-        React.createElement("button", { onClick: () => set(true), style: { flex: 1, padding: "9px 0", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: val === true ? "rgba(74,222,128,.2)" : "rgba(255,255,255,.05)", color: val === true ? "#4ade80" : "#374151" } }, yesLabel),
-        React.createElement("button", { onClick: () => set(false), style: { flex: 1, padding: "9px 0", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: val === false ? "rgba(239,68,68,.15)" : "rgba(255,255,255,.05)", color: val === false ? "#ef4444" : "#374151" } }, noLabel)
+        React.createElement("button", { onClick: () => set(true), style: { flex: 1, padding: "9px 0", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: val === true ? "rgba(74,222,128,.2)" : "rgba(255,255,255,.05)", color: val === true ? "var(--color-success)" : "var(--text-disabled)" } }, yesLabel),
+        React.createElement("button", { onClick: () => set(false), style: { flex: 1, padding: "9px 0", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: val === false ? "rgba(239,68,68,.15)" : "rgba(255,255,255,.05)", color: val === false ? "var(--color-danger)" : "var(--text-disabled)" } }, noLabel)
       );
 
     return React.createElement("div", null,
@@ -577,19 +577,19 @@
         style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }
       },
         React.createElement("div", null,
-          React.createElement(SectionHead, { label: "Sunday Review", color: "#4ade80" }),
-          React.createElement("p", { style: { color: "#404755", fontSize: 12, margin: "0 0 0 13px" } }, wk.length, " days logged this week")
+          React.createElement(SectionHead, { label: "Sunday Review", color: "var(--color-success)" }),
+          React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 0 13px" } }, wk.length, " days logged this week")
         ),
         React.createElement("div", {
           style: { display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,.09)" }
         },
           React.createElement("button", {
             onClick: () => setView("review"),
-            style: { padding: "6px 11px", border: "none", background: view === "review" ? "rgba(74,222,128,.15)" : "transparent", color: view === "review" ? "#4ade80" : "var(--text-secondary)", fontWeight: view === "review" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+            style: { padding: "6px 11px", border: "none", background: view === "review" ? "rgba(74,222,128,.15)" : "transparent", color: view === "review" ? "var(--color-success)" : "var(--text-secondary)", fontWeight: view === "review" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
           }, "WEEK"),
           React.createElement("button", {
             onClick: () => setView("history"),
-            style: { padding: "6px 11px", border: "none", background: view === "history" ? "rgba(96,165,250,.15)" : "transparent", color: view === "history" ? "#60a5fa" : "var(--text-secondary)", fontWeight: view === "history" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+            style: { padding: "6px 11px", border: "none", background: view === "history" ? "rgba(96,165,250,.15)" : "transparent", color: view === "history" ? "var(--color-accent-blue)" : "var(--text-secondary)", fontWeight: view === "history" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
           }, "HISTORY")
         )
       ),
@@ -598,11 +598,11 @@
           selectedDate: histDate,
           onSelectDate: d => { setHistDate(d); setHistLog(null); DB.get(KEYS.log(d)).then(l => setHistLog(l || null)); },
           allLogs: allLogsArr,
-          accentColor: "#f4a823"
+          accentColor: "var(--color-primary)"
         }),
-        React.createElement("p", { style: { color: "#f4a823", fontSize: 12, fontWeight: 700, margin: "0 0 12px" } }, fmtMid(histDate), " \u2014 Morning"),
+        React.createElement("p", { style: { color: "var(--color-primary)", fontSize: 12, fontWeight: 700, margin: "0 0 12px" } }, fmtMid(histDate), " \u2014 Morning"),
         React.createElement(MorningReadOnly, { log: histLog, date: histDate }),
-        React.createElement("p", { style: { color: "#60a5fa", fontSize: 12, fontWeight: 700, margin: "20px 0 12px" } }, fmtMid(histDate), " \u2014 Evening"),
+        React.createElement("p", { style: { color: "var(--color-accent-blue)", fontSize: 12, fontWeight: 700, margin: "20px 0 12px" } }, fmtMid(histDate), " \u2014 Evening"),
         React.createElement(EveningReadOnly, { log: histLog, date: histDate })
       ),
       view === "review" && React.createElement(React.Fragment, null,
@@ -614,14 +614,14 @@
           React.createElement("div", { style: { position: "relative" } },
             React.createElement("button", {
               onClick: () => setShowModulePanel(p => !p),
-              style: { padding: "5px 12px", borderRadius: 20, border: "1px solid rgba(167,139,250,.3)", background: showModulePanel ? "rgba(167,139,250,.15)" : "rgba(167,139,250,.07)", color: "#a78bfa", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }
+              style: { padding: "5px 12px", borderRadius: 20, border: "1px solid rgba(167,139,250,.3)", background: showModulePanel ? "rgba(167,139,250,.15)" : "rgba(167,139,250,.07)", color: "var(--color-accent-purple)", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }
             },
               "MODULES",
               React.createElement("span", { style: { fontSize: 9, opacity: .8 } }, `${Object.values(sundayOpts).filter(Boolean).length} on`),
               React.createElement("span", null, showModulePanel ? "▲" : "▼")
             ),
             showModulePanel && React.createElement("div", {
-              style: { position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 50, background: "#111520", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: "8px 4px", minWidth: 200, boxShadow: "0 8px 32px rgba(0,0,0,.5)" }
+              style: { position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 50, background: "var(--bg-tooltip)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: "8px 4px", minWidth: 200, boxShadow: "0 8px 32px rgba(0,0,0,.5)" }
             },
               [...(getChildren(settings).length > 0 ? [["showChildren", "👶", "Kids"]] : []),
                 ["showFaith", "💜", "Faith"],
@@ -646,30 +646,30 @@
                   style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", cursor: "pointer", borderRadius: 8, background: sundayOpts[key] ? "rgba(167,139,250,.1)" : "transparent" }
                 },
                   React.createElement("span", { style: { fontSize: 15, width: 20, textAlign: "center" } }, icon),
-                  React.createElement("span", { style: { flex: 1, fontSize: 12, color: sundayOpts[key] ? "#d1d5db" : "#6b7280", fontWeight: sundayOpts[key] ? 600 : 400 } }, label),
-                  React.createElement("span", { style: { fontSize: 14, color: sundayOpts[key] ? "#a78bfa" : "#374151" } }, sundayOpts[key] ? "●" : "○")
+                  React.createElement("span", { style: { flex: 1, fontSize: 12, color: sundayOpts[key] ? "var(--text-primary)" : "var(--text-muted)", fontWeight: sundayOpts[key] ? 600 : 400 } }, label),
+                  React.createElement("span", { style: { fontSize: 14, color: sundayOpts[key] ? "var(--color-accent-purple)" : "var(--text-disabled)" } }, sundayOpts[key] ? "●" : "○")
                 )
               )
             )
           )
         ),
         React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 } },
-          React.createElement(SC, { lbl: "Avg Weight", val: avgWt, sub: "lbs", c: "#f4a823" }),
-          React.createElement(SC, { lbl: "Mobility", val: `${mobS}/7`, sub: `${mobM} moves`, c: "#fb923c" }),
-          React.createElement(SC, { lbl: "Snack-Free", val: snFree, sub: "evenings", c: "#60a5fa" }),
-          React.createElement(SC, { lbl: "Day Rating", val: avgDr, sub: "avg /5", c: "#a78bfa" })
+          React.createElement(SC, { lbl: "Avg Weight", val: avgWt, sub: "lbs", c: "var(--color-primary)" }),
+          React.createElement(SC, { lbl: "Mobility", val: `${mobS}/7`, sub: `${mobM} moves`, c: "var(--color-accent-orange)" }),
+          React.createElement(SC, { lbl: "Snack-Free", val: snFree, sub: "evenings", c: "var(--color-accent-blue)" }),
+          React.createElement(SC, { lbl: "Day Rating", val: avgDr, sub: "avg /5", c: "var(--color-accent-purple)" })
         ),
         React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 } },
-          React.createElement(SC, { lbl: "Cardio", val: `${ca}/7`, c: "#60a5fa" }),
-          React.createElement(SC, { lbl: "Strength", val: `${st}/7`, c: "#4ade80" }),
-          React.createElement(SC, { lbl: "Hydration", val: `${hyC}/7`, c: "#34d399" }),
-          React.createElement(SC, { lbl: "Finance Wins", val: fwC, c: "#34d399" })
+          React.createElement(SC, { lbl: "Cardio", val: `${ca}/7`, c: "var(--color-accent-blue)" }),
+          React.createElement(SC, { lbl: "Strength", val: `${st}/7`, c: "var(--color-success)" }),
+          React.createElement(SC, { lbl: "Hydration", val: `${hyC}/7`, c: "var(--color-accent-teal)" }),
+          React.createElement(SC, { lbl: "Finance Wins", val: fwC, c: "var(--color-accent-teal)" })
         ),
         React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 } },
-          avgEn && React.createElement(SC, { lbl: "Avg Energy", val: avgEn, sub: "/5 morning", c: "#60a5fa" }),
-          avgMood && React.createElement(SC, { lbl: "Avg Mood", val: avgMood, sub: "/5 morning", c: "#f472b6" }),
-          avgSteps && React.createElement(SC, { lbl: "Avg Steps", val: parseInt(avgSteps).toLocaleString(), c: "#4ade80" }),
-          exDays > 0 && React.createElement(SC, { lbl: "Exceptional", val: exDays, sub: "days flagged", c: "#a78bfa" })
+          avgEn && React.createElement(SC, { lbl: "Avg Energy", val: avgEn, sub: "/5 morning", c: "var(--color-accent-blue)" }),
+          avgMood && React.createElement(SC, { lbl: "Avg Mood", val: avgMood, sub: "/5 morning", c: "var(--color-accent-pink)" }),
+          avgSteps && React.createElement(SC, { lbl: "Avg Steps", val: parseInt(avgSteps).toLocaleString(), c: "var(--color-success)" }),
+          exDays > 0 && React.createElement(SC, { lbl: "Exceptional", val: exDays, sub: "days flagged", c: "var(--color-accent-purple)" })
         ),
         wtV.length >= 2 && React.createElement(Card, {
           ch: React.createElement(React.Fragment, null,
@@ -677,10 +677,10 @@
             React.createElement("div", { style: { height: 110 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(LineChart, { data: wtChart },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
-                  React.createElement(YAxis, { domain: ["auto", "auto"], tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false, width: 34 }),
-                  React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" }, itemStyle: { color: "#f4a823" } }),
-                  React.createElement(Line, { type: "monotone", dataKey: "wt", stroke: "#f4a823", strokeWidth: 2, dot: { fill: "#f4a823", r: 2 }, name: "Weight" })
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-muted)", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(YAxis, { domain: ["auto", "auto"], tick: { fill: "var(--text-muted)", fontSize: 10 }, axisLine: false, tickLine: false, width: 34 }),
+                  React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "var(--text-secondary)" }, itemStyle: { color: "var(--color-primary)" } }),
+                  React.createElement(Line, { type: "monotone", dataKey: "wt", stroke: "var(--color-primary)", strokeWidth: 2, dot: { fill: "var(--color-primary)", r: 2 }, name: "Weight" })
                 )
               )
             )
@@ -693,16 +693,16 @@
             React.createElement("div", { style: { height: 100 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(BarChart, { data: woChart, barGap: 2, barSize: 8 },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
-                  React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" } }),
-                  React.createElement(Bar, { dataKey: "M", fill: "#fb923c", radius: [3, 3, 0, 0], name: "Mobility" }),
-                  React.createElement(Bar, { dataKey: "C", fill: "#60a5fa", radius: [3, 3, 0, 0], name: "Cardio" }),
-                  React.createElement(Bar, { dataKey: "S", fill: "#4ade80", radius: [3, 3, 0, 0], name: "Strength" })
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-muted)", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "var(--text-secondary)" } }),
+                  React.createElement(Bar, { dataKey: "M", fill: "var(--color-accent-orange)", radius: [3, 3, 0, 0], name: "Mobility" }),
+                  React.createElement(Bar, { dataKey: "C", fill: "var(--color-accent-blue)", radius: [3, 3, 0, 0], name: "Cardio" }),
+                  React.createElement(Bar, { dataKey: "S", fill: "var(--color-success)", radius: [3, 3, 0, 0], name: "Strength" })
                 )
               )
             ),
             React.createElement("div", { style: { display: "flex", gap: 12, marginTop: 6 } },
-              [["Mobility", "#fb923c"], ["Cardio", "#60a5fa"], ["Strength", "#4ade80"]].map(([l, c]) =>
+              [["Mobility", "var(--color-accent-orange)"], ["Cardio", "var(--color-accent-blue)"], ["Strength", "var(--color-success)"]].map(([l, c]) =>
                 React.createElement("div", { key: l, style: { display: "flex", alignItems: "center", gap: 4 } },
                   React.createElement("div", { style: { width: 7, height: 7, borderRadius: 2, background: c } }),
                   React.createElement("span", { style: { color: "var(--text-secondary)", fontSize: 10 } }, l)
@@ -718,10 +718,10 @@
             React.createElement("div", { style: { height: 90 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(BarChart, { data: snChart, barSize: 16 },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
-                  React.createElement(YAxis, { domain: [0, 3], ticks: [0, 1, 2, 3], tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
-                  React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" }, itemStyle: { color: "#fb923c" } }),
-                  React.createElement(Bar, { dataKey: "sn", fill: "#fb923c", radius: [3, 3, 0, 0], name: "Snacking" })
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-muted)", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(YAxis, { domain: [0, 3], ticks: [0, 1, 2, 3], tick: { fill: "var(--text-muted)", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
+                  React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "var(--text-secondary)" }, itemStyle: { color: "var(--color-accent-orange)" } }),
+                  React.createElement(Bar, { dataKey: "sn", fill: "var(--color-accent-orange)", radius: [3, 3, 0, 0], name: "Snacking" })
                 )
               )
             )
@@ -734,16 +734,16 @@
             React.createElement("div", { style: { height: 100 } },
               React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
                 React.createElement(LineChart, { data: moodChart },
-                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "#6b7280", fontSize: 10 }, axisLine: false, tickLine: false }),
-                  React.createElement(YAxis, { domain: [0, 5], ticks: [1, 2, 3, 4, 5], tick: { fill: "#6b7280", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
-                  React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "#9ca3af" } }),
-                  React.createElement(Line, { type: "monotone", dataKey: "energy", stroke: "#60a5fa", strokeWidth: 2, dot: { fill: "#60a5fa", r: 2 }, name: "Energy" }),
-                  React.createElement(Line, { type: "monotone", dataKey: "mood", stroke: "#f472b6", strokeWidth: 2, dot: { fill: "#f472b6", r: 2 }, name: "Mood", strokeDasharray: "4 2" })
+                  React.createElement(XAxis, { dataKey: "d", tick: { fill: "var(--text-muted)", fontSize: 10 }, axisLine: false, tickLine: false }),
+                  React.createElement(YAxis, { domain: [0, 5], ticks: [1, 2, 3, 4, 5], tick: { fill: "var(--text-muted)", fontSize: 9 }, axisLine: false, tickLine: false, width: 16 }),
+                  React.createElement(Tooltip, { contentStyle: ttStyle, labelStyle: { color: "var(--text-secondary)" } }),
+                  React.createElement(Line, { type: "monotone", dataKey: "energy", stroke: "var(--color-accent-blue)", strokeWidth: 2, dot: { fill: "var(--color-accent-blue)", r: 2 }, name: "Energy" }),
+                  React.createElement(Line, { type: "monotone", dataKey: "mood", stroke: "var(--color-accent-pink)", strokeWidth: 2, dot: { fill: "var(--color-accent-pink)", r: 2 }, name: "Mood", strokeDasharray: "4 2" })
                 )
               )
             ),
             React.createElement("div", { style: { display: "flex", gap: 12, marginTop: 5 } },
-              [["Energy", "#60a5fa"], ["Mood", "#f472b6"]].map(([l, c]) =>
+              [["Energy", "var(--color-accent-blue)"], ["Mood", "var(--color-accent-pink)"]].map(([l, c]) =>
                 React.createElement("div", { key: l, style: { display: "flex", alignItems: "center", gap: 4 } },
                   React.createElement("div", { style: { width: 7, height: 7, borderRadius: 2, background: c } }),
                   React.createElement("span", { style: { color: "var(--text-secondary)", fontSize: 10 } }, l)
@@ -759,9 +759,9 @@
             React.createElement("p", {
               style: { color: "var(--text-secondary)", fontSize: 12, margin: 0, lineHeight: 1.6 }
             }, "Based on this week's data: on nights you slept under 6 hours your next-day energy averaged ",
-              React.createElement("span", { style: { color: "#ef4444", fontWeight: 700 } }, avgEnShort, "/5"),
+              React.createElement("span", { style: { color: "var(--color-danger)", fontWeight: 700 } }, avgEnShort, "/5"),
               ". On nights with 6+ hours it averaged ",
-              React.createElement("span", { style: { color: "#4ade80", fontWeight: 700 } }, avgEnLong, "/5"),
+              React.createElement("span", { style: { color: "var(--color-success)", fontWeight: 700 } }, avgEnLong, "/5"),
               ". ", parseFloat(avgEnLong) - parseFloat(avgEnShort) >= 1 ? `That's a meaningful difference — ${parseFloat(avgEnLong) - parseFloat(avgEnShort)} points.` : "The pattern is emerging.")
           ),
           s: { marginBottom: 12 }
@@ -770,8 +770,8 @@
           ch: React.createElement(React.Fragment, null,
             React.createElement(Lbl, { c: "Home Summary" }),
             React.createElement("div", { style: { display: "flex", gap: 0 } },
-              React.createElement(StatCell, { lbl: "Overdue", val: overdueChores, c: overdueChores > 0 ? "#ef4444" : "#4ade80" }),
-              React.createElement(StatCell, { lbl: "Done This Week", val: weekChoresDone, c: "#4ade80" }),
+              React.createElement(StatCell, { lbl: "Overdue", val: overdueChores, c: overdueChores > 0 ? "var(--color-danger)" : "var(--color-success)" }),
+              React.createElement(StatCell, { lbl: "Done This Week", val: weekChoresDone, c: "var(--color-success)" }),
               React.createElement(StatCell, { lbl: "Total Tasks", val: choreTasks.length, c: "var(--text-secondary)" })
             )
           ),
@@ -783,8 +783,8 @@
             React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7 } },
               familyMs.map(({ date, m }, i) =>
                 React.createElement("div", { key: i, style: { display: "flex", gap: 10 } },
-                  React.createElement("span", { style: { color: "#f4a823", fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 } }, fmtShort(date)),
-                  React.createElement("span", { style: { color: "#c9ccd4", fontSize: 12 } }, m)
+                  React.createElement("span", { style: { color: "var(--color-primary)", fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 } }, fmtShort(date)),
+                  React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12 } }, m)
                 )
               )
             )
@@ -797,8 +797,8 @@
             React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7 } },
               grats.map(({ date, g }, i) =>
                 React.createElement("div", { key: i, style: { display: "flex", gap: 10 } },
-                  React.createElement("span", { style: { color: "#a78bfa", fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 } }, fmtShort(date)),
-                  React.createElement("span", { style: { color: "#c9ccd4", fontSize: 12, fontStyle: "italic" } }, g)
+                  React.createElement("span", { style: { color: "var(--color-accent-purple)", fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 } }, fmtShort(date)),
+                  React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12, fontStyle: "italic" } }, g)
                 )
               )
             )
@@ -811,8 +811,8 @@
             React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7 } },
               wins.map(({ date, w }, i) =>
                 React.createElement("div", { key: i, style: { display: "flex", gap: 10, alignItems: "flex-start" } },
-                  React.createElement("span", { style: { color: "#f4a823", fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 } }, fmtShort(date)),
-                  React.createElement("span", { style: { color: "#c9ccd4", fontSize: 12 } }, w)
+                  React.createElement("span", { style: { color: "var(--color-primary)", fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 } }, fmtShort(date)),
+                  React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12 } }, w)
                 )
               )
             )
@@ -825,7 +825,7 @@
             React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
               PILLARS.map(p =>
                 React.createElement("div", { key: p.id, style: { display: "flex", alignItems: "center", justifyContent: "space-between" } },
-                  React.createElement("span", { style: { color: "#9ca3af", fontSize: 12, width: 148, flexShrink: 0 } }, p.l),
+                  React.createElement("span", { style: { color: "var(--text-secondary)", fontSize: 12, width: 148, flexShrink: 0 } }, p.l),
                   React.createElement(Dots, { val: ps[p.id] || 0, set: v => setPs(prev => ({ ...prev, [p.id]: v })), col: p.c, sz: 22 })
                 )
               )
@@ -864,21 +864,21 @@
             React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
               React.createElement(Lbl, { c: "Training Notes" }),
               React.createElement("div", { style: { display: "flex", gap: 10 } },
-                React.createElement("span", { style: { color: "#fb923c", fontSize: 11, fontWeight: 700 } }, ca + "/" + wk.length + " cardio"),
-                React.createElement("span", { style: { color: "#4ade80", fontSize: 11, fontWeight: 700 } }, st + "/" + wk.length + " strength")
+                React.createElement("span", { style: { color: "var(--color-accent-orange)", fontSize: 11, fontWeight: 700 } }, ca + "/" + wk.length + " cardio"),
+                React.createElement("span", { style: { color: "var(--color-success)", fontSize: 11, fontWeight: 700 } }, st + "/" + wk.length + " strength")
               )
             ),
             React.createElement("div", { style: { marginBottom: 12 } },
-              React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 6px" } }, "Training Quality This Week"),
-              React.createElement(Dots, { val: woTrainingQuality, set: setWoTrainingQuality, col: "#fb923c", sz: 22 })
+              React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 6px" } }, "Training Quality This Week"),
+              React.createElement(Dots, { val: woTrainingQuality, set: setWoTrainingQuality, col: "var(--color-accent-orange)", sz: 22 })
             ),
-            React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "Best Session / Highlight"),
+            React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "Best Session / Highlight"),
             React.createElement("input", { type: "text", value: woBestSession, onChange: e => setWoBestSession(e.target.value), placeholder: "e.g. 5km run PR, hit 225lb squat, full mobility flow...", style: { ...inp, marginBottom: 10, fontSize: 13 } }),
-            React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "How Did Your Body Feel? (soreness, energy, recovery)"),
+            React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "How Did Your Body Feel? (soreness, energy, recovery)"),
             React.createElement("textarea", { value: woBodyFeel, onChange: e => setWoBodyFeel(e.target.value), placeholder: "e.g. Left knee tight Monday, energy was high by Wednesday, sleeping well...", style: { ...inp, resize: "none", minHeight: 60, fontSize: 13, lineHeight: 1.6, marginBottom: 10 }, rows: 2 }),
-            React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "What Held Training Back? (skip if nothing)"),
+            React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "What Held Training Back? (skip if nothing)"),
             React.createElement("input", { type: "text", value: woBlocked, onChange: e => setWoBlocked(e.target.value), placeholder: "e.g. Time, motivation dip, travel, minor injury...", style: { ...inp, marginBottom: 10, fontSize: 13 } }),
-            React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "Next Week's Training Focus"),
+            React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "Next Week's Training Focus"),
             React.createElement("input", { type: "text", value: woNextFocus, onChange: e => setWoNextFocus(e.target.value), placeholder: "e.g. Prioritise strength, hit 4 sessions, fix sleep first...", style: { ...inp, fontSize: 13 } })
           ),
           s: { marginBottom: 12 }
@@ -887,7 +887,7 @@
           ch: React.createElement(React.Fragment, null,
             React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
               React.createElement(Lbl, { c: "Mental Health Check-in" }),
-              React.createElement("span", { style: { padding: "3px 10px", background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 20, color: "#a78bfa", fontSize: 10, fontWeight: 700 } }, "COMING SOON")
+              React.createElement("span", { style: { padding: "3px 10px", background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 20, color: "var(--color-accent-purple)", fontSize: 10, fontWeight: 700 } }, "COMING SOON")
             ),
             React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: 0, lineHeight: 1.6 } }, "Planned: Anxiety level, emotional regulation, social connection scores, practices done (therapy/journaling/meditation), what helped most, what was hardest. Building after Relationship + Recovery modules are stable.")
           ),
@@ -906,10 +906,10 @@
                       const weekDates2 = Array.from({ length: 7 }, (_, i) => addDays(monday2, i));
                       const done = weekDates2.filter(d => log[d]).length;
                       const pct = Math.round(done / 7 * 100);
-                      const barCol = pct >= 80 ? "#4ade80" : pct >= 50 ? "#f4a823" : "#ef4444";
+                      const barCol = pct >= 80 ? "var(--color-success)" : pct >= 50 ? "var(--color-primary)" : "var(--color-danger)";
                       return React.createElement("div", { key: g.id, style: { padding: "10px 12px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10 } },
                         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
-                          React.createElement("p", { style: { color: "#c9ccd4", fontSize: 13, fontWeight: 600, margin: 0 } }, g.label),
+                          React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 600, margin: 0 } }, g.label),
                           React.createElement("p", { style: { color: barCol, fontSize: 12, fontWeight: 800, margin: 0, fontFamily: "'Syne',sans-serif" } }, done + "/7 days")
                         ),
                         React.createElement("div", { style: { display: "flex", gap: 3 } },
@@ -918,19 +918,19 @@
                           )
                         ),
                         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 3 } },
-                          React.createElement("span", { style: { color: "#374151", fontSize: 9 } }, "Mon"),
-                          React.createElement("span", { style: { color: "#374151", fontSize: 9 } }, "Sun")
+                          React.createElement("span", { style: { color: "var(--text-disabled)", fontSize: 9 } }, "Mon"),
+                          React.createElement("span", { style: { color: "var(--text-disabled)", fontSize: 9 } }, "Sun")
                         )
                       );
                     })
                   ),
                   React.createElement("div", { style: { marginBottom: 12 } },
-                    React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 6px" } }, "Overall Habit Consistency Feeling"),
-                    React.createElement(Dots, { val: habitConsistency, set: setHabitConsistency, col: "#4ade80", sz: 22 })
+                    React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 6px" } }, "Overall Habit Consistency Feeling"),
+                    React.createElement(Dots, { val: habitConsistency, set: setHabitConsistency, col: "var(--color-success)", sz: 22 })
                   ),
-                  React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "Hardest Habit to Keep This Week"),
+                  React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "Hardest Habit to Keep This Week"),
                   React.createElement("input", { type: "text", value: habitHardest, onChange: e => setHabitHardest(e.target.value), placeholder: "Which habit broke down and why?", style: { ...inp, marginBottom: 10, fontSize: 13 } }),
-                  React.createElement("p", { style: { color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "One Habit Adjustment for Next Week"),
+                  React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 4px" } }, "One Habit Adjustment for Next Week"),
                   React.createElement("input", { type: "text", value: habitAdjust, onChange: e => setHabitAdjust(e.target.value), placeholder: "e.g. Move meditation to morning, reduce target to 5/7...", style: { ...inp, fontSize: 13 } })
                 )
           ),
@@ -942,9 +942,9 @@
             React.createElement(Lbl, { c: "Relationships" }),
             React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "0 0 14px", lineHeight: 1.5 } }, "How connected did you feel to the people that matter?"),
             React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 } },
-              [["Partner", relPartner, setRelPartner, "#f472b6"], ["Family", relFamily, setRelFamily, "#f4a823"], ["Friends", relFriends, setRelFriends, "#60a5fa"]].map(([lbl, val, set, col]) =>
+              [["Partner", relPartner, setRelPartner, "var(--color-accent-pink)"], ["Family", relFamily, setRelFamily, "var(--color-primary)"], ["Friends", relFriends, setRelFriends, "var(--color-accent-blue)"]].map(([lbl, val, set, col]) =>
                 React.createElement("div", { key: lbl, style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
-                  React.createElement("p", { style: { color: "#9ca3af", fontSize: 12, margin: 0, width: 70 } }, lbl),
+                  React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, margin: 0, width: 70 } }, lbl),
                   React.createElement(Dots, { val, set, col, sz: 22 })
                 )
               )
@@ -961,7 +961,7 @@
             React.createElement(Lbl, { c: "Nutrition Quality" }),
             React.createElement("div", { style: { marginBottom: 12 } },
               FieldLabel({ t: "Overall food quality this week" }),
-              React.createElement(Dots, { val: nutQuality, set: setNutQuality, col: "#4ade80", sz: 22 })
+              React.createElement(Dots, { val: nutQuality, set: setNutQuality, col: "var(--color-success)", sz: 22 })
             ),
             React.createElement("div", { style: { display: "flex", gap: 14, marginBottom: 12, alignItems: "flex-end" } },
               React.createElement("div", null,
@@ -976,7 +976,7 @@
             FieldLabel({ t: "Gaps this week (select all that apply)" }),
             React.createElement(ChipSelect, {
               options: [["protein", "Protein"], ["veg", "Vegetables"], ["hydration", "Hydration"], ["alcohol", "Alcohol"], ["snacking", "Late snacking"], ["processed", "Processed food"]],
-              selected: nutGaps, onToggle: v => setNutGaps(prev => toggleArr(prev, v)), col: "#fb923c"
+              selected: nutGaps, onToggle: v => setNutGaps(prev => toggleArr(prev, v)), col: "var(--color-accent-orange)"
             })
           ),
           s: { marginBottom: 12 }
@@ -985,11 +985,11 @@
           ch: React.createElement(React.Fragment, null,
             React.createElement(Lbl, { c: "Recovery & Body" }),
             React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 } },
-              [["Sleep Quality (not hours)", recSleepQuality, setRecSleepQuality, "#a78bfa", "1 = poor · 5 = deep & restorative"], ["Body Soreness", recSoreness, setRecSoreness, "#fb923c", "1 = fresh · 5 = beat up"]].map(([lbl, val, set, col, hint]) =>
+              [["Sleep Quality (not hours)", recSleepQuality, setRecSleepQuality, "var(--color-accent-purple)", "1 = poor · 5 = deep & restorative"], ["Body Soreness", recSoreness, setRecSoreness, "var(--color-accent-orange)", "1 = fresh · 5 = beat up"]].map(([lbl, val, set, col, hint]) =>
                 React.createElement("div", { key: lbl },
                   React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } },
-                    React.createElement("p", { style: { color: "#9ca3af", fontSize: 12, margin: 0 } }, lbl),
-                    React.createElement("p", { style: { color: "#4b5563", fontSize: 10, margin: 0 } }, hint)
+                    React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, margin: 0 } }, lbl),
+                    React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, hint)
                   ),
                   React.createElement(Dots, { val, set, col, sz: 22 })
                 )
@@ -999,7 +999,7 @@
             React.createElement("div", { style: { marginBottom: 12 } },
               React.createElement(ChipSelect, {
                 options: [["stretch", "Stretching"], ["walk", "Walk"], ["sauna", "Sauna"], ["sleep", "Extra sleep"], ["massage", "Massage"], ["ice", "Ice bath"]],
-                selected: recPractices, onToggle: v => setRecPractices(prev => toggleArr(prev, v)), col: "#4ade80"
+                selected: recPractices, onToggle: v => setRecPractices(prev => toggleArr(prev, v)), col: "var(--color-success)"
               })
             ),
             FieldLabel({ t: "One body signal to note (optional)" }),
@@ -1023,7 +1023,7 @@
                       key: val, onClick: () => setSunTimeOutside(val),
                       style: { padding: "6px 10px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, textAlign: "left",
                         background: sunTimeOutside === val ? "rgba(244,168,35,.2)" : "rgba(255,255,255,.05)",
-                        color: sunTimeOutside === val ? "#f4a823" : "#374151" }
+                        color: sunTimeOutside === val ? "var(--color-primary)" : "var(--text-disabled)" }
                     }, label)
                   )
                 )
@@ -1045,7 +1045,7 @@
               React.createElement("div", { style: { marginBottom: 12 } },
                 React.createElement(ChipSelect, {
                   options: [["friend", "Helped a friend"], ["donated", "Donated"], ["volunteer", "Volunteered"], ["encouraged", "Encouraged someone"], ["checked-in", "Checked in on family"]],
-                  selected: giveHow, onToggle: v => setGiveHow(prev => toggleArr(prev, v)), col: "#4ade80"
+                  selected: giveHow, onToggle: v => setGiveHow(prev => toggleArr(prev, v)), col: "var(--color-success)"
                 })
               ),
               FieldLabel({ t: "One moment (optional)" }),
@@ -1060,23 +1060,23 @@
             React.createElement("div", { style: { marginBottom: 12 } },
               FieldLabel({ t: "How did the space feel this week?" }),
               React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } },
-                React.createElement("span", { style: { color: "#4b5563", fontSize: 10 } }, "Chaotic"),
-                React.createElement("span", { style: { color: "#4b5563", fontSize: 10 } }, "Calm & Organised")
+                React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, "Chaotic"),
+                React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, "Calm & Organised")
               ),
-              React.createElement(Dots, { val: homeSpaceFeel, set: setHomeSpaceFeel, col: "#34d399", sz: 22 })
+              React.createElement(Dots, { val: homeSpaceFeel, set: setHomeSpaceFeel, col: "var(--color-accent-teal)", sz: 22 })
             ),
             FieldLabel({ t: "Maintenance done" }),
             React.createElement("div", { style: { marginBottom: 12 } },
               React.createElement(ChipSelect, {
                 options: [["cleaning", "Cleaning"], ["laundry", "Laundry"], ["groceries", "Groceries"], ["organising", "Organising"], ["repairs", "Repairs"]],
-                selected: homeMaintenance, onToggle: v => setHomeMaintenance(prev => toggleArr(prev, v)), col: "#34d399"
+                selected: homeMaintenance, onToggle: v => setHomeMaintenance(prev => toggleArr(prev, v)), col: "var(--color-accent-teal)"
               })
             ),
             FieldLabel({ t: "Area needing most attention" }),
             React.createElement("div", { style: { marginBottom: 12 } },
               React.createElement(ChipSelect, {
                 options: [["kitchen", "Kitchen"], ["bedroom", "Bedroom"], ["living", "Living room"], ["office", "Office"], ["garage", "Garage"], ["car", "Car"]],
-                selected: homeNeedsAttention, onToggle: v => setHomeNeedsAttention(prev => toggleArr(prev, v)), col: "#fb923c"
+                selected: homeNeedsAttention, onToggle: v => setHomeNeedsAttention(prev => toggleArr(prev, v)), col: "var(--color-accent-orange)"
               })
             ),
             FieldLabel({ t: "One improvement made (optional)" }),
@@ -1090,23 +1090,23 @@
             React.createElement("div", { style: { marginBottom: 12 } },
               FieldLabel({ t: "Work energy this week" }),
               React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } },
-                React.createElement("span", { style: { color: "#4b5563", fontSize: 10 } }, "Drained"),
-                React.createElement("span", { style: { color: "#4b5563", fontSize: 10 } }, "Energised")
+                React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, "Drained"),
+                React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, "Energised")
               ),
-              React.createElement(Dots, { val: workEnergy, set: setWorkEnergy, col: "#60a5fa", sz: 22 })
+              React.createElement(Dots, { val: workEnergy, set: setWorkEnergy, col: "var(--color-accent-blue)", sz: 22 })
             ),
             FieldLabel({ t: "Work mode this week" }),
             React.createElement("div", { style: { marginBottom: 12 } },
               React.createElement(ChipSelect, {
                 options: [["deep", "Deep Work"], ["meetings", "Meetings"], ["creative", "Creative"], ["admin", "Admin"], ["travel", "Travel"]],
-                selected: workMode, onToggle: v => setWorkMode(prev => toggleArr(prev, v)), col: "#60a5fa"
+                selected: workMode, onToggle: v => setWorkMode(prev => toggleArr(prev, v)), col: "var(--color-accent-blue)"
               })
             ),
             FieldLabel({ t: "Biggest blocker" }),
             React.createElement("div", { style: { marginBottom: 12 } },
               React.createElement(ChipSelect, {
                 options: [["time", "Time"], ["clarity", "Clarity"], ["energy", "Energy"], ["people", "People"], ["tech", "Tech"], ["motivation", "Motivation"]],
-                selected: workBlocker, onToggle: v => setWorkBlocker(prev => toggleArr(prev, v)), col: "#ef4444"
+                selected: workBlocker, onToggle: v => setWorkBlocker(prev => toggleArr(prev, v)), col: "var(--color-danger)"
               })
             ),
             FieldLabel({ t: "One work win (optional)" }),
@@ -1125,20 +1125,20 @@
                     key: val, onClick: () => setScreenTime(val),
                     style: { padding: "7px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700,
                       background: screenTime === val ? "rgba(239,68,68,.2)" : "rgba(255,255,255,.05)",
-                      color: screenTime === val ? "#ef4444" : "#374151" }
+                      color: screenTime === val ? "var(--color-danger)" : "var(--text-disabled)" }
                   }, label)
                 )
               )
             ),
             React.createElement("div", { style: { marginBottom: 12 } },
               FieldLabel({ t: "Focus quality this week" }),
-              React.createElement(Dots, { val: screenFocusQuality, set: setScreenFocusQuality, col: "#a78bfa", sz: 22 })
+              React.createElement(Dots, { val: screenFocusQuality, set: setScreenFocusQuality, col: "var(--color-accent-purple)", sz: 22 })
             ),
             FieldLabel({ t: "Biggest time sinks" }),
             React.createElement("div", { style: { marginBottom: 12 } },
               React.createElement(ChipSelect, {
                 options: [["social", "Social media"], ["youtube", "YouTube"], ["news", "News"], ["gaming", "Gaming"], ["messaging", "Messaging"]],
-                selected: screenSinks, onToggle: v => setScreenSinks(prev => toggleArr(prev, v)), col: "#ef4444"
+                selected: screenSinks, onToggle: v => setScreenSinks(prev => toggleArr(prev, v)), col: "var(--color-danger)"
               })
             ),
             FieldLabel({ t: "Deep work sessions" }),
@@ -1157,7 +1157,7 @@
               React.createElement("div", { style: { marginBottom: 12 } },
                 React.createElement(ChipSelect, {
                   options: [["book", "Book"], ["convo", "Conversation"], ["walk", "Walk"], ["work", "Work"], ["podcast", "Podcast"], ["random", "Random"]],
-                  selected: ideasSource, onToggle: v => setIdeasSource(prev => toggleArr(prev, v)), col: "#a78bfa"
+                  selected: ideasSource, onToggle: v => setIdeasSource(prev => toggleArr(prev, v)), col: "var(--color-accent-purple)"
                 })
               ),
               FieldLabel({ t: "One sentence on the idea" }),
@@ -1179,12 +1179,12 @@
               React.createElement("div", { style: { marginBottom: 12 } },
                 React.createElement(ChipSelect, {
                   options: [["cooking", "Cooking"], ["music", "Music"], ["writing", "Writing"], ["art", "Art"], ["diy", "DIY"], ["code", "Code"], ["other", "Other"]],
-                  selected: creativeType, onToggle: v => setCreativeType(prev => toggleArr(prev, v)), col: "#f472b6"
+                  selected: creativeType, onToggle: v => setCreativeType(prev => toggleArr(prev, v)), col: "var(--color-accent-pink)"
                 })
               ),
               FieldLabel({ t: "Creative satisfaction" }),
               React.createElement("div", { style: { marginBottom: 12 } },
-                React.createElement(Dots, { val: creativeSatisfaction, set: setCreativeSatisfaction, col: "#f472b6", sz: 22 })
+                React.createElement(Dots, { val: creativeSatisfaction, set: setCreativeSatisfaction, col: "var(--color-accent-pink)", sz: 22 })
               )
             ),
             FieldLabel({ t: "One sentence (optional)" }),
@@ -1201,7 +1201,7 @@
                 React.createElement(Lbl, { c: child.name + "'s Milestones" }),
                 React.createElement("button", {
                   onClick: () => setAddingMsFor(addingMsFor === child.id ? null : child.id),
-                  style: { padding: "4px 10px", background: "rgba(244,114,182,.12)", border: "1px solid rgba(244,114,182,.25)", color: "#f472b6", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+                  style: { padding: "4px 10px", background: "rgba(244,114,182,.12)", border: "1px solid rgba(244,114,182,.25)", color: "var(--color-accent-pink)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
                 }, "+ Add")
               ),
               React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 } }, "These moments are permanent \u2014 never overwritten."),
@@ -1216,15 +1216,15 @@
                 }),
                 React.createElement("button", {
                   onClick: () => addMilestone(child.id),
-                  style: { padding: "8px 13px", background: "#f472b6", color: "#080b11", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", flexShrink: 0 }
+                  style: { padding: "8px 13px", background: "var(--color-accent-pink)", color: "var(--bg)", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", flexShrink: 0 }
                 }, "\u2713")
               ),
               (childMilestonesMap[child.id] || []).length > 0
                 ? React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
                     (childMilestonesMap[child.id] || []).slice(0, 20).map((m, i) =>
                       React.createElement("div", { key: i, style: { display: "flex", gap: 9, padding: "8px 10px", background: "rgba(244,114,182,.04)", borderRadius: 8, border: "1px solid rgba(244,114,182,.1)", alignItems: "flex-start" } },
-                        React.createElement("span", { style: { color: "#f472b6", fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 } }, fmtDate(m.date)),
-                        React.createElement("span", { style: { color: "#c9ccd4", fontSize: 12, flex: 1 } }, m.text)
+                        React.createElement("span", { style: { color: "var(--color-accent-pink)", fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 } }, fmtDate(m.date)),
+                        React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12, flex: 1 } }, m.text)
                       )
                     )
                   )
@@ -1248,7 +1248,7 @@
           s: { marginBottom: 12 }
         }),
         ok && React.createElement(Card, {
-          ch: React.createElement("p", { style: { color: "#4ade80", margin: 0, fontSize: 13 } }, "\u2713 Sunday review saved."),
+          ch: React.createElement("p", { style: { color: "var(--color-success)", margin: 0, fontSize: 13 } }, "\u2713 Sunday review saved."),
           s: { borderColor: "rgba(74,222,128,.25)", background: "rgba(74,222,128,.06)", marginBottom: 12 }
         }),
         (() => {
@@ -1275,7 +1275,7 @@
           return React.createElement(Card, {
             ch: React.createElement(React.Fragment, null,
               React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 } },
-                React.createElement("p", { style: { color: "#a78bfa", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 12, margin: 0 } }, "\u2728 MODULES YOU COULD ADD"),
+                React.createElement("p", { style: { color: "var(--color-accent-purple)", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 12, margin: 0 } }, "\u2728 MODULES YOU COULD ADD"),
                 React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, inactive.length + " available")
               ),
               React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
@@ -1283,8 +1283,8 @@
                   React.createElement("div", { key: i, style: { display: "flex", gap: 11, padding: "10px 12px", background: "rgba(167,139,250,.04)", border: "1px solid rgba(167,139,250,.1)", borderRadius: 10, alignItems: "flex-start" } },
                     React.createElement("span", { style: { fontSize: 20, flexShrink: 0, marginTop: 1 } }, r.icon),
                     React.createElement("div", { style: { flex: 1 } },
-                      React.createElement("p", { style: { color: "#c9ccd4", fontSize: 12, fontWeight: 700, margin: "0 0 2px" } }, r.title),
-                      React.createElement("p", { style: { color: "#a78bfa", fontSize: 10, margin: 0, opacity: 0.7 } }, r.hint)
+                      React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 12, fontWeight: 700, margin: "0 0 2px" } }, r.title),
+                      React.createElement("p", { style: { color: "var(--color-accent-purple)", fontSize: 10, margin: 0, opacity: 0.7 } }, r.hint)
                     )
                   )
                 )
@@ -1296,7 +1296,7 @@
         React.createElement("button", {
           onClick: go,
           disabled: busy,
-          style: { background: busy ? "rgba(74,222,128,.45)" : "#4ade80", color: "#080b11", border: "none", borderRadius: 10, padding: "14px 0", fontSize: 15, fontWeight: 800, cursor: busy ? "wait" : "pointer", width: "100%", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
+          style: { background: busy ? "rgba(74,222,128,.45)" : "var(--color-success)", color: "var(--bg)", border: "none", borderRadius: 10, padding: "14px 0", fontSize: 15, fontWeight: 800, cursor: busy ? "wait" : "pointer", width: "100%", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
         }, busy ? "SAVING..." : "SAVE SUNDAY REVIEW \u2192")
       )
     );

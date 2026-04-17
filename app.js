@@ -79,7 +79,7 @@ function AuthGate({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 28,
       fontWeight: 800,
@@ -117,7 +117,7 @@ function AuthGate({
     }
   }, "Each user has their own separate data, history, and reports."), error && /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#ef4444",
+      color: "var(--color-danger)",
       fontSize: 11,
       margin: "0 0 14px"
     }
@@ -158,7 +158,7 @@ function AuthGate({
     d: "M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
   })), signingIn ? "Signing in..." : "Continue with Google")), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#2d3340",
+      color: "var(--text-disabled)",
       fontSize: 10,
       margin: "20px 0 0",
       lineHeight: 1.6
@@ -460,38 +460,15 @@ function useAutoSave(key, data, enabled = true) {
 // DEFAULT SETTINGS
 // ─────────────────────────────────────────────────────────────────────────────
 // ─── Theme system ──────────────────────────────────────────────────────────
-const THEMES = {
-  dark: {
-    "--bg":           "#080b11",
-    "--bg-nav":       "#0a0f1a",
-    "--card-bg":      "var(--card-bg)",
-    "--card-bg-2":    "var(--card-bg-2)",
-    "--card-bg-3":    "var(--card-bg-3)",
-    "--card-bg-4":    "var(--card-bg-4)",
-    "--card-border":  "var(--card-border)",
-    "--card-border-2":"var(--card-border-2)",
-    "--text-primary": "var(--text-primary)",
-    "--text-secondary":"var(--text-secondary)",
-    "--text-muted":   "var(--text-muted)"
-  },
-  light: {
-    "--bg":           "#fef9fb",
-    "--bg-nav":       "#fff0f6",
-    "--card-bg":      "rgba(255,255,255,.88)",
-    "--card-bg-2":    "rgba(255,255,255,.72)",
-    "--card-bg-3":    "rgba(255,255,255,.78)",
-    "--card-bg-4":    "rgba(255,255,255,.62)",
-    "--card-border":  "rgba(210,150,190,.28)",
-    "--card-border-2":"rgba(210,150,190,.38)",
-    "--text-primary": "#2d1b4e",
-    "--text-secondary":"#8b5a9b",
-    "--text-muted":   "#b39abf"
-  }
-};
+// Light/dark tokens live in index.html :root / [data-theme="light"].
+// applyTheme just toggles the data-theme attribute + persists.
 function applyTheme(name) {
-  const vars = THEMES[name] || THEMES.dark;
-  Object.entries(vars).forEach(([k, v]) => document.documentElement.style.setProperty(k, v));
-  document.body.style.background = vars["--bg"];
+  if (name === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+  localStorage.setItem("ml_theme", name || "dark");
 }
 
 const DEFAULT_SETTINGS = {
@@ -534,10 +511,10 @@ const DEFAULT_GOALS = {
 // SHARED UI COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 const C = {
-  B: "#f4a823",
-  L: "#4ade80",
-  D: "#60a5fa",
-  S: "#fb923c"
+  B: "var(--color-primary)",
+  L: "var(--color-success)",
+  D: "var(--color-accent-blue)",
+  S: "var(--color-accent-orange)"
 };
 const CL = {
   B: "Breakfast",
@@ -549,7 +526,7 @@ const inp = {
   background: "rgba(255,255,255,0.05)",
   border: "1px solid rgba(255,255,255,0.09)",
   borderRadius: 8,
-  color: "#e2e5ed",
+  color: "var(--text-heading)",
   padding: "10px 13px",
   fontSize: 14,
   width: "100%",
@@ -561,7 +538,7 @@ const Lbl = ({
   c
 }) => /*#__PURE__*/React.createElement("p", {
   style: {
-    color: "#6b7280",
+    color: "var(--text-muted)",
     fontSize: 10,
     letterSpacing: ".09em",
     textTransform: "uppercase",
@@ -583,7 +560,7 @@ const Card = ({
 }, ch);
 const SectionHead = ({
   label,
-  color = "#f4a823"
+  color = "var(--color-primary)"
 }) => /*#__PURE__*/React.createElement("div", {
   style: {
     display: "flex",
@@ -611,7 +588,7 @@ const Dots = ({
   val,
   set,
   max = 5,
-  col = "#f4a823",
+  col = "var(--color-primary)",
   sz = 26
 }) => /*#__PURE__*/React.createElement("div", {
   style: {
@@ -664,7 +641,7 @@ const YN = ({
       border: "none",
       cursor: "pointer",
       background: on ? i === 1 ? "rgba(74,222,128,.2)" : "rgba(239,68,68,.18)" : "transparent",
-      color: on ? i === 1 ? "#4ade80" : "#ef4444" : "var(--text-secondary)",
+      color: on ? i === 1 ? "var(--color-success)" : "var(--color-danger)" : "var(--text-secondary)",
       fontWeight: on ? 700 : 400,
       fontSize: 13,
       transition: "all .12s"
@@ -673,7 +650,7 @@ const YN = ({
 }));
 const ProgBar = ({
   pct,
-  col = "#f4a823",
+  col = "var(--color-primary)",
   h = 5
 }) => /*#__PURE__*/React.createElement("div", {
   style: {
@@ -696,7 +673,7 @@ const StatCell = ({
   lbl,
   val,
   sub,
-  c = "#e2e5ed"
+  c = "var(--text-heading)"
 }) => /*#__PURE__*/React.createElement("div", {
   style: {
     flex: "1 1 0",
@@ -770,7 +747,7 @@ function CelebrationOverlay({
     }
   }, "\uD83C\uDF89"), /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 24,
       fontWeight: 800,
@@ -821,7 +798,7 @@ function TodayStrip({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 18,
       fontWeight: 800,
@@ -854,7 +831,7 @@ function TodayStrip({
       width: 9,
       height: 9,
       borderRadius: "50%",
-      background: morningDone ? "#f4a823" : "#1f2631"
+      background: morningDone ? "var(--color-primary)" : "var(--text-disabled)"
     },
     title: "Morning"
   }), /*#__PURE__*/React.createElement("div", {
@@ -862,7 +839,7 @@ function TodayStrip({
       width: 9,
       height: 9,
       borderRadius: "50%",
-      background: eveningDone ? "#60a5fa" : "#1f2631"
+      background: eveningDone ? "var(--color-accent-blue)" : "var(--text-disabled)"
     },
     title: "Evening"
   })), /*#__PURE__*/React.createElement("div", {
@@ -872,7 +849,7 @@ function TodayStrip({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: workouts === 3 ? "#4ade80" : workouts > 0 ? "#f4a823" : "#2d3340",
+      color: workouts === 3 ? "var(--color-success)" : workouts > 0 ? "var(--color-primary)" : "var(--text-disabled)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 18,
       fontWeight: 800,
@@ -893,14 +870,14 @@ function TodayStrip({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: stepPct >= 100 ? "#4ade80" : "#9ca3af",
+      color: stepPct >= 100 ? "var(--color-success)" : "var(--text-secondary)",
       fontSize: 11,
       fontWeight: 700,
       margin: "0 0 2px"
     }
   }, steps.toLocaleString()), /*#__PURE__*/React.createElement(ProgBar, {
     pct: stepPct,
-    col: stepPct >= 100 ? "#4ade80" : "#60a5fa",
+    col: stepPct >= 100 ? "var(--color-success)" : "var(--color-accent-blue)",
     h: 3
   }), /*#__PURE__*/React.createElement("p", {
     style: {
@@ -915,7 +892,7 @@ function TodayStrip({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: mobDone === 10 ? "#4ade80" : "#fb923c",
+      color: mobDone === 10 ? "var(--color-success)" : "var(--color-accent-orange)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 18,
       fontWeight: 800,
@@ -939,7 +916,7 @@ function TodayStrip({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#ef4444",
+      color: "var(--color-danger)",
       fontSize: 10,
       fontWeight: 700,
       margin: 0
@@ -954,7 +931,7 @@ function TodayStrip({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontSize: 10,
       fontWeight: 700,
       margin: 0
@@ -969,7 +946,7 @@ function TodayStrip({
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#a78bfa",
+      color: "var(--color-accent-purple)",
       fontSize: 10,
       fontWeight: 700,
       margin: 0
@@ -1106,12 +1083,12 @@ function MobilityChecklist({
     /*#__PURE__*/React.createElement("div", { style: { background: "rgba(244,168,35,.07)", border: "1px solid rgba(244,168,35,.18)", borderRadius: 12, padding: "12px 16px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" } },
       /*#__PURE__*/React.createElement("div", null,
         /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".06em", margin: "0 0 2px" } }, "HOLD TIMER"),
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 28, color: swRunning ? "#f4a823" : swElapsed > 0 ? "#d1d5db" : "var(--text-muted)", margin: 0, letterSpacing: ".04em", lineHeight: 1 } }, swMins + ":" + swSecs)
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 28, color: swRunning ? "var(--color-primary)" : swElapsed > 0 ? "var(--text-primary)" : "var(--text-muted)", margin: 0, letterSpacing: ".04em", lineHeight: 1 } }, swMins + ":" + swSecs)
       ),
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
         swRunning
-          ? /*#__PURE__*/React.createElement("button", { onClick: swPause, style: { padding: "9px 18px", background: "rgba(244,168,35,.18)", border: "1px solid rgba(244,168,35,.4)", borderRadius: 9, color: "#f4a823", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "\u23F8 Pause")
-          : /*#__PURE__*/React.createElement("button", { onClick: swStart, style: { padding: "9px 18px", background: "#f4a823", border: "none", borderRadius: 9, color: "#080b11", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, swElapsed > 0 ? "\u25B6 Resume" : "\u25B6 Start"),
+          ? /*#__PURE__*/React.createElement("button", { onClick: swPause, style: { padding: "9px 18px", background: "rgba(244,168,35,.18)", border: "1px solid rgba(244,168,35,.4)", borderRadius: 9, color: "var(--color-primary)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "\u23F8 Pause")
+          : /*#__PURE__*/React.createElement("button", { onClick: swStart, style: { padding: "9px 18px", background: "var(--color-primary)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, swElapsed > 0 ? "\u25B6 Resume" : "\u25B6 Start"),
         swElapsed > 0 && /*#__PURE__*/React.createElement("button", { onClick: swReset, style: { padding: "9px 14px", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-muted)", fontSize: 12, cursor: "pointer" } }, "\u21BA")
       )
     ),
@@ -1131,7 +1108,7 @@ function MobilityChecklist({
       fontWeight: 700,
       padding: "2px 9px",
       borderRadius: 6,
-      color: done === 10 ? "#4ade80" : done >= 5 ? "#f4a823" : "var(--text-secondary)",
+      color: done === 10 ? "var(--color-success)" : done >= 5 ? "var(--color-primary)" : "var(--text-secondary)",
       background: done === 10 ? "rgba(74,222,128,.12)" : done >= 5 ? "rgba(244,168,35,.1)" : "var(--card-bg-3)"
     }
   }, done === 10 ? "DONE ✓" : `${done}/10`)), /*#__PURE__*/React.createElement("div", {
@@ -1172,15 +1149,15 @@ function MobilityChecklist({
         width: 21,
         height: 21,
         borderRadius: 5,
-        border: `2px solid ${ck ? "#4ade80" : "rgba(255,255,255,.18)"}`,
-        background: ck ? "#4ade80" : "transparent",
+        border: `2px solid ${ck ? "var(--color-success)" : "rgba(255,255,255,.18)"}`,
+        background: ck ? "var(--color-success)" : "transparent",
         cursor: "pointer",
         flexShrink: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 0,
-        color: "#080b11",
+        color: "var(--bg)",
         fontSize: 11,
         fontWeight: 800
       }
@@ -1192,7 +1169,7 @@ function MobilityChecklist({
     }, /*#__PURE__*/React.createElement("span", {
       style: {
         fontSize: 13,
-        color: ck ? "#6b7280" : "var(--text-primary)",
+        color: ck ? "var(--text-muted)" : "var(--text-primary)",
         textDecoration: ck ? "line-through" : "none",
         fontWeight: 500
       }
@@ -1222,7 +1199,7 @@ function MobilityChecklist({
       style: {
         background: tip ? "rgba(96,165,250,.18)" : "transparent",
         border: `1px solid ${tip ? "rgba(96,165,250,.3)" : "var(--card-border)"}`,
-        color: tip ? "#60a5fa" : "var(--text-muted)",
+        color: tip ? "var(--color-accent-blue)" : "var(--text-muted)",
         borderRadius: 6,
         padding: "3px 8px",
         fontSize: 10,
@@ -1236,7 +1213,7 @@ function MobilityChecklist({
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: "#93c5fd",
+        color: "var(--color-accent-blue)",
         fontSize: 12,
         margin: 0,
         lineHeight: 1.6,
@@ -1585,16 +1562,16 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
     onClick: e => { if (e.target === e.currentTarget) onClose(); }
   },
     React.createElement("div", {
-      style: { background: "#0f1520", borderRadius: "18px 18px 0 0", width: "100%", maxWidth: 490, padding: "24px 20px 36px", maxHeight: "92vh", overflowY: "auto" }
+      style: { background: "var(--bg-tooltip)", borderRadius: "18px 18px 0 0", width: "100%", maxWidth: 490, padding: "24px 20px 36px", maxHeight: "92vh", overflowY: "auto" }
     },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 } },
-        React.createElement("p", { style: { color: "#e2e5ed", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, margin: 0, letterSpacing: ".05em" } }, "SETTINGS"),
+        React.createElement("p", { style: { color: "var(--text-heading)", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, margin: 0, letterSpacing: ".05em" } }, "SETTINGS"),
         React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", color: "var(--text-secondary)", fontSize: 20, cursor: "pointer", padding: 0 } }, "✕")
       ),
 
       // ── Profile ──
       React.createElement("div", { style: card },
-        React.createElement("p", { style: { ...label, color: "#f4a823" } }, "YOUR PROFILE"),
+        React.createElement("p", { style: { ...label, color: "var(--color-primary)" } }, "YOUR PROFILE"),
         React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 } },
           React.createElement("div", null,
             React.createElement("p", { style: { ...label, marginBottom: 4 } }, "YOUR NAME"),
@@ -1644,7 +1621,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                 }),
                 React.createElement("button", {
                   onClick: () => setChildren(prev => prev.filter((_, xi) => xi !== i)),
-                  style: { padding: "8px 11px", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.2)", borderRadius: 8, color: "#ef4444", cursor: "pointer", fontSize: 14, flexShrink: 0 }
+                  style: { padding: "8px 11px", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.2)", borderRadius: 8, color: "var(--color-danger)", cursor: "pointer", fontSize: 14, flexShrink: 0 }
                 }, "✕")
               )
             ),
@@ -1658,7 +1635,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
               }),
               newChildName.trim() && React.createElement("button", {
                 onClick: () => { setChildren(prev => [...prev, { id: "child_" + Date.now(), name: newChildName.trim(), dob: "" }]); setNewChildName(""); },
-                style: { padding: "8px 12px", background: "#4ade80", border: "none", borderRadius: 8, color: "#080b11", fontWeight: 800, cursor: "pointer", fontSize: 13, flexShrink: 0 }
+                style: { padding: "8px 12px", background: "var(--color-success)", border: "none", borderRadius: 8, color: "var(--bg)", fontWeight: 800, cursor: "pointer", fontSize: 13, flexShrink: 0 }
               }, "+")
             )
           )
@@ -1670,7 +1647,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
 
       // ── Claude API Key ──
       React.createElement("div", { style: card },
-        React.createElement("p", { style: { ...label, color: "#a78bfa" } }, "CLAUDE API KEY"),
+        React.createElement("p", { style: { ...label, color: "var(--color-accent-purple)" } }, "CLAUDE API KEY"),
         React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 } },
           "Required for AI features: Sunday brief, pantry voice-add, recipe search, pattern insights."
         ),
@@ -1682,12 +1659,12 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
           style: inp,
           autoComplete: "off"
         }),
-        apiKey && React.createElement("p", { style: { color: "#4ade80", fontSize: 10, margin: "6px 0 0" } }, "Key entered — AI features will be active after saving.")
+        apiKey && React.createElement("p", { style: { color: "var(--color-success)", fontSize: 10, margin: "6px 0 0" } }, "Key entered — AI features will be active after saving.")
       ),
 
       // ── Theme ──
       React.createElement("div", { style: card },
-        React.createElement("p", { style: { ...label, color: "#f472b6" } }, "COLOUR THEME"),
+        React.createElement("p", { style: { ...label, color: "var(--color-accent-pink)" } }, "COLOUR THEME"),
         React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 12px", lineHeight: 1.5 } },
           "Dark is the default. Light is a bright Pinterest-style theme."
         ),
@@ -1712,7 +1689,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
               React.createElement("div", { style: { fontSize: 22, marginBottom: 5 } }, t === "dark" ? "\uD83C\uDF19" : "\u2600\uFE0F"),
               React.createElement("p", {
                 style: {
-                  color: theme === t ? (t === "dark" ? "#a78bfa" : "#f472b6") : "var(--text-secondary)",
+                  color: theme === t ? (t === "dark" ? "var(--color-accent-purple)" : "var(--color-accent-pink)") : "var(--text-secondary)",
                   fontSize: 11,
                   fontWeight: 700,
                   margin: 0,
@@ -1730,17 +1707,17 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
 
       // ── Household ──
       React.createElement("div", { style: card },
-        React.createElement("p", { style: { ...label, color: "#60a5fa" } }, "HOUSEHOLD"),
+        React.createElement("p", { style: { ...label, color: "var(--color-accent-blue)" } }, "HOUSEHOLD"),
 
         householdId && localMeta
           ? React.createElement("div", null,
               // Active household info
               React.createElement("div", { style: { background: "rgba(96,165,250,.08)", border: "1px solid rgba(96,165,250,.2)", borderRadius: 8, padding: "12px 14px", marginBottom: 12 } },
-                React.createElement("p", { style: { color: "#60a5fa", fontSize: 11, margin: "0 0 2px", fontWeight: 700, letterSpacing: ".05em" } }, "ACTIVE HOUSEHOLD"),
+                React.createElement("p", { style: { color: "var(--color-accent-blue)", fontSize: 11, margin: "0 0 2px", fontWeight: 700, letterSpacing: ".05em" } }, "ACTIVE HOUSEHOLD"),
                 React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 17, fontWeight: 800, margin: "2px 0 6px", fontFamily: "'Syne',sans-serif" } }, localMeta.name || householdId),
                 localMeta.inviteCode && React.createElement("div", null,
                   React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "0 0 4px", letterSpacing: ".04em" } }, "INVITE CODE — share with your household"),
-                  React.createElement("p", { style: { color: "#4ade80", fontSize: 22, fontWeight: 800, margin: 0, fontFamily: "'Syne',sans-serif", letterSpacing: ".2em" } }, localMeta.inviteCode)
+                  React.createElement("p", { style: { color: "var(--color-success)", fontSize: 22, fontWeight: 800, margin: 0, fontFamily: "'Syne',sans-serif", letterSpacing: ".2em" } }, localMeta.inviteCode)
                 )
               ),
 
@@ -1754,11 +1731,11 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                       m.email && React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10, marginLeft: 6 } }, m.email)
                     ),
                     React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
-                      React.createElement("span", { style: { color: m.role === "leader" ? "#f4a823" : "var(--text-muted)", fontSize: 10, fontWeight: 700 } }, m.role === "leader" ? "LEADER" : "MEMBER"),
+                      React.createElement("span", { style: { color: m.role === "leader" ? "var(--color-primary)" : "var(--text-muted)", fontSize: 10, fontWeight: 700 } }, m.role === "leader" ? "LEADER" : "MEMBER"),
                       // Leader can remove members (but not themselves)
                       isLeader && memUid !== window.__current_uid && React.createElement("button", {
                         onClick: () => handleRemoveMember(memUid, m.name),
-                        style: { background: "none", border: "none", color: "#ef4444", fontSize: 13, cursor: "pointer", padding: "0 2px", lineHeight: 1 }
+                        style: { background: "none", border: "none", color: "var(--color-danger)", fontSize: 13, cursor: "pointer", padding: "0 2px", lineHeight: 1 }
                       }, "✕")
                     )
                   )
@@ -1782,17 +1759,17 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                   React.createElement("button", {
                     onClick: handleInviteByEmail,
                     disabled: inviting || !inviteEmail.trim(),
-                    style: { background: inviteEmail.trim() ? "#4ade80" : "rgba(74,222,128,.15)", border: "none", borderRadius: 8, color: inviteEmail.trim() ? "#080b11" : "var(--text-muted)", fontSize: 11, fontWeight: 800, padding: "8px 14px", cursor: inviteEmail.trim() ? "pointer" : "not-allowed", whiteSpace: "nowrap", fontFamily: "'Syne',sans-serif" }
+                    style: { background: inviteEmail.trim() ? "var(--color-success)" : "rgba(74,222,128,.15)", border: "none", borderRadius: 8, color: inviteEmail.trim() ? "var(--bg)" : "var(--text-muted)", fontSize: 11, fontWeight: 800, padding: "8px 14px", cursor: inviteEmail.trim() ? "pointer" : "not-allowed", whiteSpace: "nowrap", fontFamily: "'Syne',sans-serif" }
                   }, inviting ? "..." : "PRE-LINK")
                 ),
-                inviteMsg && React.createElement("p", { style: { color: inviteMsg.startsWith("✓") ? "#4ade80" : "#ef4444", fontSize: 11, margin: "0 0 10px" } }, inviteMsg),
+                inviteMsg && React.createElement("p", { style: { color: inviteMsg.startsWith("✓") ? "var(--color-success)" : "var(--color-danger)", fontSize: 11, margin: "0 0 10px" } }, inviteMsg),
 
                 // Pending invites list
                 localMeta.pendingInvites && Object.keys(localMeta.pendingInvites).length > 0 && React.createElement("div", null,
                   React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "PENDING — AWAITING SIGN-IN"),
                   Object.entries(localMeta.pendingInvites).map(([encoded, inv]) =>
                     React.createElement("div", { key: encoded, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
-                      React.createElement("span", { style: { color: "#f4a823", fontSize: 11 } }, inv.email || decodeEmailKey(encoded)),
+                      React.createElement("span", { style: { color: "var(--color-primary)", fontSize: 11 } }, inv.email || decodeEmailKey(encoded)),
                       React.createElement("button", {
                         onClick: () => handleRevokeInvite(encoded),
                         style: { background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", padding: "0 2px" }
@@ -1812,7 +1789,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                   onClick: handleToggleFinanceShare,
                   style: {
                     width: 44, height: 24, borderRadius: 12, cursor: "pointer", position: "relative", flexShrink: 0,
-                    background: localMeta.shareFinance !== false ? "#34d399" : "rgba(255,255,255,.12)",
+                    background: localMeta.shareFinance !== false ? "var(--color-accent-teal)" : "rgba(255,255,255,.12)",
                     transition: "background .2s"
                   }
                 },
@@ -1844,7 +1821,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                   onClose();
                   window.location.reload();
                 },
-                style: { background: "none", border: "1px solid rgba(239,68,68,.3)", borderRadius: 7, color: "#ef4444", fontSize: 11, padding: "6px 14px", cursor: "pointer" }
+                style: { background: "none", border: "1px solid rgba(239,68,68,.3)", borderRadius: 7, color: "var(--color-danger)", fontSize: 11, padding: "6px 14px", cursor: "pointer" }
               }, "Leave Household")
             )
           : React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, lineHeight: 1.5, margin: 0 } },
@@ -1855,8 +1832,8 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       // ── Master Admin Panel ──
       masterMode && React.createElement("div", { style: { ...card, border: "1px solid rgba(167,139,250,.3)", background: "rgba(167,139,250,.06)", marginBottom: 14 } },
         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
-          React.createElement("p", { style: { ...label, color: "#a78bfa", margin: 0 } }, "🔧 MASTER ADMIN"),
-          React.createElement("span", { style: { background: "#a78bfa", color: "#080b11", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4, letterSpacing: ".05em" } }, "MASTER")
+          React.createElement("p", { style: { ...label, color: "var(--color-accent-purple)", margin: 0 } }, "🔧 MASTER ADMIN"),
+          React.createElement("span", { style: { background: "var(--color-accent-purple)", color: "var(--bg)", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4, letterSpacing: ".05em" } }, "MASTER")
         ),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 } },
           "Read-only access to all households for troubleshooting. No data is modified."
@@ -1865,14 +1842,14 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
           ? React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
               React.createElement("button", {
                 onClick: handleOpenMaster,
-                style: { background: "rgba(167,139,250,.15)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 8, color: "#a78bfa", fontSize: 11, fontWeight: 700, padding: "7px 14px", cursor: "pointer" }
+                style: { background: "rgba(167,139,250,.15)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 8, color: "var(--color-accent-purple)", fontSize: 11, fontWeight: 700, padding: "7px 14px", cursor: "pointer" }
               }, masterLoading ? "Loading..." : "View All Households"),
               React.createElement("button", {
                 onClick: handlePublishLibrary,
                 disabled: libraryToggling,
-                style: { background: "rgba(244,168,35,.15)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 8, color: "#f4a823", fontSize: 11, fontWeight: 700, padding: "7px 14px", cursor: "pointer", opacity: libraryToggling ? .5 : 1 }
+                style: { background: "rgba(244,168,35,.15)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 8, color: "var(--color-primary)", fontSize: 11, fontWeight: 700, padding: "7px 14px", cursor: "pointer", opacity: libraryToggling ? .5 : 1 }
               }, libraryToggling ? "Publishing..." : "\uD83D\uDCD6 Publish My Library"),
-              libraryMsg && React.createElement("p", { style: { color: "#4ade80", fontSize: 11, margin: "4px 0 0", fontWeight: 700, width: "100%" } }, libraryMsg)
+              libraryMsg && React.createElement("p", { style: { color: "var(--color-success)", fontSize: 11, margin: "4px 0 0", fontWeight: 700, width: "100%" } }, libraryMsg)
             )
           : React.createElement("div", null,
               masterLoading && React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12 } }, "Loading households..."),
@@ -1881,7 +1858,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
               viewingHousehold
                 ? React.createElement("div", null,
                     React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
-                      React.createElement("p", { style: { color: "#a78bfa", fontWeight: 700, fontSize: 13, margin: 0, fontFamily: "'Syne',sans-serif" } }, viewingHousehold.meta.name || viewingHousehold.hid),
+                      React.createElement("p", { style: { color: "var(--color-accent-purple)", fontWeight: 700, fontSize: 13, margin: 0, fontFamily: "'Syne',sans-serif" } }, viewingHousehold.meta.name || viewingHousehold.hid),
                       React.createElement("button", { onClick: handleExitImpersonate, style: { background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer" } }, "← All Households")
                     ),
                     React.createElement("div", { style: { background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "10px 12px", marginBottom: 8 } },
@@ -1897,7 +1874,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                             m.email && React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10, marginLeft: 6 } }, m.email)
                           ),
                           React.createElement("div", { style: { textAlign: "right" } },
-                            React.createElement("span", { style: { color: m.role === "leader" ? "#f4a823" : "var(--text-muted)", fontSize: 9, fontWeight: 700, display: "block" } }, m.role ? m.role.toUpperCase() : "MEMBER"),
+                            React.createElement("span", { style: { color: m.role === "leader" ? "var(--color-primary)" : "var(--text-muted)", fontSize: 9, fontWeight: 700, display: "block" } }, m.role ? m.role.toUpperCase() : "MEMBER"),
                             m.joinedAt && React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 9 } }, new Date(m.joinedAt).toLocaleDateString("en-CA"))
                           )
                         )
@@ -1906,11 +1883,11 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                     React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
                       React.createElement("div", { style: { background: "rgba(0,0,0,.2)", borderRadius: 6, padding: "6px 10px", flex: 1 } },
                         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, fontWeight: 700, margin: "0 0 2px" } }, "INVITE CODE"),
-                        React.createElement("p", { style: { color: "#4ade80", fontSize: 14, fontWeight: 800, margin: 0, letterSpacing: ".15em" } }, viewingHousehold.meta.inviteCode || "—")
+                        React.createElement("p", { style: { color: "var(--color-success)", fontSize: 14, fontWeight: 800, margin: 0, letterSpacing: ".15em" } }, viewingHousehold.meta.inviteCode || "—")
                       ),
                       React.createElement("div", { style: { background: "rgba(0,0,0,.2)", borderRadius: 6, padding: "6px 10px", flex: 1 } },
                         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, fontWeight: 700, margin: "0 0 2px" } }, "FINANCE SHARED"),
-                        React.createElement("p", { style: { color: viewingHousehold.meta.shareFinance !== false ? "#34d399" : "#ef4444", fontSize: 12, fontWeight: 700, margin: 0 } }, viewingHousehold.meta.shareFinance !== false ? "Yes" : "No")
+                        React.createElement("p", { style: { color: viewingHousehold.meta.shareFinance !== false ? "var(--color-accent-teal)" : "var(--color-danger)", fontSize: 12, fontWeight: 700, margin: 0 } }, viewingHousehold.meta.shareFinance !== false ? "Yes" : "No")
                       ),
                       React.createElement("div", { style: { background: "rgba(0,0,0,.2)", borderRadius: 6, padding: "6px 10px", flex: 1 } },
                         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, fontWeight: 700, margin: "0 0 2px" } }, "CREATED"),
@@ -1918,7 +1895,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                       )
                     ),
                     viewingHousehold.meta.pendingInvites && Object.keys(viewingHousehold.meta.pendingInvites).length > 0 && React.createElement("div", { style: { marginTop: 10 } },
-                      React.createElement("p", { style: { fontSize: 10, color: "#f4a823", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "PENDING INVITES"),
+                      React.createElement("p", { style: { fontSize: 10, color: "var(--color-primary)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "PENDING INVITES"),
                       Object.values(viewingHousehold.meta.pendingInvites).map((inv, i) =>
                         React.createElement("p", { key: i, style: { color: "var(--text-secondary)", fontSize: 11, margin: "2px 0" } }, inv.email)
                       )
@@ -1928,7 +1905,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                     React.createElement("div", { style: { marginTop: 14, background: "rgba(244,168,35,.06)", border: "1px solid rgba(244,168,35,.2)", borderRadius: 8, padding: "12px 14px" } },
                       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
                         React.createElement("div", null,
-                          React.createElement("p", { style: { color: "#f4a823", fontSize: 11, fontWeight: 800, margin: "0 0 2px", letterSpacing: ".05em", fontFamily: "'Syne',sans-serif" } }, "MEAL LIBRARY ACCESS"),
+                          React.createElement("p", { style: { color: "var(--color-primary)", fontSize: 11, fontWeight: 800, margin: "0 0 2px", letterSpacing: ".05em", fontFamily: "'Syne',sans-serif" } }, "MEAL LIBRARY ACCESS"),
                           React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } },
                             (viewingHousehold.meta.unlockedLibraries && viewingHousehold.meta.unlockedLibraries[householdId])
                               ? "Has access to Ryan's Kitchen"
@@ -1940,7 +1917,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                           style: {
                             width: 44, height: 24, borderRadius: 12, cursor: libraryToggling ? "not-allowed" : "pointer",
                             position: "relative", flexShrink: 0, opacity: libraryToggling ? .5 : 1,
-                            background: (viewingHousehold.meta.unlockedLibraries && viewingHousehold.meta.unlockedLibraries[householdId]) ? "#f4a823" : "rgba(255,255,255,.12)",
+                            background: (viewingHousehold.meta.unlockedLibraries && viewingHousehold.meta.unlockedLibraries[householdId]) ? "var(--color-primary)" : "rgba(255,255,255,.12)",
                             transition: "background .2s"
                           }
                         },
@@ -1953,7 +1930,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                           })
                         )
                       ),
-                      libraryMsg && React.createElement("p", { style: { color: libraryMsg.includes("Error") ? "#ef4444" : "#4ade80", fontSize: 11, margin: "4px 0 0", fontWeight: 700 } }, libraryMsg)
+                      libraryMsg && React.createElement("p", { style: { color: libraryMsg.includes("Error") ? "var(--color-danger)" : "var(--color-success)", fontSize: 11, margin: "4px 0 0", fontWeight: 700 } }, libraryMsg)
                     )
                   )
                 : React.createElement("div", null,
@@ -1986,9 +1963,9 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       React.createElement("button", {
         onClick: save,
         disabled: saving,
-        style: { width: "100%", background: "#f4a823", border: "none", borderRadius: 10, color: "#080b11", fontSize: 13, fontWeight: 800, padding: "14px", cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
+        style: { width: "100%", background: "var(--color-primary)", border: "none", borderRadius: 10, color: "var(--bg)", fontSize: 13, fontWeight: 800, padding: "14px", cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
       }, saving ? "SAVING..." : "SAVE SETTINGS"),
-      msg && React.createElement("p", { style: { color: "#4ade80", textAlign: "center", fontSize: 12, margin: "10px 0 0" } }, msg)
+      msg && React.createElement("p", { style: { color: "var(--color-success)", textAlign: "center", fontSize: 12, margin: "10px 0 0" } }, msg)
     )
   );
 }
@@ -2003,9 +1980,9 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
 function HouseholdJoinPrompt({ onSetup }) {
   return React.createElement("div", { style: { padding: "40px 24px", textAlign: "center" } },
     React.createElement("div", { style: { fontSize: 48, marginBottom: 16 } }, "\uD83C\uDFE0"),
-    React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#60a5fa", margin: "0 0 8px" } }, "Join a Household"),
+    React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "var(--color-accent-blue)", margin: "0 0 8px" } }, "Join a Household"),
     React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px", lineHeight: 1.6 } }, "Tasks, pantry, and reminders are shared with your household. Set up or join one to get started."),
-    React.createElement("button", { onClick: onSetup, style: { padding: "14px 28px", background: "#60a5fa", border: "none", borderRadius: 10, color: "#080b11", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Set Up Household \u2192")
+    React.createElement("button", { onClick: onSetup, style: { padding: "14px 28px", background: "var(--color-accent-blue)", border: "none", borderRadius: 10, color: "var(--bg)", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Set Up Household \u2192")
   );
 }
 
@@ -2136,41 +2113,41 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
   if (migrating) return React.createElement("div", {
     style: { minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, padding: 24 }
   },
-    React.createElement("div", { style: { width: 40, height: 40, border: "3px solid rgba(96,165,250,.2)", borderTopColor: "#60a5fa", borderRadius: "50%", animation: "spin 1s linear infinite" } }),
-    React.createElement("p", { style: { color: "#60a5fa", fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13 } }, migrateMsg),
-    error && React.createElement("p", { style: { color: "#ef4444", fontSize: 12 } }, error)
+    React.createElement("div", { style: { width: 40, height: 40, border: "3px solid rgba(96,165,250,.2)", borderTopColor: "var(--color-accent-blue)", borderRadius: "50%", animation: "spin 1s linear infinite" } }),
+    React.createElement("p", { style: { color: "var(--color-accent-blue)", fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13 } }, migrateMsg),
+    error && React.createElement("p", { style: { color: "var(--color-danger)", fontSize: 12 } }, error)
   );
 
   const cardStyle = { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: 20 };
 
   // Shared input style — explicit hex values to prevent browser autofill colour overrides on mobile
-  const hhInp = { width: "100%", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 10, padding: "12px 14px", color: "#e2e5ed", WebkitTextFillColor: "#e2e5ed", fontSize: 15, outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans',sans-serif" };
-  const hhLabel = { fontSize: 11, color: "#8a96a8", fontWeight: 700, letterSpacing: ".07em", margin: "0 0 8px", display: "block", fontFamily: "'Syne',sans-serif" };
+  const hhInp = { width: "100%", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 10, padding: "12px 14px", color: "var(--text-heading)", WebkitTextFillColor: "var(--text-heading)", fontSize: 15, outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans',sans-serif" };
+  const hhLabel = { fontSize: 11, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".07em", margin: "0 0 8px", display: "block", fontFamily: "'Syne',sans-serif" };
   const hhCard = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 14, padding: "18px 20px", marginBottom: 16 };
 
   // ── Choose view ──
   if (view === "choose") return React.createElement("div", {
-    style: { minHeight: "100vh", background: "#080b11", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
+    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
   },
     React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
-      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#60a5fa", margin: "0 0 8px" } }, "\uD83C\uDFE0 Set Up Your Household"),
-      React.createElement("p", { style: { color: "#8a96a8", fontSize: 13, margin: "0 0 28px", lineHeight: 1.6 } },
+      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "var(--color-accent-blue)", margin: "0 0 8px" } }, "\uD83C\uDFE0 Set Up Your Household"),
+      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 28px", lineHeight: 1.6 } },
         "Create a household to share tasks, pantry, and finances with your family. Or join an existing one with an invite code."
       ),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
         React.createElement("button", {
           onClick: () => setView("create"),
-          style: { padding: "18px 20px", background: "rgba(96,165,250,.12)", border: "1px solid rgba(96,165,250,.3)", borderRadius: 12, color: "#60a5fa", fontSize: 14, fontWeight: 800, cursor: "pointer", textAlign: "left", fontFamily: "'Syne',sans-serif" }
+          style: { padding: "18px 20px", background: "rgba(96,165,250,.12)", border: "1px solid rgba(96,165,250,.3)", borderRadius: 12, color: "var(--color-accent-blue)", fontSize: 14, fontWeight: 800, cursor: "pointer", textAlign: "left", fontFamily: "'Syne',sans-serif" }
         },
           React.createElement("div", null, "\uD83C\uDFD7 Create a Household"),
-          React.createElement("div", { style: { fontSize: 12, fontWeight: 400, color: "#8a96a8", marginTop: 5 } }, "Start a new household and invite your family")
+          React.createElement("div", { style: { fontSize: 12, fontWeight: 400, color: "var(--text-muted)", marginTop: 5 } }, "Start a new household and invite your family")
         ),
         React.createElement("button", {
           onClick: () => setView("join"),
-          style: { padding: "18px 20px", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 12, color: "#4ade80", fontSize: 14, fontWeight: 800, cursor: "pointer", textAlign: "left", fontFamily: "'Syne',sans-serif" }
+          style: { padding: "18px 20px", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 12, color: "var(--color-success)", fontSize: 14, fontWeight: 800, cursor: "pointer", textAlign: "left", fontFamily: "'Syne',sans-serif" }
         },
           React.createElement("div", null, "\uD83D\uDD11 Join with Invite Code"),
-          React.createElement("div", { style: { fontSize: 12, fontWeight: 400, color: "#8a96a8", marginTop: 5 } }, "Enter the 6-character code from your household leader")
+          React.createElement("div", { style: { fontSize: 12, fontWeight: 400, color: "var(--text-muted)", marginTop: 5 } }, "Enter the 6-character code from your household leader")
         )
       )
     )
@@ -2178,12 +2155,12 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
 
   // ── Create view ──
   if (view === "create") return React.createElement("div", {
-    style: { minHeight: "100vh", background: "#080b11", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
+    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
   },
     React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
-      React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "#8a96a8", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0, fontFamily: "'DM Sans',sans-serif" } }, "\u2190 Back"),
-      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#60a5fa", margin: "0 0 8px" } }, "\uD83C\uDFD7 Create Household"),
-      React.createElement("p", { style: { color: "#8a96a8", fontSize: 13, margin: "0 0 20px", lineHeight: 1.6 } },
+      React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0, fontFamily: "'DM Sans',sans-serif" } }, "\u2190 Back"),
+      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "var(--color-accent-blue)", margin: "0 0 8px" } }, "\uD83C\uDFD7 Create Household"),
+      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px", lineHeight: 1.6 } },
         "Your existing tasks, pantry, and finance data will be migrated to the new household. Nothing will be lost."
       ),
       React.createElement("div", { style: { ...hhCard } },
@@ -2195,23 +2172,23 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
           style: hhInp
         })
       ),
-      error && React.createElement("p", { style: { color: "#ef4444", fontSize: 13, marginBottom: 14, lineHeight: 1.5 } }, error),
+      error && React.createElement("p", { style: { color: "var(--color-danger)", fontSize: 13, marginBottom: 14, lineHeight: 1.5 } }, error),
       React.createElement("button", {
         onClick: createHousehold,
         disabled: !householdName.trim(),
-        style: { width: "100%", padding: "15px 0", background: householdName.trim() ? "#60a5fa" : "rgba(96,165,250,.2)", border: "none", borderRadius: 10, color: householdName.trim() ? "#080b11" : "#5a6477", fontSize: 14, fontWeight: 800, cursor: householdName.trim() ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+        style: { width: "100%", padding: "15px 0", background: householdName.trim() ? "var(--color-accent-blue)" : "rgba(96,165,250,.2)", border: "none", borderRadius: 10, color: householdName.trim() ? "var(--bg)" : "var(--text-muted)", fontSize: 14, fontWeight: 800, cursor: householdName.trim() ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
       }, "CREATE & MIGRATE DATA \u2192")
     )
   );
 
   // ── Join view ──
   if (view === "join") return React.createElement("div", {
-    style: { minHeight: "100vh", background: "#080b11", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
+    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }
   },
     React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
-      React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "#8a96a8", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0, fontFamily: "'DM Sans',sans-serif" } }, "\u2190 Back"),
-      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#4ade80", margin: "0 0 8px" } }, "\uD83D\uDD11 Join a Household"),
-      React.createElement("p", { style: { color: "#8a96a8", fontSize: 13, margin: "0 0 20px", lineHeight: 1.6 } },
+      React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0, fontFamily: "'DM Sans',sans-serif" } }, "\u2190 Back"),
+      React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "var(--color-success)", margin: "0 0 8px" } }, "\uD83D\uDD11 Join a Household"),
+      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px", lineHeight: 1.6 } },
         "Enter the 6-character invite code from your household leader. Or if your leader pre-linked your email, just sign out and back in \u2014 you\u2019ll be added automatically."
       ),
       React.createElement("div", { style: { ...hhCard, marginBottom: 16 } },
@@ -2224,11 +2201,11 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
           style: { ...hhInp, fontSize: 22, fontWeight: 800, letterSpacing: ".2em", textTransform: "uppercase", fontFamily: "'Syne',sans-serif" }
         })
       ),
-      error && React.createElement("p", { style: { color: "#ef4444", fontSize: 13, marginBottom: 14, lineHeight: 1.5 } }, error),
+      error && React.createElement("p", { style: { color: "var(--color-danger)", fontSize: 13, marginBottom: 14, lineHeight: 1.5 } }, error),
       React.createElement("button", {
         onClick: joinHousehold,
         disabled: inviteCode.trim().length !== 6,
-        style: { width: "100%", padding: "15px 0", background: inviteCode.trim().length === 6 ? "#4ade80" : "rgba(74,222,128,.2)", border: "none", borderRadius: 10, color: inviteCode.trim().length === 6 ? "#080b11" : "#5a6477", fontSize: 14, fontWeight: 800, cursor: inviteCode.trim().length === 6 ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+        style: { width: "100%", padding: "15px 0", background: inviteCode.trim().length === 6 ? "var(--color-success)" : "rgba(74,222,128,.2)", border: "none", borderRadius: 10, color: inviteCode.trim().length === 6 ? "var(--bg)" : "var(--text-muted)", fontSize: 14, fontWeight: 800, cursor: inviteCode.trim().length === 6 ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
       }, "JOIN HOUSEHOLD \u2192")
     )
   );
@@ -2317,6 +2294,7 @@ function App() {
   const [householdMeta, setHouseholdMeta] = useState(null);
   const [showHouseholdSetup, setShowHouseholdSetup] = useState(false);
   const [personalDataForMigration, setPersonalDataForMigration] = useState(null);
+  const [appTheme, setAppTheme] = useState(() => localStorage.getItem("ml_theme") || "dark");
 
   // API calls go through the Netlify proxy (/api/claude) — key is server-side.
   // Always set truthy so all components skip their "no API key" guard checks.
@@ -2598,75 +2576,75 @@ function App() {
   const NAV = [{
     id: "personal",
     label: "PERSONAL",
-    color: "#f4a823",
+    color: "var(--color-primary)",
     tabs: [{
       id: "morning",
       l: "MORNING",
-      c: "#f4a823"
+      c: "var(--color-primary)"
     }, {
       id: "evening",
       l: "EVENING",
-      c: "#60a5fa"
+      c: "var(--color-accent-blue)"
     }, {
       id: "goals",
       l: "GOALS",
-      c: "#34d399"
+      c: "var(--color-accent-teal)"
     }]
   }, {
     id: "health",
     label: "HEALTH",
-    color: "#fb923c",
+    color: "var(--color-accent-orange)",
     tabs: [{
       id: "mobility",
       l: "MOBILITY",
-      c: "#a78bfa"
+      c: "var(--color-accent-purple)"
     }, {
       id: "train",
       l: "TRAIN",
-      c: "#fb923c"
+      c: "var(--color-accent-orange)"
     }, {
       id: "food",
       l: "LOG",
-      c: "#4ade80"
+      c: "var(--color-success)"
     }]
   }, {
     id: "home",
     label: "HOME",
-    color: "#60a5fa",
+    color: "var(--color-accent-blue)",
     tabs: [{
       id: "chores",
       l: "TASKS",
-      c: "#60a5fa"
+      c: "var(--color-accent-blue)"
     }, {
       id: "reminders",
       l: "REMINDERS",
-      c: "#a78bfa"
+      c: "var(--color-accent-purple)"
     }, {
       id: "pantry",
       l: "INVENTORY",
-      c: "#fb923c"
+      c: "var(--color-accent-orange)"
     }, {
       id: "homefood",
       l: "FOOD",
-      c: "#4ade80"
+      c: "var(--color-success)"
     }]
   }, {
     id: "finance",
     label: "FINANCE",
-    color: "#34d399",
+    color: "var(--color-accent-teal)",
     tabs: []
   }, {
     id: "weekrecap",
     label: "WEEK RECAP",
-    color: "#a78bfa",
+    color: "var(--color-accent-purple)",
     tabs: [{
       id: "sunday",
       l: "SUNDAY",
-      c: "#4ade80"
+      c: "var(--color-success)"
     }, {
       id: "history",
       l: "HISTORY",
-      c: "#a78bfa"
+      c: "var(--color-accent-purple)"
     }]
   }];
 
@@ -2680,7 +2658,7 @@ function App() {
       alignItems: "center",
       justifyContent: "center",
       fontFamily: "'Syne',sans-serif",
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontSize: 14,
       letterSpacing: ".1em"
     }
@@ -2702,7 +2680,7 @@ function App() {
       minHeight: "100vh",
       background: "var(--bg)",
       fontFamily: "'DM Sans',sans-serif",
-      color: "#e2e5ed",
+      color: "var(--text-heading)",
       maxWidth: 490,
       margin: "0 auto"
     }
@@ -2738,7 +2716,7 @@ function App() {
       fontSize: 15,
       fontWeight: 800,
       margin: "0 0 1px",
-      color: "#e2e5ed",
+      color: "var(--text-heading)",
       letterSpacing: ".06em"
     }
   }, "MISSION LOG"), /*#__PURE__*/React.createElement("p", {
@@ -2767,7 +2745,7 @@ function App() {
       padding: "4px 9px",
       border: "none",
       background: activeUser === "self" ? "rgba(96,165,250,.2)" : "transparent",
-      color: activeUser === "self" ? "#60a5fa" : "var(--text-secondary)",
+      color: activeUser === "self" ? "var(--color-accent-blue)" : "var(--text-secondary)",
       fontSize: 10,
       fontWeight: activeUser === "self" ? 700 : 400,
       cursor: "pointer"
@@ -2778,7 +2756,7 @@ function App() {
       padding: "4px 9px",
       border: "none",
       background: activeUser === "partner" ? "rgba(167,139,250,.2)" : "transparent",
-      color: activeUser === "partner" ? "#a78bfa" : "var(--text-secondary)",
+      color: activeUser === "partner" ? "var(--color-accent-purple)" : "var(--text-secondary)",
       fontSize: 10,
       fontWeight: activeUser === "partner" ? 700 : 400,
       cursor: "pointer"
@@ -2789,7 +2767,7 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: "#f4a823",
+      color: "var(--color-primary)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 18,
       fontWeight: 800,
@@ -2814,16 +2792,27 @@ function App() {
       width: 8,
       height: 8,
       borderRadius: "50%",
-      background: todayLog?.morning ? "#f4a823" : "#1f2631"
+      background: todayLog?.morning ? "var(--color-primary)" : "var(--text-disabled)"
     }
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       width: 8,
       height: 8,
       borderRadius: "50%",
-      background: todayLog?.evening ? "#60a5fa" : "#1f2631"
+      background: todayLog?.evening ? "var(--color-accent-blue)" : "var(--text-disabled)"
     }
-  })))), /*#__PURE__*/React.createElement(TodayStrip, {
+  }))),
+  // Theme toggle
+  React.createElement("button", {
+    onClick: () => {
+      const next = appTheme === "dark" ? "light" : "dark";
+      setAppTheme(next);
+      applyTheme(next);
+    },
+    style: { background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: 4, lineHeight: 1, opacity: .7 },
+    title: "Toggle light/dark mode"
+  }, appTheme === "light" ? "\u2600\uFE0F" : "\uD83C\uDF19")
+  ), /*#__PURE__*/React.createElement(TodayStrip, {
     todayLog: todayLog,
     streak: streak,
     settings: settings,
@@ -2865,7 +2854,7 @@ function App() {
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: isActive ? section.color : "#c8d0dc",
+        color: isActive ? section.color : "var(--text-primary)",
         fontSize: 9,
         fontWeight: isActive ? 800 : 700,
         margin: 0,
@@ -2877,7 +2866,7 @@ function App() {
       style: {
         fontSize: 7,
         marginLeft: 2,
-        color: "#34d399",
+        color: "var(--color-accent-teal)",
         fontWeight: 700
       }
     }, "SOON")), alertCount > 0 && /*#__PURE__*/React.createElement("span", {
@@ -2888,7 +2877,7 @@ function App() {
         width: 14,
         height: 14,
         borderRadius: "50%",
-        background: "#ef4444",
+        background: "var(--color-danger)",
         color: "#fff",
         fontSize: 8,
         fontWeight: 800,
@@ -2913,7 +2902,7 @@ function App() {
       padding: "7px 10px",
       border: "none",
       background: "transparent",
-      color: tab === t.id ? t.c : "#c8d0dc",
+      color: tab === t.id ? t.c : "var(--text-primary)",
       fontWeight: tab === t.id ? 700 : 600,
       fontSize: 9,
       cursor: "pointer",
@@ -3082,7 +3071,7 @@ function App() {
       borderRadius: "50%",
       background: settings.claudeApiKey ? "rgba(167,139,250,.15)" : "var(--card-bg-2)",
       border: settings.claudeApiKey ? "1px solid rgba(167,139,250,.35)" : "1px solid rgba(255,255,255,.1)",
-      color: settings.claudeApiKey ? "#a78bfa" : "var(--text-secondary)",
+      color: settings.claudeApiKey ? "var(--color-accent-purple)" : "var(--text-secondary)",
       fontSize: 16,
       cursor: "pointer",
       display: "flex",
