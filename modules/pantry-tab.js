@@ -14,7 +14,9 @@
 // PANTRY TAB — barcode scanner + AI conversational add + item management
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PANTRY_UNITS = ["g", "kg", "ml", "l", "oz", "lb", "cup", "tbsp", "tsp", "piece", "can", "bag", "box", "bottle", "bunch", "loaf", "dozen", "unit"];
+const PANTRY_UNITS = ["g", "kg", "ml", "l", "oz", "lb", "cup", "tbsp", "tsp", "piece", "can", "bag", "box", "bottle", "bunch", "loaf", "dozen", "unit", "roll", "jar", "pack", "tray", "tube", "sachet"];
+// SIZE_UNITS — for the "per-unit size" field only (weight/volume, not package types)
+const SIZE_UNITS = ["g", "kg", "ml", "l", "oz", "lb", "cup", "tbsp", "tsp"];
 
 // ─── Pantry helpers ─────────────────────────────────────────────────────────
 const PANTRY_CATEGORIES = ["Produce", "Protein", "Dairy", "Grains", "Canned", "Sauces", "Spices", "Frozen", "Snacks", "Other"];
@@ -81,7 +83,7 @@ function PantryItemCard({
       fontSize: 11,
       fontWeight: 700
     }
-  }, item.qty, " ", item.unit), expLabel && /*#__PURE__*/React.createElement("span", {
+  }, item.qty, " ", item.unit, item.unitSize ? " · " + item.unitSize + (item.sizeUnit || "") + " ea" : ""), expLabel && /*#__PURE__*/React.createElement("span", {
     style: {
       color: expColor,
       fontSize: 10,
@@ -131,6 +133,8 @@ function PantryEditModal({
     name: item.name || "",
     qty: item.qty || 1,
     unit: item.unit || "unit",
+    unitSize: item.unitSize || "",
+    sizeUnit: item.sizeUnit || "g",
     expiry: item.expiry || "",
     brand: item.brand || "",
     location: item.location || item.notes || "",
@@ -227,7 +231,27 @@ function PantryEditModal({
   }, PANTRY_UNITS.map(u => /*#__PURE__*/React.createElement("option", {
     key: u,
     value: u
-  }, u))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
+  }, u))))), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", gap: 8 }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { flex: 1 }
+  }, /*#__PURE__*/React.createElement(Lbl, {
+    c: "Size per unit (optional)"
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: form.unitSize,
+    onChange: e => s("unitSize", e.target.value),
+    placeholder: "e.g. 540",
+    style: { ...inp, fontSize: 13 }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: { width: 90 }
+  }, /*#__PURE__*/React.createElement(Lbl, {
+    c: "Size unit"
+  }), /*#__PURE__*/React.createElement("select", {
+    value: form.sizeUnit,
+    onChange: e => s("sizeUnit", e.target.value),
+    style: { ...inp, fontSize: 13, padding: "10px 8px" }
+  }, SIZE_UNITS.map(u => /*#__PURE__*/React.createElement("option", { key: u, value: u }, u))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
     c: "Expiry Date (optional)"
   }), /*#__PURE__*/React.createElement("input", {
     type: "date",
@@ -286,6 +310,8 @@ function PantryEditModal({
         ...item,
         ...form,
         qty: parseFloat(form.qty) || 1,
+        unitSize: form.unitSize !== "" ? parseFloat(form.unitSize) || undefined : undefined,
+        sizeUnit: form.unitSize !== "" ? (form.sizeUnit || "g") : undefined,
         location: form.location,
         consumable: form.consumable,
         restockCycle: parseInt(form.restockCycle) || 14,
@@ -380,7 +406,7 @@ Respond with ONLY a JSON object in this format:
 {
   "action": "add" | "edit" | "both" | "clarify",
   "items": [
-    {"name":"Rolled Oats","qty":2,"unit":"kg","expiry":"2027-01","brand":""}
+    {"name":"Black Beans","qty":2,"unit":"can","unitSize":540,"sizeUnit":"g","expiry":"","brand":""}
   ],
   "edits": [
     {"match":"exact name from inventory list","changes":{"qty":6}}
@@ -393,13 +419,18 @@ RULES:
 - action "edit": user is updating existing items. Populate edits[]. match must be a name from the CURRENT INVENTORY list.
 - action "both": user is doing both. Populate items[] AND edits[].
 - action "clarify": request is ambiguous — ask a specific follow-up question in reply. Do NOT populate items or edits.
-- For edits, "changes" can include: qty (set to this exact number), qtyDelta (positive or negative adjustment), unit, expiry (YYYY-MM), brand, name (rename), cat, notes.
+- For edits, "changes" can include: qty (set to this exact number), qtyDelta (positive or negative adjustment), unit, unitSize, sizeUnit, expiry (YYYY-MM), brand, name (rename), cat, notes.
 - "I used 2 bananas" → qtyDelta: -2
 - "Set bananas to 6" → qty: 6
 - "Add 3 more bananas" → qtyDelta: 3
 - "Update expiry of oat milk to March 2026" → changes: {expiry: "2026-03"}
+- "2 cans of black beans 540g each" → qty:2, unit:"can", unitSize:540, sizeUnit:"g"
+- "I bought a bag of rice 2kg" → qty:1, unit:"bag", unitSize:2, sizeUnit:"kg"
+- "3 bottles of olive oil 500ml" → qty:3, unit:"bottle", unitSize:500, sizeUnit:"ml"
+- unitSize is OPTIONAL — only include when the size per package is explicitly stated
+- sizeUnit must be one of: g, kg, ml, l, oz, lb, cup, tbsp, tsp
+- unit (package type) must be one of: g, kg, ml, l, oz, lb, cup, tbsp, tsp, piece, can, bag, box, bottle, bunch, loaf, dozen, unit, roll, jar, pack, tray, tube, sachet
 - If the item name is unclear or matches multiple things, use action "clarify".
-- unit must be one of: g, kg, ml, l, oz, lb, cup, tbsp, tsp, piece, can, bag, box, bottle, bunch, loaf, dozen, unit
 - expiry: YYYY-MM format or empty string
 - reply: 1-2 sentences max. Be specific about what you're changing.
 Return ONLY valid JSON. No markdown fences.`;
@@ -428,6 +459,8 @@ Return ONLY valid JSON. No markdown fences.`;
           ...i,
           id: "p" + Date.now() + Math.random(),
           qty: parseFloat(i.qty) || 1,
+          unitSize: i.unitSize ? parseFloat(i.unitSize) : undefined,
+          sizeUnit: i.unitSize ? (i.sizeUnit || "g") : undefined,
           lastUpdated: new Date().toISOString().split("T")[0]
         }))]);
       }
@@ -651,7 +684,7 @@ function PantryBarcodeScanner({
   const [scanning, setScanning] = useState(false);
   const [status, setStatus] = useState("idle");
   const [foundItem, setFoundItem] = useState(null);
-  const [form, setForm] = useState({ qty: 1, unit: "unit", expiry: "", location: "" });
+  const [form, setForm] = useState({ qty: 1, unit: "unit", unitSize: "", sizeUnit: "g", expiry: "", location: "" });
   const [errorMsg, setErrorMsg] = useState("");
   const [voiceStatus, setVoiceStatus] = useState("idle"); // idle | listening | parsing | done | error
   const scannerRef = useRef(null);
@@ -755,19 +788,32 @@ If no expiry mentioned set expiry "". If no location set location "".`
         const p = data.product;
         const name = p.product_name || p.generic_name || "Unknown product";
         const brand = p.brands || "";
-        const qty = parseFloat(p.quantity) || 1;
-        const unit = p.quantity?.replace(/[d.]/g, "").trim().toLowerCase() || "unit";
-        const validUnit = PANTRY_UNITS.includes(unit) ? unit : "unit";
+        // Try to extract unit size from quantity string e.g. "540 g", "2 x 540g", "1.5 kg"
+        const quantityStr = p.quantity || "";
+        const sizeMatch = quantityStr.match(/(\d+(?:\.\d+)?)\s*(g|kg|ml|l|oz|lb)\b/i);
+        const parsedUnitSize = sizeMatch ? parseFloat(sizeMatch[1]) : null;
+        const parsedSizeUnit = sizeMatch ? sizeMatch[2].toLowerCase() : "g";
+        // Detect if it's a packaged item (has a unit-count prefix like "2 x" or "3 x")
+        const multipackMatch = quantityStr.match(/^(\d+)\s*[xX×]/);
+        const packCount = multipackMatch ? parseInt(multipackMatch[1]) : 1;
+        // Use "unit" as package type when we have a size, else fall back to old unit parse
+        let validUnit = "unit";
+        if (!sizeMatch) {
+          const rawUnit = quantityStr.replace(/[\d.]/g, "").trim().toLowerCase();
+          validUnit = PANTRY_UNITS.includes(rawUnit) ? rawUnit : "unit";
+        }
         setFoundItem({
           name,
           brand,
-          qty,
+          qty: packCount,
           unit: validUnit,
           barcode
         });
         setForm({
-          qty,
+          qty: packCount,
           unit: validUnit,
+          unitSize: parsedUnitSize !== null ? String(parsedUnitSize) : "",
+          sizeUnit: parsedSizeUnit,
           expiry: "",
           location: ""
         });
@@ -810,6 +856,8 @@ If no expiry mentioned set expiry "". If no location set location "".`
       setForm({
         qty: item.qty || 1,
         unit: PANTRY_UNITS.includes(item.unit) ? item.unit : "unit",
+        unitSize: "",
+        sizeUnit: "g",
         expiry: "",
         location: ""
       });
@@ -825,6 +873,8 @@ If no expiry mentioned set expiry "". If no location set location "".`
       setForm({
         qty: 1,
         unit: "unit",
+        unitSize: "",
+        sizeUnit: "g",
         expiry: "",
         location: ""
       });
@@ -925,7 +975,27 @@ If no expiry mentioned set expiry "". If no location set location "".`
   }, PANTRY_UNITS.map(u => /*#__PURE__*/React.createElement("option", {
     key: u,
     value: u
-  }, u))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
+  }, u))))), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", gap: 8 }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { flex: 1 }
+  }, /*#__PURE__*/React.createElement(Lbl, {
+    c: "Size per unit (optional)"
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: form.unitSize,
+    onChange: e => setForm(p => ({ ...p, unitSize: e.target.value })),
+    placeholder: "e.g. 540",
+    style: { ...inp, fontSize: 13 }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: { width: 90 }
+  }, /*#__PURE__*/React.createElement(Lbl, {
+    c: "Size unit"
+  }), /*#__PURE__*/React.createElement("select", {
+    value: form.sizeUnit,
+    onChange: e => setForm(p => ({ ...p, sizeUnit: e.target.value })),
+    style: { ...inp, fontSize: 13, padding: "10px 8px" }
+  }, SIZE_UNITS.map(u => /*#__PURE__*/React.createElement("option", { key: u, value: u }, u))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
     c: "Expiry Date (optional)"
   }), /*#__PURE__*/React.createElement("input", {
     type: "date",
@@ -993,6 +1063,8 @@ If no expiry mentioned set expiry "". If no location set location "".`
       barcode: foundItem.barcode,
       qty: parseFloat(form.qty) || 1,
       unit: form.unit,
+      unitSize: form.unitSize !== "" ? parseFloat(form.unitSize) || undefined : undefined,
+      sizeUnit: form.unitSize !== "" ? (form.sizeUnit || "g") : undefined,
       expiry: form.expiry,
       location: form.location,
       lastUpdated: new Date().toISOString().split("T")[0]
@@ -1482,6 +1554,8 @@ function PantryTab({
       if (c.qty !== undefined) existing.qty = Math.max(0, parseFloat(c.qty));
       if (c.qtyDelta !== undefined) existing.qty = Math.max(0, parseFloat(existing.qty || 0) + parseFloat(c.qtyDelta));
       if (c.unit) existing.unit = c.unit;
+      if (c.unitSize !== undefined) existing.unitSize = c.unitSize ? parseFloat(c.unitSize) : undefined;
+      if (c.sizeUnit) existing.sizeUnit = c.sizeUnit;
       if (c.expiry !== undefined) existing.expiry = c.expiry;
       if (c.brand !== undefined) existing.brand = c.brand;
       if (c.name) existing.name = c.name;
@@ -1766,6 +1840,8 @@ function PantryItemRow({
       minWidth: 48,
       textAlign: "center"
     }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { textAlign: "center" }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
       color: statusColor,
@@ -1779,7 +1855,9 @@ function PantryItemRow({
       fontSize: 10,
       marginLeft: 3
     }
-  }, item.unit)), /*#__PURE__*/React.createElement("button", {
+  }, item.unit), item.unitSize ? /*#__PURE__*/React.createElement("div", {
+    style: { color: "var(--text-muted)", fontSize: 9, marginTop: 1 }
+  }, item.unitSize + (item.sizeUnit || "") + " ea") : null)), /*#__PURE__*/React.createElement("button", {
     onClick: e => {
       e.stopPropagation();
       onQuickAdjust(item, 1);
