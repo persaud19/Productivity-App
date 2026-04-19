@@ -653,7 +653,59 @@ function PantryBarcodeScanner({
   const [foundItem, setFoundItem] = useState(null);
   const [form, setForm] = useState({ qty: 1, unit: "unit", expiry: "", location: "" });
   const [errorMsg, setErrorMsg] = useState("");
+  const [voiceStatus, setVoiceStatus] = useState("idle"); // idle | listening | parsing | done | error
   const scannerRef = useRef(null);
+
+  const fillByVoice = () => {
+    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+      alert("Voice input not supported. Try Chrome on Android.");
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const r = new SR();
+    r.continuous = false;
+    r.lang = "en-CA";
+    r.interimResults = false;
+    setVoiceStatus("listening");
+    r.onresult = async e => {
+      const transcript = e.results[0][0].transcript;
+      setVoiceStatus("parsing");
+      try {
+        const res = await fetch("/api/claude", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 150,
+            messages: [{
+              role: "user",
+              content: `Parse this voice note for a pantry item's expiry date and storage location.
+Voice: "${transcript}"
+Valid locations: Kitchen, Fridge, Freezer, Pantry Closet, Bathroom, Garage, Laundry Room, Basement, Other
+Return ONLY JSON, no markdown: {"expiry":"YYYY-MM-DD or empty","location":"exact location name or empty"}
+If no expiry mentioned set expiry "". If no location set location "".`
+            }]
+          })
+        });
+        const d = await res.json();
+        const raw = (d.content?.[0]?.text || "{}").replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
+        const parsed = JSON.parse(raw);
+        setForm(p => ({
+          ...p,
+          expiry: parsed.expiry || p.expiry,
+          location: parsed.location || p.location
+        }));
+        setVoiceStatus("done");
+        setTimeout(() => setVoiceStatus("idle"), 2500);
+      } catch {
+        setVoiceStatus("error");
+        setTimeout(() => setVoiceStatus("idle"), 2000);
+      }
+    };
+    r.onerror = () => { setVoiceStatus("error"); setTimeout(() => setVoiceStatus("idle"), 2000); };
+    r.onend = () => { if (voiceStatus === "listening") setVoiceStatus("idle"); };
+    r.start();
+  };
   const SCANNER_DIV_ID = "pantry-qr-scanner-div";
 
   const startCamera = async () => {
@@ -893,7 +945,42 @@ function PantryBarcodeScanner({
     value: form.location,
     onChange: e => setForm(p => ({ ...p, location: e.target.value })),
     style: { ...inp, fontSize: 13, padding: "10px 8px" }
-  }, ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Basement", "Other"].map(loc => /*#__PURE__*/React.createElement("option", { key: loc, value: loc }, loc || "\u2014 Select location \u2014")))), /*#__PURE__*/React.createElement("div", {
+  }, ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Basement", "Other"].map(loc => /*#__PURE__*/React.createElement("option", { key: loc, value: loc }, loc || "\u2014 Select location \u2014")))),
+
+  // ── Voice fill button ──
+  React.createElement("button", {
+    onClick: fillByVoice,
+    disabled: voiceStatus === "listening" || voiceStatus === "parsing",
+    style: {
+      width: "100%",
+      padding: "11px 0",
+      background: voiceStatus === "done" ? "rgba(74,222,128,.12)"
+        : voiceStatus === "error" ? "rgba(239,68,68,.1)"
+        : voiceStatus === "listening" ? "rgba(244,168,35,.18)"
+        : voiceStatus === "parsing" ? "rgba(96,165,250,.12)"
+        : "rgba(255,255,255,.05)",
+      border: "1px solid " + (voiceStatus === "done" ? "rgba(74,222,128,.3)"
+        : voiceStatus === "error" ? "rgba(239,68,68,.25)"
+        : voiceStatus === "listening" ? "rgba(244,168,35,.4)"
+        : voiceStatus === "parsing" ? "rgba(96,165,250,.3)"
+        : "rgba(255,255,255,.1)"),
+      color: voiceStatus === "done" ? "var(--color-success)"
+        : voiceStatus === "error" ? "var(--color-danger)"
+        : voiceStatus === "listening" ? "var(--color-primary)"
+        : voiceStatus === "parsing" ? "var(--color-accent-blue)"
+        : "var(--text-secondary)",
+      borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: voiceStatus === "idle" ? "pointer" : "default",
+      fontFamily: "'Syne',sans-serif", letterSpacing: ".04em"
+    }
+  },
+    voiceStatus === "listening" ? "🎤 Listening..." :
+    voiceStatus === "parsing"   ? "⏳ Filling details..." :
+    voiceStatus === "done"      ? "✓ Details filled!" :
+    voiceStatus === "error"     ? "✗ Didn't catch that — try again" :
+    "🎤 Fill expiry & location by voice"
+  ),
+
+  /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8
