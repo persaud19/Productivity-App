@@ -347,8 +347,7 @@ function PantryEditModal({
   }, "Cancel"))));
 }
 function PantryAIChat({
-  onItemsExtracted,
-  onItemsEdited,
+  onApplyAll,
   onClose,
   pantryItems
 }) {
@@ -485,8 +484,9 @@ Return ONLY valid JSON. No markdown fences.`;
     setLoading(false);
   };
   const confirm = () => {
-    if (extracted.length > 0) onItemsExtracted(extracted);
-    if (pendingEdits.length > 0 && onItemsEdited) onItemsEdited(pendingEdits);
+    // Single atomic call — prevents race condition where two async calls
+    // both read the same stale pantryItems and the second one wins
+    onApplyAll({ items: extracted, edits: pendingEdits });
     setConfirmed(true);
   };
   const hasPending = extracted.length > 0 || pendingEdits.length > 0;
@@ -562,15 +562,64 @@ Return ONLY valid JSON. No markdown fences.`;
       }, "APPLY ALL \u2192")
     ),
     /*#__PURE__*/React.createElement("div", {
-      style: { maxHeight: 150, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }
+      style: { maxHeight: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }
     },
-      extracted.map((item, i) => /*#__PURE__*/React.createElement("div", {
-        key: "add-" + i,
-        style: { display: "flex", justifyContent: "space-between", padding: "6px 10px", background: "rgba(74,222,128,.06)", border: "1px solid rgba(74,222,128,.15)", borderRadius: 7 }
-      },
-        /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12 } }, "\u2795 ", item.name),
-        /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-success)", fontSize: 11, fontWeight: 700 } }, item.qty, " ", item.unit, item.expiry ? " \xB7 " + item.expiry : "")
-      )),
+      extracted.map((item, i) => {
+        const upd = (k, v) => setExtracted(prev => prev.map((x, j) => j === i ? { ...x, [k]: v } : x));
+        const fieldStyle = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 6, color: "var(--text-primary)", fontSize: 12, padding: "4px 6px", outline: "none", boxSizing: "border-box" };
+        const selStyle = { ...fieldStyle, background: "var(--card-bg-2)", color: "var(--text-secondary)", fontSize: 11, padding: "4px 4px" };
+        return /*#__PURE__*/React.createElement("div", {
+          key: "add-" + i,
+          style: { background: "rgba(74,222,128,.06)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 9, padding: "9px 10px 7px" }
+        },
+          // Row 1: label + name input + remove button
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 6 } },
+            /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-success)", fontSize: 9, fontWeight: 800, flexShrink: 0, letterSpacing: ".05em" } }, "\u2795 NEW"),
+            /*#__PURE__*/React.createElement("input", {
+              value: item.name, onChange: e => upd("name", e.target.value),
+              style: { ...fieldStyle, flex: 1, fontWeight: 600 }
+            }),
+            /*#__PURE__*/React.createElement("button", {
+              onClick: () => setExtracted(prev => prev.filter((_, j) => j !== i)),
+              style: { width: 20, height: 20, borderRadius: 4, border: "none", background: "rgba(239,68,68,.15)", color: "var(--color-danger)", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }
+            }, "\u00D7")
+          ),
+          // Row 2: qty + unit + size per unit + size unit
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 5, marginBottom: 5 } },
+            /*#__PURE__*/React.createElement("input", {
+              type: "number", value: item.qty, onChange: e => upd("qty", parseFloat(e.target.value) || 1),
+              style: { ...fieldStyle, width: 50 }
+            }),
+            /*#__PURE__*/React.createElement("select", {
+              value: item.unit || "unit", onChange: e => upd("unit", e.target.value),
+              style: { ...selStyle, flex: 1 }
+            }, PANTRY_UNITS.map(u => /*#__PURE__*/React.createElement("option", { key: u, value: u }, u))),
+            /*#__PURE__*/React.createElement("input", {
+              type: "number", value: item.unitSize || "", onChange: e => upd("unitSize", e.target.value ? parseFloat(e.target.value) : undefined),
+              placeholder: "size", style: { ...fieldStyle, width: 48 }
+            }),
+            /*#__PURE__*/React.createElement("select", {
+              value: item.sizeUnit || "g", onChange: e => upd("sizeUnit", e.target.value),
+              style: { ...selStyle, width: 44 }
+            }, SIZE_UNITS.map(u => /*#__PURE__*/React.createElement("option", { key: u, value: u }, u)))
+          ),
+          // Row 3: expiry + location + category
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 5 } },
+            /*#__PURE__*/React.createElement("input", {
+              type: "date", value: item.expiry || "", onChange: e => upd("expiry", e.target.value),
+              style: { ...fieldStyle, flex: 1, colorScheme: "dark" }
+            }),
+            /*#__PURE__*/React.createElement("select", {
+              value: item.location || "", onChange: e => upd("location", e.target.value),
+              style: { ...selStyle, flex: 1 }
+            }, ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Basement", "Other"].map(l => /*#__PURE__*/React.createElement("option", { key: l, value: l }, l || "Location\u2026"))),
+            /*#__PURE__*/React.createElement("select", {
+              value: item.cat || "Other", onChange: e => upd("cat", e.target.value),
+              style: { ...selStyle, flex: 1 }
+            }, PANTRY_CATEGORIES.map(c => /*#__PURE__*/React.createElement("option", { key: c, value: c }, c)))
+          )
+        );
+      }),
       pendingEdits.map((edit, i) => {
         const c = edit.changes || {};
         const parts = [];
@@ -1514,8 +1563,12 @@ function PantryTab({
   const [mode, setMode] = useState("list"); // list | chat | barcode | receipt
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
 
+  // Always-fresh ref so async callbacks never capture a stale pantryItems closure
+  const pantryRef = useRef(pantryItems);
+  useEffect(() => { pantryRef.current = pantryItems; }, [pantryItems]);
+
   const addItems = async newItems => {
-    const merged = [...pantryItems];
+    const merged = [...pantryRef.current]; // always fresh
     newItems.forEach(ni => {
       // Merge with existing if same name (case-insensitive) — also restores archived items
       const existing = merged.find(p => p.name.toLowerCase() === ni.name.toLowerCase());
@@ -1546,7 +1599,7 @@ function PantryTab({
   };
 
   const editItems = async edits => {
-    const merged = [...pantryItems];
+    const merged = [...pantryRef.current]; // always fresh
     edits.forEach(edit => {
       const existing = merged.find(p => p.name.toLowerCase() === (edit.match || "").toLowerCase());
       if (!existing) return;
@@ -1568,6 +1621,48 @@ function PantryTab({
     await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), merged);
     setMode("list");
   };
+
+  // Single-shot apply: handles both new items AND edits on one fresh snapshot — prevents
+  // the race where two async calls each read the same stale pantryItems and the second
+  // one overwrites the first.
+  const applyAll = async ({ items = [], edits = [] }) => {
+    const merged = [...pantryRef.current];
+    // Apply new items
+    items.forEach(ni => {
+      const existing = merged.find(p => p.name.toLowerCase() === ni.name.toLowerCase());
+      if (existing) {
+        existing.qty = parseFloat(existing.qty || 0) + parseFloat(ni.qty || 1);
+        if (ni.expiry) existing.expiry = ni.expiry;
+        if (ni.unitSize) { existing.unitSize = ni.unitSize; existing.sizeUnit = ni.sizeUnit || "g"; }
+        if (ni.location) existing.location = ni.location;
+        if (existing.essential === false) existing.essential = true;
+      } else {
+        merged.push({ ...ni, id: ni.id || "p" + Date.now() + Math.random(), cat: ni.cat || "Other", minQty: 0, reorderQty: 1, essential: true });
+      }
+    });
+    // Apply edits on the same merged snapshot
+    edits.forEach(edit => {
+      const existing = merged.find(p => p.name.toLowerCase() === (edit.match || "").toLowerCase());
+      if (!existing) return;
+      const c = edit.changes || {};
+      if (c.qty !== undefined) existing.qty = Math.max(0, parseFloat(c.qty));
+      if (c.qtyDelta !== undefined) existing.qty = Math.max(0, parseFloat(existing.qty || 0) + parseFloat(c.qtyDelta));
+      if (c.unit) existing.unit = c.unit;
+      if (c.unitSize !== undefined) existing.unitSize = c.unitSize ? parseFloat(c.unitSize) : undefined;
+      if (c.sizeUnit) existing.sizeUnit = c.sizeUnit;
+      if (c.expiry !== undefined) existing.expiry = c.expiry;
+      if (c.brand !== undefined) existing.brand = c.brand;
+      if (c.name) existing.name = c.name;
+      if (c.cat) existing.cat = c.cat;
+      if (c.notes !== undefined) existing.notes = c.notes;
+      if (c.minQty !== undefined) existing.minQty = Math.max(0, parseFloat(c.minQty));
+      existing.lastUpdated = new Date().toISOString().split("T")[0];
+    });
+    setPantryItems(merged);
+    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), merged);
+    setMode("list");
+  };
+
   if (mode === "chat") return /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
@@ -1601,8 +1696,7 @@ function PantryTab({
       cursor: "pointer"
     }
   }, "\u2190 Back")), /*#__PURE__*/React.createElement(PantryAIChat, {
-    onItemsExtracted: addItems,
-    onItemsEdited: editItems,
+    onApplyAll: applyAll,
     onClose: () => setMode("list"),
     pantryItems: pantryItems
   }));
