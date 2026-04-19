@@ -344,7 +344,27 @@ function PantryEditModal({
       fontSize: 13,
       cursor: "pointer"
     }
-  }, "Cancel"))));
+  }, "Cancel")),
+  // Delete button — only shown when editing an existing item (has an id)
+  item.id && /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (window.confirm("Permanently remove \"" + (item.name || "this item") + "\" from your inventory? This cannot be undone.")) {
+        onSave(null);
+      }
+    },
+    style: {
+      marginTop: 6,
+      width: "100%",
+      padding: "10px 0",
+      background: "rgba(239,68,68,.06)",
+      border: "1px solid rgba(239,68,68,.2)",
+      color: "var(--color-danger)",
+      borderRadius: 9,
+      fontSize: 12,
+      fontWeight: 700,
+      cursor: "pointer"
+    }
+  }, "\uD83D\uDDD1 Remove item permanently")));
 }
 function PantryAIChat({
   onApplyAll,
@@ -570,13 +590,21 @@ Return ONLY valid JSON. No markdown fences.`;
         const upd = (k, v) => setExtracted(prev => prev.map((x, j) => j === i ? { ...x, [k]: v } : x));
         const fieldStyle = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 6, color: "var(--text-primary)", fontSize: 12, padding: "4px 6px", outline: "none", boxSizing: "border-box" };
         const selStyle = { ...fieldStyle, background: "var(--card-bg-2)", color: "var(--text-secondary)", fontSize: 11, padding: "4px 4px" };
+        const dupMatch = (pantryItems || []).find(p => p.name.toLowerCase() === (item.name || "").toLowerCase());
         return /*#__PURE__*/React.createElement("div", {
           key: "add-" + i,
-          style: { background: "rgba(74,222,128,.06)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 9, padding: "9px 10px 7px" }
+          style: { background: dupMatch ? "rgba(251,146,60,.06)" : "rgba(74,222,128,.06)", border: "1px solid " + (dupMatch ? "rgba(251,146,60,.3)" : "rgba(74,222,128,.2)"), borderRadius: 9, padding: "9px 10px 7px" }
         },
+          // Duplicate warning (only when name matches existing item)
+          dupMatch && /*#__PURE__*/React.createElement("div", {
+            style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 6, background: "rgba(251,146,60,.1)", borderRadius: 6, padding: "4px 8px" }
+          },
+            /*#__PURE__*/React.createElement("span", { style: { fontSize: 12 } }, "\u26A0\uFE0F"),
+            /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-accent-orange)", fontSize: 10, fontWeight: 700 } }, "Already in inventory \u2014 " + dupMatch.qty + " " + dupMatch.unit + " on hand. Qty will be added together.")
+          ),
           // Row 1: label + name input + remove button
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 6 } },
-            /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-success)", fontSize: 9, fontWeight: 800, flexShrink: 0, letterSpacing: ".05em" } }, "\u2795 NEW"),
+            /*#__PURE__*/React.createElement("span", { style: { color: dupMatch ? "var(--color-accent-orange)" : "var(--color-success)", fontSize: 9, fontWeight: 800, flexShrink: 0, letterSpacing: ".05em" } }, dupMatch ? "\u2795 ADD MORE" : "\u2795 NEW"),
             /*#__PURE__*/React.createElement("input", {
               value: item.name, onChange: e => upd("name", e.target.value),
               style: { ...fieldStyle, flex: 1, fontWeight: 600 }
@@ -730,7 +758,8 @@ Return ONLY valid JSON. No markdown fences.`;
 }
 function PantryBarcodeScanner({
   onItemFound,
-  onClose
+  onClose,
+  pantryItems
 }) {
   const [scanning, setScanning] = useState(false);
   const [status, setStatus] = useState("idle");
@@ -944,7 +973,19 @@ If no expiry mentioned set expiry "". If no location mentioned set location "".`
     onClick: onClose,
     style: { padding: "10px 20px", background: "var(--card-bg-2)", border: "1px solid rgba(255,255,255,.1)", color: "var(--text-secondary)", borderRadius: 9, fontSize: 13, cursor: "pointer" }
   }, "Go Back"));
-  if (status === "found" && foundItem) return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  if (status === "found" && foundItem) {
+    const existingMatch = (pantryItems || []).find(p => p.name.toLowerCase() === (foundItem.name || "").toLowerCase());
+    return /*#__PURE__*/React.createElement("div", null,
+    existingMatch && /*#__PURE__*/React.createElement("div", {
+      style: { background: "rgba(251,146,60,.08)", border: "1px solid rgba(251,146,60,.3)", borderRadius: 9, padding: "9px 12px", marginBottom: 12, display: "flex", gap: 8, alignItems: "center" }
+    },
+      /*#__PURE__*/React.createElement("span", { style: { fontSize: 14 } }, "\u26A0\uFE0F"),
+      /*#__PURE__*/React.createElement("div", null,
+        /*#__PURE__*/React.createElement("p", { style: { color: "var(--color-accent-orange)", fontSize: 11, fontWeight: 700, margin: "0 0 1px" } }, "Already in inventory"),
+        /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 10, margin: 0 } }, existingMatch.name + " \u00B7 " + (existingMatch.qty || 0) + " " + (existingMatch.unit || "") + (existingMatch.unitSize ? " \u00B7 " + existingMatch.unitSize + (existingMatch.sizeUnit || "") + " ea" : "") + " \u2014 qty will be added together")
+      )
+    ),
+    /*#__PURE__*/React.createElement("div", {
     style: {
       background: "rgba(74,222,128,.06)",
       border: "1px solid rgba(74,222,128,.15)",
@@ -1146,6 +1187,7 @@ If no expiry mentioned set expiry "". If no location mentioned set location "".`
       cursor: "pointer"
     }
   }, "Cancel")));
+  } // end status === "found"
   if (status === "looking_up") return /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "center",
@@ -1731,7 +1773,8 @@ function PantryTab({
     }
   }, "\u2190 Back")), /*#__PURE__*/React.createElement(PantryBarcodeScanner, {
     onItemFound: item => addOneItem(item),
-    onClose: () => setMode("list")
+    onClose: () => setMode("list"),
+    pantryItems: pantryItems
   }));
 
   if (mode === "receipt") return /*#__PURE__*/React.createElement("div", null,
@@ -1813,8 +1856,21 @@ function PantryItemRow({
   item,
   onEdit,
   onQuickAdjust,
-  onToggleEssential
+  onToggleEssential,
+  onDelete
 }) {
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const deleteTimerRef = useRef(null);
+  const handleDeleteTap = e => {
+    e.stopPropagation();
+    if (deleteConfirm) {
+      clearTimeout(deleteTimerRef.current);
+      onDelete && onDelete(item.id);
+    } else {
+      setDeleteConfirm(true);
+      deleteTimerRef.current = setTimeout(() => setDeleteConfirm(false), 3000);
+    }
+  };
   const qty = parseFloat(item.qty) || 0;
   const minQty = parseFloat(item.minQty) || 0;
   const isLow = qty === 0 || minQty > 0 && qty <= minQty;
@@ -2013,7 +2069,20 @@ function PantryItemRow({
       padding: 0,
       flexShrink: 0
     }
-  }, item.essential === false ? "\u2606" : "\u2605")));
+  }, item.essential === false ? "\u2606" : "\u2605"),
+  // Trash button — appears on OUT items always; on all items as a faint icon
+  qty === 0 && /*#__PURE__*/React.createElement("button", {
+    onClick: handleDeleteTap,
+    title: deleteConfirm ? "Tap again to permanently remove" : "Remove permanently",
+    style: {
+      width: 24, height: 24, borderRadius: 6, padding: 0, flexShrink: 0, cursor: "pointer",
+      fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center",
+      background: deleteConfirm ? "rgba(239,68,68,.25)" : "rgba(239,68,68,.08)",
+      border: "1px solid " + (deleteConfirm ? "rgba(239,68,68,.6)" : "rgba(239,68,68,.2)"),
+      color: "var(--color-danger)", fontWeight: deleteConfirm ? 800 : 400,
+      transition: "all .15s"
+    }
+  }, deleteConfirm ? "OK?" : "\uD83D\uDDD1")));
 }
 function PantryLowStockBanner({
   lowItems,
@@ -2223,6 +2292,11 @@ function PantryEditor({
     const newQty = Math.max(0, parseFloat(item.qty || 0) + delta);
     const today = new Date().toISOString().split("T")[0];
     const updated = pantryItems.map(p => p.id === item.id ? { ...p, qty: newQty, lastUpdated: today } : p);
+    setPantryItems(updated);
+    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
+  };
+  const deleteItem = async id => {
+    const updated = pantryItems.filter(p => p.id !== id);
     setPantryItems(updated);
     await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
   };
@@ -2473,7 +2547,8 @@ function PantryEditor({
     item: item,
     onEdit: i => { setIsNew(false); setEditItem(i); },
     onQuickAdjust: quickAdjust,
-    onToggleEssential: toggleEssential
+    onToggleEssential: toggleEssential,
+    onDelete: deleteItem
   })),
   archivedItems.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 18 } },
     /*#__PURE__*/React.createElement("button", {
@@ -2497,7 +2572,13 @@ function PantryEditor({
           /*#__PURE__*/React.createElement("button", {
             onClick: () => toggleEssential(item),
             style: { padding: "4px 10px", background: "rgba(244,168,35,.1)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 7, color: "var(--color-primary)", fontSize: 11, fontWeight: 700, cursor: "pointer" }
-          }, "\u2605 Restore")
+          }, "\u2605 Restore"),
+          /*#__PURE__*/React.createElement("button", {
+            onClick: () => {
+              if (window.confirm("Permanently remove \"" + item.name + "\"? This cannot be undone.")) deleteItem(item.id);
+            },
+            style: { padding: "4px 8px", background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.2)", borderRadius: 7, color: "var(--color-danger)", fontSize: 11, cursor: "pointer" }
+          }, "\uD83D\uDDD1")
         )
       )
     )
