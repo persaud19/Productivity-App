@@ -253,12 +253,16 @@ const DB = (() => {
       try {
         const ref = fbRef(k);
         if (ref) {
-          await ref.set(v);
+          // Strip undefined values — Firebase rejects them and throws silently
+          const clean = JSON.parse(JSON.stringify(v === undefined ? null : v));
+          await ref.set(clean);
           return true;
         }
         return lsSet(k, v);
-      } catch {
-        return lsSet(k, v);
+      } catch(err) {
+        console.error('[DB] Firebase write failed for key', k, err);
+        lsSet(k, v);
+        return false;
       }
     },
     del: async k => {

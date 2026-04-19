@@ -1607,10 +1607,18 @@ function PantryTab({
 }) {
   const [mode, setMode] = useState("list"); // list | chat | barcode | receipt
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   // Always-fresh ref so async callbacks never capture a stale pantryItems closure
   const pantryRef = useRef(pantryItems);
   useEffect(() => { pantryRef.current = pantryItems; }, [pantryItems]);
+
+  const savePantry = async data => {
+    const ok = await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), data);
+    if (ok === false) setSaveError("⚠️ Save failed — check your connection. Changes may be lost on refresh.");
+    else setSaveError("");
+    return ok;
+  };
 
   const addItems = async newItems => {
     const merged = [...pantryRef.current]; // always fresh
@@ -1633,7 +1641,7 @@ function PantryTab({
       }
     });
     setPantryItems(merged);
-    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), merged);
+    await savePantry(merged);
     setMode("list");
   };
   const addOneItem = async item => { await addItems([item]); };
@@ -1663,7 +1671,7 @@ function PantryTab({
       existing.lastUpdated = new Date().toISOString().split("T")[0];
     });
     setPantryItems(merged);
-    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), merged);
+    await savePantry(merged);
     setMode("list");
   };
 
@@ -1704,7 +1712,7 @@ function PantryTab({
       existing.lastUpdated = new Date().toISOString().split("T")[0];
     });
     setPantryItems(merged);
-    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), merged);
+    await savePantry(merged);
     setMode("list");
   };
 
@@ -1790,7 +1798,11 @@ function PantryTab({
   );
 
   // List mode — show add buttons + PantryEditor
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement("div", null,
+    saveError ? /*#__PURE__*/React.createElement("div", {
+      style: { background: "rgba(239,68,68,.15)", border: "1px solid rgba(239,68,68,.4)", borderRadius: 8, padding: "8px 12px", marginBottom: 10, color: "#ef4444", fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }
+    }, saveError, /*#__PURE__*/React.createElement("button", { onClick: () => setSaveError(""), style: { background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, padding: 0 } }, "✕")) : null,
+    /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 7,
@@ -2272,19 +2284,28 @@ function PantryEditor({
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [saveError, setSaveError] = useState("");
+
+  const savePantry = async data => {
+    const ok = await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), data);
+    if (ok === false) setSaveError("⚠️ Save failed — check your connection. Changes may be lost on refresh.");
+    else setSaveError("");
+    return ok;
+  };
+
   const save = async item => {
     if (item === null) {
       // Delete
       const updated = pantryItems.filter(p => p.id !== editItem.id);
       setPantryItems(updated);
-      await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
+      await savePantry(updated);
       setEditItem(null);
       return;
     }
     const exists = pantryItems.find(p => p.id === item.id);
     const updated = exists ? pantryItems.map(p => p.id === item.id ? item : p) : [...pantryItems, item];
     setPantryItems(updated);
-    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
+    await savePantry(updated);
     setEditItem(null);
     setIsNew(false);
   };
@@ -2293,18 +2314,18 @@ function PantryEditor({
     const today = new Date().toISOString().split("T")[0];
     const updated = pantryItems.map(p => p.id === item.id ? { ...p, qty: newQty, lastUpdated: today } : p);
     setPantryItems(updated);
-    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
+    await savePantry(updated);
   };
   const deleteItem = async id => {
     const updated = pantryItems.filter(p => p.id !== id);
     setPantryItems(updated);
-    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
+    await savePantry(updated);
   };
   const toggleEssential = async item => {
     const isNowArchived = item.essential !== false; // currently essential → archive it
     const updated = pantryItems.map(p => p.id === item.id ? { ...p, essential: !isNowArchived } : p);
     setPantryItems(updated);
-    await DB.set(window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry(), updated);
+    await savePantry(updated);
   };
   const [showArchived, setShowArchived] = useState(false);
   const handleAddAllToGrocery = () => {
@@ -2375,7 +2396,11 @@ function PantryEditor({
     } = pantryStatus(p);
     return daysToExp !== null && daysToExp < 0;
   }).length;
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement("div", null,
+    saveError ? /*#__PURE__*/React.createElement("div", {
+      style: { background: "rgba(239,68,68,.15)", border: "1px solid rgba(239,68,68,.4)", borderRadius: 8, padding: "8px 12px", marginBottom: 10, color: "#ef4444", fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }
+    }, saveError, /*#__PURE__*/React.createElement("button", { onClick: () => setSaveError(""), style: { background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, padding: 0 } }, "✕")) : null,
+    /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 6,
