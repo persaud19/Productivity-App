@@ -405,7 +405,7 @@ Respond with ONLY a JSON object in this format:
 {
   "action": "add" | "edit" | "both" | "clarify",
   "items": [
-    {"name":"Black Beans","qty":2,"unit":"can","unitSize":540,"sizeUnit":"g","expiry":"","brand":""}
+    {"name":"Black Beans","qty":2,"unit":"can","unitSize":540,"sizeUnit":"g","expiry":"","location":"Pantry Closet","brand":""}
   ],
   "edits": [
     {"match":"exact name from inventory list","changes":{"qty":6}}
@@ -429,6 +429,8 @@ RULES:
 - unitSize is OPTIONAL — only include when the size per package is explicitly stated
 - sizeUnit must be one of: g, kg, ml, l, oz, lb, cup, tbsp, tsp
 - unit (package type) must be one of: g, kg, ml, l, oz, lb, cup, tbsp, tsp, piece, can, bag, box, bottle, bunch, loaf, dozen, unit, roll, jar, pack, tray, tube, sachet
+- location is OPTIONAL — valid values: Kitchen, Fridge, Freezer, Pantry Closet, Bathroom, Garage, Laundry Room, Bedroom, Office, Basement, Car, Other
+- LOCATION MAPPING: if user says "pantry", "in the pantry", "pantry shelf", or any pantry reference → use "Pantry Closet". "fridge" or "refrigerator" → "Fridge". "freezer" → "Freezer".
 - If the item name is unclear or matches multiple things, use action "clarify".
 - expiry: YYYY-MM format or empty string
 - reply: 1-2 sentences max. Be specific about what you're changing.
@@ -764,8 +766,9 @@ function PantryBarcodeScanner({
               content: `Parse this voice note for a pantry item's expiry date and storage location.
 Voice: "${transcript}"
 Valid locations: Kitchen, Fridge, Freezer, Pantry Closet, Bathroom, Garage, Laundry Room, Basement, Other
+Location mapping: "pantry", "in the pantry", "pantry closet", "pantry shelf" → "Pantry Closet". "fridge"/"refrigerator" → "Fridge". "freezer" → "Freezer".
 Return ONLY JSON, no markdown: {"expiry":"YYYY-MM-DD or empty","location":"exact location name or empty"}
-If no expiry mentioned set expiry "". If no location set location "".`
+If no expiry mentioned set expiry "". If no location mentioned set location "".`
             }]
           })
         });
