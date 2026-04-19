@@ -1496,18 +1496,7 @@ function PantryTab({
       marginBottom: 14
     }
   },
-  // ── TEMPORARY: Clear all inventory ──
-  React.createElement("button", {
-    onClick: async () => {
-      if (!window.confirm("Clear ALL inventory items? This cannot be undone.")) return;
-      const path = window.__current_household_id ? KEYS.hhPantry() : KEYS.pantry();
-      await DB.set(path, []);
-      setPantryItems([]);
-    },
-    style: { width: "100%", padding: "10px 0", background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", color: "var(--color-danger)", borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif", marginBottom: 10 }
-  }, "🗑 Clear All Inventory"),
-  // ── End temporary ──
-  /*#__PURE__*/React.createElement("button", {
+/*#__PURE__*/React.createElement("button", {
     onClick: () => setMode("chat"),
     style: {
       flex: 1,
