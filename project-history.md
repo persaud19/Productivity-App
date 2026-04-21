@@ -12,6 +12,7 @@
 
 | File | Period | Key Work |
 |------|--------|----------|
+| `session-log-2026-04-19.md` | Apr 19 2026 | Firebase persistence bug fix, dual qty tracking, duplicate detection, permanent delete, editable voice preview |
 | `weekly-log-2026-W15.md` | Apr 6–12 2026 | Finance overhaul, Goals bug, Mobility tab, Scorecard, code cleanup |
 | `session-log-2026-04-06.md` | Apr 6 2026 | Same detail as above — daily log for W15 Mon |
 
