@@ -3012,6 +3012,7 @@
     const [macroTargets, setMacroTargets] = useState(null); // { calories, protein, carbs, fat }
     const [mealLibrary, setMealLibrary] = useState([]); // [{ name, calories, protein, carbs, fat }]
     const [openSlot, setOpenSlot] = useState(null); // slot being logged
+    const [deductionToast, setDeductionToast] = useState(""); // pantry deduction confirmation
     const [generatingTargets, setGeneratingTargets] = useState(false);
     const [sabrinaPrompts, setSabrinaPrompts] = useState([]);
     const [activeSabrinaPrompt, setActiveSabrinaPrompt] = useState(null);
@@ -3145,6 +3146,18 @@
       await DB.set(KEYS.mealLog(logDate), updated);
     };
 
+    // Find the best-matching pantry item by name substring (longest match wins)
+    const findPantryMatch = (mealName, items) => {
+      if (!mealName || !items.length) return null;
+      const ml = mealName.toLowerCase();
+      const candidates = items.filter(p => {
+        const pn = (p.name || "").toLowerCase();
+        return pn.length >= 3 && ml.includes(pn);
+      });
+      if (!candidates.length) return null;
+      return candidates.sort((a, b) => b.name.length - a.name.length)[0];
+    };
+
     const handleSlotSave = async (slot, mealData) => {
       const updated = { ...mealLog };
       if (slot === "snack") {
@@ -3155,7 +3168,7 @@
       }
       await saveMealLog(updated);
 
-      // Deduct from inventory if meal is flagged as home-cooked
+      // Deduct from inventory if meal is flagged as home-cooked (ingredient-level)
       if (mealData.fromInventory && mealData.ing && mealData.ing.length > 0 && pantryItems.length > 0) {
         const deductions = computeDeductions({ ing: mealData.ing }, pantryItems);
         if (deductions.length > 0) {
@@ -3166,6 +3179,20 @@
           setPantryItems(deducted);
           const hhid = window.__current_household_id;
           await DB.set(hhid ? KEYS.hhPantry() : KEYS.pantry(), deducted);
+        }
+      } else if (pantryItems.length > 0 && mealData.name) {
+        // Name-based deduction: match meal name against pantry item names
+        const match = findPantryMatch(mealData.name, pantryItems);
+        if (match && parseFloat(match.qty) > 0) {
+          const today = new Date().toISOString().split("T")[0];
+          const deducted = pantryItems.map(p =>
+            p.id === match.id ? { ...p, qty: Math.max(0, parseFloat(p.qty || 0) - 1), lastUpdated: today } : p
+          );
+          setPantryItems(deducted);
+          const hhid = window.__current_household_id;
+          await DB.set(hhid ? KEYS.hhPantry() : KEYS.pantry(), deducted);
+          setDeductionToast("−1 " + (match.unit || "unit") + " from pantry: " + match.name + " (" + Math.max(0, parseFloat(match.qty) - 1) + " left)");
+          setTimeout(() => setDeductionToast(""), 5000);
         }
       }
 
@@ -3259,7 +3286,11 @@
         margin: 0
       }
     }, "Loading..."));
-    return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    return /*#__PURE__*/React.createElement("div", null,
+    deductionToast ? /*#__PURE__*/React.createElement("div", {
+      style: { background: "rgba(74,222,128,.15)", border: "1px solid rgba(74,222,128,.35)", borderRadius: 8, padding: "8px 12px", marginBottom: 10, color: "#4ade80", fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }
+    }, "✓ " + deductionToast, /*#__PURE__*/React.createElement("button", { onClick: () => setDeductionToast(""), style: { background: "none", border: "none", color: "#4ade80", cursor: "pointer", fontSize: 14, padding: 0 } }, "✕")) : null,
+    /*#__PURE__*/React.createElement("div", {
       style: {
         marginBottom: 14
       }
