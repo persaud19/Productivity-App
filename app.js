@@ -2499,8 +2499,6 @@ function App() {
       await DB.set(KEYS.streak(), s);
     })();
   };
-    setLoading(false);
-  };
   const handleSaveGoals = async updated => {
     setGoals(updated);
     await DB.set(KEYS.goals(), updated);
