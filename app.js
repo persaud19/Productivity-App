@@ -2405,27 +2405,55 @@ function App() {
       }
     } catch(e) {}
 
-    // ── Step 2: Personal data (always per-user) ──
-    const sd = await DB.get(KEYS.setupDone());
-    const st = await DB.get(KEYS.settings());
-    const go = await DB.get(KEYS.goals());
-    const sk = await DB.get(KEYS.streak());
-    const as = await DB.get(KEYS.allSundays());
-    // Hydrate children array from settings or legacy sonName
+    // ── Step 2: Parallel Fetching ──
+    const hid = resolvedHid;
+    const [
+      sd, st, go, sk, as, ch, pan, rp, rj, td, ml, mt
+    ] = await Promise.all([
+      DB.get(KEYS.setupDone()),
+      DB.get(KEYS.settings()),
+      DB.get(KEYS.goals()),
+      DB.get(KEYS.streak()),
+      DB.get(KEYS.allSundays()),
+      DB.get(hid ? KEYS.hhChores() : KEYS.chores()),
+      DB.get(hid ? KEYS.hhPantry() : KEYS.pantry()),
+      DB.get(KEYS.reminders()),
+      DB.get(hid ? KEYS.hhJointReminders() : KEYS.jointReminders()),
+      DB.get(KEYS.log(getToday())),
+      DB.get(KEYS.mealLog(getToday())),
+      DB.get(KEYS.macroTargets())
+    ]);
+
+    // ── Step 3: State Updates ──
     if (st && !st.children) {
       st.children = st.sonName ? [{ id: "child_legacy", name: st.sonName, dob: "" }] : [];
     }
 
-    // ── Step 3: Shared data — use household path when in a household, personal path otherwise ──
-    const hid = resolvedHid; // local alias for clarity
-    const ch = await DB.get(hid ? KEYS.hhChores() : KEYS.chores());
+    if (!sd) {
+      const displayName = (window.__firebase_auth && window.__firebase_auth.currentUser && window.__firebase_auth.currentUser.displayName) || "";
+      const firstName = displayName.split(" ")[0] || "User";
+      const autoSettings = { ...DEFAULT_SETTINGS, name: firstName };
+      await DB.set(KEYS.settings(), autoSettings);
+      await DB.set(KEYS.setupDone(), true);
+      setSettings(autoSettings);
+      setSetupDone(true);
+    } else {
+      setSetupDone(true);
+      if (st) setSettings(st);
+    }
+    if (go) setGoals(go);
+    setStreak(sk || 0);
+    setTasks(ch || CHORE_SEED);
+    setAllSundays(as || []);
+
+    setTodayLog(td || null);
+    setTodayMealLog(ml || {});
+    setMacroTargets(mt || null);
 
     // Pantry: household path first; fall back to legacy personal path if empty
-    const pan = await DB.get(hid ? KEYS.hhPantry() : KEYS.pantry());
     if (pan && pan.length > 0) {
       setPantryItems(pan);
     } else if (!hid) {
-      // Solo mode only: check legacy root-level path (pre-auth migration)
       let migrated = false;
       if (window.__firebase_db && window.__current_uid) {
         try {
@@ -2445,59 +2473,32 @@ function App() {
       setPantryItems([]);
     }
 
-    // Joint reminders: shared when in household, personal otherwise
-    // Personal reminders always stay per-user
-    const rp = await DB.get(KEYS.reminders());
-    const rj = await DB.get(hid ? KEYS.hhJointReminders() : KEYS.jointReminders());
     setReminders(Array.isArray(rp) ? rp : []);
     setJointReminders(Array.isArray(rj) ? rj : []);
 
-    // ── Step 4: Remaining personal data ──
-    if (!sd) {
-      const displayName = (window.__firebase_auth && window.__firebase_auth.currentUser && window.__firebase_auth.currentUser.displayName) || "";
-      const firstName = displayName.split(" ")[0] || "User";
-      const autoSettings = { ...DEFAULT_SETTINGS, name: firstName };
-      await DB.set(KEYS.settings(), autoSettings);
-      await DB.set(KEYS.setupDone(), true);
-      setSettings(autoSettings);
-      setSetupDone(true);
-    } else {
-      setSetupDone(true);
-      if (st) setSettings(st);
-    }
-    if (go) setGoals(go);
-    setStreak(sk || 0);
-    setTasks(ch || CHORE_SEED);
-    setAllSundays(as || []);
+    // ── Step 4: Background Loading ──
+    setLoading(false);
 
-    // Load today's log
-    const td = await DB.get(KEYS.log(getToday()));
-    setTodayLog(td || null);
+    (async () => {
+      const historyPromises = [];
+      for (let i = 0; i < 90; i++) {
+        const d = addDays(getToday(), -i);
+        historyPromises.push(DB.get(KEYS.log(d)).then(l => l ? { date: d, ...l } : null));
+      }
+      const results = await Promise.all(historyPromises);
+      const validLogs = results.filter(Boolean);
+      setAllLogs(validLogs);
 
-    // Load last 90 days for Goals charts
-    const logs = [];
-    for (let i = 0; i < 90; i++) {
-      const d = addDays(getToday(), -i);
-      const l = await DB.get(KEYS.log(d));
-      if (l) logs.push({ date: d, ...l });
-    }
-    setAllLogs(logs);
-
-    // Load today's meal log + macro targets for Evening rating
-    const ml = await DB.get(KEYS.mealLog(getToday()));
-    setTodayMealLog(ml || {});
-    const mt = await DB.get(KEYS.macroTargets());
-    setMacroTargets(mt || null);
-
-    // Calculate streak
-    let s = 0;
-    for (let i = 0; i < 365; i++) {
-      const d = addDays(getToday(), -i);
-      const l = await DB.get(KEYS.log(d));
-      if (l?.morning || l?.evening) { s++; } else { break; }
-    }
-    setStreak(s);
-    await DB.set(KEYS.streak(), s);
+      let s = 0;
+      for (let i = 0; i < 365; i++) {
+        const d = addDays(getToday(), -i);
+        const l = (i < 90) ? results[i] : await DB.get(KEYS.log(d));
+        if (l?.morning || l?.evening) { s++; } else { break; }
+      }
+      setStreak(s);
+      await DB.set(KEYS.streak(), s);
+    })();
+  };
     setLoading(false);
   };
   const handleSaveGoals = async updated => {
