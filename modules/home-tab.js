@@ -852,6 +852,7 @@ function RemindersTab({ settings }) {
   // ── Build item ──
   const makeItem = (fields) => {
     const assignedTo = fields.assignedTo || newAssigned || "me";
+    // Default to "joint" (household-shared) for any non-"me" assignment OR explicit "both"
     const autoType = assignedTo === "me" ? "personal" : "joint";
     return {
       id: "r_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
@@ -866,6 +867,7 @@ function RemindersTab({ settings }) {
       category: fields.category || "personal",
       done: false, doneAt: null,
       createdAt: new Date().toISOString(),
+      createdBy: window.__current_uid || null, // UID of creator — used to flip "me"/"partner" perspective for other users
       googleTaskId: null
     };
   };
@@ -1042,8 +1044,25 @@ function RemindersTab({ settings }) {
   const dueTodayCount = allActive.filter(isDueToday).length;
   const hasGoogleToken = !!window.__google_access_token && (!window.__google_token_expiry || Date.now() < window.__google_token_expiry);
   const partnerName = window.__ml.getPartnerName(settings);
-  const mineItems  = sortItems(allActive.filter(r => !r.assignedTo || r.assignedTo === "me"));
-  const partnerItems = sortItems(allActive.filter(r => r.assignedTo === "partner"));
+
+  // "me"/"partner" are creator-relative. Flip them when viewing reminders created by someone else.
+  // For items without createdBy (legacy), fall back to literal assignedTo interpretation.
+  const myUid = window.__current_uid || null;
+  const isMine = r => {
+    const a = r.assignedTo || "me";
+    if (a === "both") return false;
+    if (!r.createdBy || r.createdBy === myUid) return a === "me";
+    return a === "partner"; // partner assigned it "to partner" → i.e. to me
+  };
+  const isForPartner = r => {
+    const a = r.assignedTo;
+    if (a === "both") return false;
+    if (!r.createdBy || r.createdBy === myUid) return a === "partner";
+    return a === "me"; // partner assigned it "to me" → i.e. to them
+  };
+
+  const mineItems  = sortItems(allActive.filter(isMine));
+  const partnerItems = sortItems(allActive.filter(isForPartner));
   const bothItems  = sortItems(allActive.filter(r => r.assignedTo === "both"));
   const displayItems = view === "mine" ? mineItems : view === "partner" ? partnerItems : view === "both" ? bothItems : doneAll;
   const isDoneView = view === "done";

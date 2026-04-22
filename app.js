@@ -2955,6 +2955,7 @@ function App() {
     allLogs: allLogs,
     reminders: reminders,
     jointReminders: jointReminders,
+    tasks: tasks,
     mealLog: todayMealLog,
     macroTargets: macroTargets,
     initialDate: editLogDate?.section === "evening" ? editLogDate.date : null,

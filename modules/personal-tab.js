@@ -1155,6 +1155,7 @@ function Evening({
   allLogs,
   reminders,
   jointReminders,
+  tasks,
   mealLog,
   macroTargets,
   initialDate,
@@ -1542,6 +1543,25 @@ function Evening({
           r.type === "joint" && /*#__PURE__*/React.createElement("span", {
             style: { fontSize: 10, background: "rgba(96,165,250,.15)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 4, padding: "1px 6px", color: "var(--color-accent-blue)", fontWeight: 700 }
           }, "JOINT")
+        ))
+      )
+    });
+  })(), (() => {
+    const today = getToday();
+    const tasksDoneToday = (tasks || []).filter(t => t.last === today);
+    if (!tasksDoneToday.length) return null;
+    return /*#__PURE__*/React.createElement(Card, {
+      ch: /*#__PURE__*/React.createElement(React.Fragment, null,
+        /*#__PURE__*/React.createElement(Lbl, { c: "Tasks Completed Today" }),
+        tasksDoneToday.map(t => /*#__PURE__*/React.createElement("div", {
+          key: t.id,
+          style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.05)", fontSize: 13, color: "var(--text-secondary)" }
+        },
+          /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-success)", fontSize: 12 } }, "\u2713"),
+          /*#__PURE__*/React.createElement("span", { style: { flex: 1 } }, t.name || t.title),
+          t.completedBy && /*#__PURE__*/React.createElement("span", {
+            style: { fontSize: 10, color: "var(--text-muted)" }
+          }, t.completedBy)
         ))
       )
     });

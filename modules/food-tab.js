@@ -2984,9 +2984,117 @@
   }
   
   // ─────────────────────────────────────────────────────────────────────────────
+  // PantryDeductionConfirm — modal shown after logging a meal to confirm
+  // which pantry items to deduct from. Supports picking one of multiple
+  // candidates and adjusting qty. User must confirm; never auto-deducts.
+  // ─────────────────────────────────────────────────────────────────────────────
+  function PantryDeductionConfirm({ mealName, candidates, onConfirm, onSkip }) {
+    // If only one candidate, pre-select it. If multiple, let user pick.
+    const [selectedId, setSelectedId] = useState(candidates.length === 1 ? candidates[0].id : null);
+    const [qty, setQty] = useState(candidates[0]?.qty || 1);
+
+    useEffect(() => {
+      if (selectedId) {
+        const c = candidates.find(x => x.id === selectedId);
+        if (c) setQty(c.qty || 1);
+      }
+    }, [selectedId]);
+
+    const selected = candidates.find(c => c.id === selectedId);
+
+    return /*#__PURE__*/React.createElement("div", {
+      style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 210, display: "flex", alignItems: "flex-end", justifyContent: "center" }
+    },
+      /*#__PURE__*/React.createElement("div", {
+        style: { background: "var(--bg)", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 520, maxHeight: "80vh", overflow: "auto", padding: "20px 18px env(safe-area-inset-bottom)" }
+      },
+        /*#__PURE__*/React.createElement("p", {
+          style: { fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, color: "var(--color-accent-orange)", letterSpacing: ".05em", textTransform: "uppercase", margin: "0 0 4px" }
+        }, "Deduct from pantry?"),
+        /*#__PURE__*/React.createElement("p", {
+          style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 14px", lineHeight: 1.5 }
+        }, "Based on \u201C", mealName, "\u201D, these pantry items may have been used. Confirm to deduct."),
+
+        candidates.length > 1 && /*#__PURE__*/React.createElement("p", {
+          style: { fontSize: 11, color: "var(--text-secondary)", fontWeight: 700, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: ".05em" }
+        }, "Pick one:"),
+
+        candidates.map(c => /*#__PURE__*/React.createElement("div", {
+          key: c.id,
+          onClick: () => setSelectedId(c.id),
+          style: {
+            padding: "12px 14px",
+            marginBottom: 8,
+            background: selectedId === c.id ? "rgba(244,168,35,.12)" : "rgba(255,255,255,.03)",
+            border: "1px solid " + (selectedId === c.id ? "rgba(244,168,35,.4)" : "rgba(255,255,255,.08)"),
+            borderRadius: 10,
+            cursor: "pointer"
+          }
+        },
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+            /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-primary)" } }, c.name),
+            /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, c.currentQty + " " + c.unit + " on hand")
+          ),
+          c.reason && /*#__PURE__*/React.createElement("p", {
+            style: { fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0", fontStyle: "italic" }
+          }, c.reason)
+        )),
+
+        selected && /*#__PURE__*/React.createElement("div", {
+          style: { marginTop: 14, display: "flex", alignItems: "center", gap: 10 }
+        },
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 } }, "Deduct:"),
+          /*#__PURE__*/React.createElement("button", {
+            onClick: () => setQty(Math.max(0.25, parseFloat((qty - 1).toFixed(2)))),
+            style: { width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.04)", color: "var(--text-primary)", fontSize: 16, cursor: "pointer" }
+          }, "−"),
+          /*#__PURE__*/React.createElement("input", {
+            type: "number",
+            value: qty,
+            onChange: e => setQty(parseFloat(e.target.value) || 0),
+            step: "0.5",
+            min: "0",
+            style: { width: 64, padding: "6px 8px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, textAlign: "center", outline: "none" }
+          }),
+          /*#__PURE__*/React.createElement("button", {
+            onClick: () => setQty(parseFloat((qty + 1).toFixed(2))),
+            style: { width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.04)", color: "var(--text-primary)", fontSize: 16, cursor: "pointer" }
+          }, "+"),
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, selected.unit)
+        ),
+
+        /*#__PURE__*/React.createElement("div", {
+          style: { display: "flex", gap: 10, marginTop: 18 }
+        },
+          /*#__PURE__*/React.createElement("button", {
+            onClick: onSkip,
+            style: { flex: 1, padding: "12px 0", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+          }, "Skip"),
+          /*#__PURE__*/React.createElement("button", {
+            onClick: () => selected && qty > 0 ? onConfirm([{ id: selected.id, qty }]) : onSkip(),
+            disabled: !selected || qty <= 0,
+            style: {
+              flex: 1.3,
+              padding: "12px 0",
+              background: !selected || qty <= 0 ? "rgba(255,255,255,.04)" : "rgba(244,168,35,.15)",
+              border: "1px solid " + (!selected || qty <= 0 ? "rgba(255,255,255,.08)" : "rgba(244,168,35,.4)"),
+              borderRadius: 10,
+              color: !selected || qty <= 0 ? "var(--text-muted)" : "var(--color-primary)",
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: !selected || qty <= 0 ? "not-allowed" : "pointer",
+              fontFamily: "'Syne',sans-serif"
+            }
+          }, selected ? "Deduct −" + qty + " " + selected.unit : "Select one")
+        )
+      )
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // APP ROOT
   // ─────────────────────────────────────────────────────────────────────────────
-  
+
   // FoodTab — integrates food module into Mission Log shell
   // mode: "health" → LOG only (daily macro tracking, lives in HEALTH section)
   //        "home"  → WEEK / LIBRARY / GROCERY (meal planning, lives in HOME section)
@@ -3013,6 +3121,7 @@
     const [mealLibrary, setMealLibrary] = useState([]); // [{ name, calories, protein, carbs, fat }]
     const [openSlot, setOpenSlot] = useState(null); // slot being logged
     const [deductionToast, setDeductionToast] = useState(""); // pantry deduction confirmation
+    const [pendingDeduction, setPendingDeduction] = useState(null); // { mealName, candidates: [{id, name, qty, unit, reason}] }
     const [generatingTargets, setGeneratingTargets] = useState(false);
     const [sabrinaPrompts, setSabrinaPrompts] = useState([]);
     const [activeSabrinaPrompt, setActiveSabrinaPrompt] = useState(null);
@@ -3146,16 +3255,60 @@
       await DB.set(KEYS.mealLog(logDate), updated);
     };
 
-    // Find the best-matching pantry item by name substring (longest match wins)
-    const findPantryMatch = (mealName, items) => {
-      if (!mealName || !items.length) return null;
-      const ml = mealName.toLowerCase();
-      const candidates = items.filter(p => {
-        const pn = (p.name || "").toLowerCase();
-        return pn.length >= 3 && ml.includes(pn);
-      });
-      if (!candidates.length) return null;
-      return candidates.sort((a, b) => b.name.length - a.name.length)[0];
+    // Ask Claude which pantry items a meal likely consumes (understands synonyms: "toast"→"bread", etc.)
+    const suggestPantryMatches = async (mealName, items) => {
+      if (!mealName || !items.length) return [];
+      const itemsList = items.filter(p => parseFloat(p.qty || 0) > 0).map(p =>
+        `- ${p.name} [${p.qty} ${p.unit || "unit"}] id:${p.id}`
+      ).join("\n");
+      if (!itemsList) return [];
+      try {
+        const res = await fetch("/api/claude", {
+          method: "POST",
+          body: JSON.stringify({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 400,
+            messages: [{
+              role: "user",
+              content: `User logged eating: "${mealName}"
+
+Pantry inventory (name [qty unit] id):
+${itemsList}
+
+Identify which pantry item(s) were likely consumed. Understand synonyms:
+- "toast" / "bread slice" → bread loaf
+- "sandwich" → bread + any matching protein/cheese in pantry
+- "coffee" → coffee beans/grounds
+- "cereal" → matching cereal box
+- "1 glass of milk" → milk
+
+Return ONLY valid JSON (no markdown):
+{"matches":[{"id":"<exact id>","qty":<number>,"reason":"brief why"}]}
+
+Rules:
+- qty defaults to 1 unless the meal explicitly states a count (e.g. "2 slices of toast" → qty 2)
+- Include at most 3 matches, only if you're confident
+- If nothing in pantry matches, return {"matches":[]}`
+            }]
+          })
+        });
+        const data = await res.json();
+        const reply = data.content?.[0]?.text || "{}";
+        let jsonStr = reply.trim();
+        const wrapped = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (wrapped) jsonStr = wrapped[1].trim();
+        const parsed = JSON.parse(jsonStr);
+        const raw = Array.isArray(parsed.matches) ? parsed.matches : [];
+        // Hydrate with full pantry item data
+        return raw.map(m => {
+          const item = items.find(p => p.id === m.id);
+          if (!item) return null;
+          return { id: item.id, name: item.name, qty: parseFloat(m.qty) || 1, unit: item.unit || "unit", currentQty: parseFloat(item.qty || 0), reason: m.reason || "" };
+        }).filter(Boolean);
+      } catch (e) {
+        console.warn("[FoodTab] AI pantry match failed:", e);
+        return [];
+      }
     };
 
     const handleSlotSave = async (slot, mealData) => {
@@ -3168,7 +3321,11 @@
       }
       await saveMealLog(updated);
 
-      // Deduct from inventory if meal is flagged as home-cooked (ingredient-level)
+      // Pantry deduction — two paths, NOT exclusive:
+      //   1) Ingredient-level (planned meal with `ing` + `fromInventory`) — silent auto-deduct
+      //   2) AI name-match (any meal name) — always runs; shows confirm modal for user approval
+      // If (1) consumes some ingredients, (2) still runs so anything (1) missed can be caught.
+      let ingredientDeductedIds = [];
       if (mealData.fromInventory && mealData.ing && mealData.ing.length > 0 && pantryItems.length > 0) {
         const deductions = computeDeductions({ ing: mealData.ing }, pantryItems);
         if (deductions.length > 0) {
@@ -3179,20 +3336,15 @@
           setPantryItems(deducted);
           const hhid = window.__current_household_id;
           await DB.set(hhid ? KEYS.hhPantry() : KEYS.pantry(), deducted);
+          ingredientDeductedIds = deductions.map(d => d.pantryItem.id);
         }
-      } else if (pantryItems.length > 0 && mealData.name) {
-        // Name-based deduction: match meal name against pantry item names
-        const match = findPantryMatch(mealData.name, pantryItems);
-        if (match && parseFloat(match.qty) > 0) {
-          const today = new Date().toISOString().split("T")[0];
-          const deducted = pantryItems.map(p =>
-            p.id === match.id ? { ...p, qty: Math.max(0, parseFloat(p.qty || 0) - 1), lastUpdated: today } : p
-          );
-          setPantryItems(deducted);
-          const hhid = window.__current_household_id;
-          await DB.set(hhid ? KEYS.hhPantry() : KEYS.pantry(), deducted);
-          setDeductionToast("−1 " + (match.unit || "unit") + " from pantry: " + match.name + " (" + Math.max(0, parseFloat(match.qty) - 1) + " left)");
-          setTimeout(() => setDeductionToast(""), 5000);
+      }
+      if (pantryItems.length > 0 && mealData.name) {
+        // Exclude items already deducted by the ingredient-level pass so we don't double-deduct
+        const remaining = pantryItems.filter(p => !ingredientDeductedIds.includes(p.id));
+        const candidates = await suggestPantryMatches(mealData.name, remaining);
+        if (candidates.length > 0) {
+          setPendingDeduction({ mealName: mealData.name, candidates });
         }
       }
 
@@ -3491,6 +3643,33 @@
       userName: isPartner ? partnerName : userName,
       onSave: meal => handleSlotSave(openSlot, meal),
       onClose: () => setOpenSlot(null)
+    }),
+
+    /* PantryDeductionConfirm modal */
+    pendingDeduction && /*#__PURE__*/React.createElement(PantryDeductionConfirm, {
+      mealName: pendingDeduction.mealName,
+      candidates: pendingDeduction.candidates,
+      onConfirm: async selected => {
+        // selected: [{ id, qty }]
+        if (!selected.length) { setPendingDeduction(null); return; }
+        const today = new Date().toISOString().split("T")[0];
+        const deducted = pantryItems.map(p => {
+          const sel = selected.find(s => s.id === p.id);
+          if (!sel) return p;
+          return { ...p, qty: Math.max(0, parseFloat(p.qty || 0) - parseFloat(sel.qty || 0)), lastUpdated: today };
+        });
+        setPantryItems(deducted);
+        const hhid = window.__current_household_id;
+        await DB.set(hhid ? KEYS.hhPantry() : KEYS.pantry(), deducted);
+        const names = selected.map(s => {
+          const item = deducted.find(p => p.id === s.id);
+          return "−" + s.qty + " " + (item?.unit || "unit") + " " + item?.name;
+        }).join(" · ");
+        setDeductionToast(names);
+        setTimeout(() => setDeductionToast(""), 5000);
+        setPendingDeduction(null);
+      },
+      onSkip: () => setPendingDeduction(null)
     }));
   }
 
