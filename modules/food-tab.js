@@ -3321,7 +3321,11 @@ Rules:
       }
       await saveMealLog(updated);
 
-      // Deduct from inventory if meal is flagged as home-cooked (ingredient-level)
+      // Pantry deduction — two paths, NOT exclusive:
+      //   1) Ingredient-level (planned meal with `ing` + `fromInventory`) — silent auto-deduct
+      //   2) AI name-match (any meal name) — always runs; shows confirm modal for user approval
+      // If (1) consumes some ingredients, (2) still runs so anything (1) missed can be caught.
+      let ingredientDeductedIds = [];
       if (mealData.fromInventory && mealData.ing && mealData.ing.length > 0 && pantryItems.length > 0) {
         const deductions = computeDeductions({ ing: mealData.ing }, pantryItems);
         if (deductions.length > 0) {
@@ -3332,10 +3336,13 @@ Rules:
           setPantryItems(deducted);
           const hhid = window.__current_household_id;
           await DB.set(hhid ? KEYS.hhPantry() : KEYS.pantry(), deducted);
+          ingredientDeductedIds = deductions.map(d => d.pantryItem.id);
         }
-      } else if (pantryItems.length > 0 && mealData.name) {
-        // AI-based deduction: ask Claude which pantry items map to this meal, then show confirmation
-        const candidates = await suggestPantryMatches(mealData.name, pantryItems);
+      }
+      if (pantryItems.length > 0 && mealData.name) {
+        // Exclude items already deducted by the ingredient-level pass so we don't double-deduct
+        const remaining = pantryItems.filter(p => !ingredientDeductedIds.includes(p.id));
+        const candidates = await suggestPantryMatches(mealData.name, remaining);
         if (candidates.length > 0) {
           setPendingDeduction({ mealName: mealData.name, candidates });
         }
