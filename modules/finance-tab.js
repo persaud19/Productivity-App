@@ -256,7 +256,7 @@ function FinanceTab({ settings, householdId }) {
   const [rulePrompt, setRulePrompt] = useState(null); // {txn, suggestedName, envelopeId, subCat}
   const [ruleForm, setRuleForm] = useState({ keyword: "", displayName: "", envelopeId: "food_drink", subCat: "" });
   const [vaguePrompt, setVaguePrompt] = useState(null); // {txn, suggestions: [{label, envelopeId, subCat}]}
-  const [editTxnForm, setEditTxnForm] = useState({ envelopeId: "other", subCat: "" });
+  const [editTxnForm, setEditTxnForm] = useState({ envelopeId: "other", subCat: "", desc: "" });
   const [txnReceiptData, setTxnReceiptData] = useState(null); // receipt linked to editingTxn
   const [editingIncome, setEditingIncome] = useState(null);
   const [editIncomeForm, setEditIncomeForm] = useState({ source: "", amount: "", date: "", type: "other" });
@@ -965,18 +965,19 @@ Return exactly ${bRows.length} objects. No markdown.`;
     setView(incItems.length && !expenses.length ? "income" : "transactions");
   };
 
-  const handleEditTxn = async (txn, newEnvelopeId, newSubCat) => {
+  const handleEditTxn = async (txn, newEnvelopeId, newSubCat, newDesc) => {
     const subCatVal = newSubCat !== undefined ? newSubCat : (txn.subCat || "");
+    const descVal = newDesc !== undefined && newDesc.trim() ? newDesc.trim() : (txn.desc || "");
     const txnMonth = txn.month || txn.date?.slice(0, 7) || currentMonth;
     if (txnMonth === currentMonth) {
       // In-memory update for current month
-      const updated = transactions.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId, subCat: subCatVal } : t);
+      const updated = transactions.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId, subCat: subCatVal, desc: descVal } : t);
       setTransactions(updated);
       await DB.set(FK.transactions(currentMonth), updated);
     } else {
       // Transaction belongs to a different month — load that month from Firebase
       const existing = await DB.get(FK.transactions(txnMonth)) || [];
-      const updated = existing.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId, subCat: subCatVal } : t);
+      const updated = existing.map(t => t.id === txn.id ? { ...t, envelopeId: newEnvelopeId, subCat: subCatVal, desc: descVal } : t);
       await DB.set(FK.transactions(txnMonth), updated);
     }
     setEditingTxn(null);
@@ -1648,7 +1649,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
                     /*#__PURE__*/React.createElement("div", {
                       key: t.id || i,
                       style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0 5px 8px", borderBottom: "1px solid rgba(255,255,255,.03)", cursor: "pointer" },
-                      onClick: e => { e.stopPropagation(); setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }
+                      onClick: e => { e.stopPropagation(); setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "", desc: t.desc || "" }); }
                     },
                       /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                         /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-primary)", margin: "0 0 1px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc || t.category),
@@ -1669,7 +1670,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
                       /*#__PURE__*/React.createElement("div", {
                         key: t.id || i,
                         style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0 5px 8px", borderBottom: "1px solid rgba(255,255,255,.03)", cursor: "pointer" },
-                        onClick: e => { e.stopPropagation(); setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }
+                        onClick: e => { e.stopPropagation(); setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "", desc: t.desc || "" }); }
                       },
                         /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                           /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--color-success)", margin: "0 0 1px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc || t.category),
@@ -1784,7 +1785,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
                     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 4 } },
                       t.receiptId && /*#__PURE__*/React.createElement("span", { title: "Receipt attached", style: { fontSize: 9, color: "var(--color-accent-purple)", background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 4, padding: "2px 5px" } }, "\uD83E\uDDFE"),
                       t.needsReview && /*#__PURE__*/React.createElement("span", { title: "Flagged for review", style: { fontSize: 9, color: "var(--color-primary)", background: "rgba(244,168,35,.12)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 4, padding: "2px 5px" } }, "\uD83D\uDEA9 Review"),
-                      /*#__PURE__*/React.createElement("button", { onClick: () => { setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }, style: { fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" } }, "edit")
+                      /*#__PURE__*/React.createElement("button", { onClick: () => { setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "", desc: t.desc || "" }); }, style: { fontSize: 9, color: "var(--text-muted)", background: "rgba(255,255,255,.06)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" } }, "edit")
                     )
                   )
                 );
@@ -2259,8 +2260,11 @@ Return exactly ${bRows.length} objects. No markdown.`;
     editingTxn && /*#__PURE__*/React.createElement(React.Fragment, null,
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setEditingTxn(null) }),
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 400, background: "var(--bg-modal)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: 20, zIndex: 201 } },
-        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "var(--color-accent-teal)", margin: "0 0 4px" } }, "EDIT TRANSACTION"),
-        /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, editingTxn.desc),
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "var(--color-accent-teal)", margin: "0 0 12px" } }, "EDIT TRANSACTION"),
+        /*#__PURE__*/React.createElement("div", { style: { marginBottom: 12 } },
+          /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "NAME"),
+          /*#__PURE__*/React.createElement("input", { value: editTxnForm.desc, onChange: e => setEditTxnForm(f => ({ ...f, desc: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans',sans-serif" } })
+        ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 12 } },
           /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "DATE"),
@@ -2289,7 +2293,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
         ),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 16 } },
           /*#__PURE__*/React.createElement("button", {
-            onClick: () => handleEditTxn(editingTxn, editTxnForm.envelopeId, editTxnForm.subCat),
+            onClick: () => handleEditTxn(editingTxn, editTxnForm.envelopeId, editTxnForm.subCat, editTxnForm.desc),
             style: { flex: 1, padding: "12px 0", background: "var(--color-accent-teal)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
           }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setEditingTxn(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
