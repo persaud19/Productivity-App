@@ -225,7 +225,7 @@ function FinanceTab({ settings, householdId }) {
   const [importMsg, setImportMsg] = useState("");
   const [editingEnvelope, setEditingEnvelope] = useState(null);
   const [drillEnvelope, setDrillEnvelope] = useState(null); // envelope id being drilled into
-  const [txnFilter, setTxnFilter] = useState({ card: "", envelopeId: "", sort: "date_desc" });
+  const [txnFilter, setTxnFilter] = useState({ card: "", envelopeId: "", sort: "date_desc", refundOnly: false });
   const [scanning, setScanning] = useState(false);
   const [scanResults, setScanResults] = useState(null);
   const [showAddTxn, setShowAddTxn] = useState(false);
@@ -1611,7 +1611,18 @@ Return exactly ${bRows.length} objects. No markdown.`;
           drillEnvelope === env.id && /*#__PURE__*/React.createElement("div", { style: { marginTop: 10, borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: 10 } },
             (() => {
               const envTxns = [...transactions].filter(t => t.envelopeId === env.id && !t.isRefund).sort((a,b) => b.date.localeCompare(a.date));
-              if (envTxns.length === 0) return /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, "No transactions yet");
+              const envRefunds = [...transactions].filter(t => t.envelopeId === env.id && t.isRefund).sort((a,b) => b.date.localeCompare(a.date));
+              const grossSpent = envTxns.reduce((s, t) => s + (t.amount || 0), 0);
+              const totalRefunded = envRefunds.reduce((s, t) => s + (t.amount || 0), 0);
+              const netSpent = grossSpent - totalRefunded;
+              if (envTxns.length === 0 && envRefunds.length === 0) return /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, "No transactions yet");
+              // Net vs gross summary line (only show if there are refunds)
+              const netSummary = totalRefunded > 0
+                ? /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, padding: "6px 10px", background: "rgba(74,222,128,.07)", border: "1px solid rgba(74,222,128,.18)", borderRadius: 8 } },
+                    /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "Gross " + fmt(grossSpent) + "  ·  Refunds +" + fmt(totalRefunded)),
+                    /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--color-success)" } }, "Net " + fmt(netSpent))
+                  )
+                : null;
               // Group by subCat
               const groups = {};
               envTxns.forEach(t => {
@@ -1625,16 +1636,14 @@ Return exactly ${bRows.length} objects. No markdown.`;
                 if (b === "Uncategorized") return -1;
                 return a.localeCompare(b);
               });
-              return sortedKeys.map(subKey =>
+              const expenseRows = sortedKeys.map(subKey =>
                 /*#__PURE__*/React.createElement("div", { key: subKey, style: { marginBottom: 8 } },
-                  // Sub-cat header
                   /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0 5px", marginBottom: 2 } },
                     /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, fontWeight: 800, color: env.color, letterSpacing: ".07em", fontFamily: "'Syne',sans-serif", textTransform: "uppercase" } }, subKey),
                     /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, fontWeight: 700, color: env.color } },
                       fmt(groups[subKey].reduce((s, t) => s + (t.amount || 0), 0))
                     )
                   ),
-                  // Transactions in this sub-cat
                   groups[subKey].map((t, i) =>
                     /*#__PURE__*/React.createElement("div", {
                       key: t.id || i,
@@ -1650,6 +1659,28 @@ Return exactly ${bRows.length} objects. No markdown.`;
                   )
                 )
               );
+              const refundRows = envRefunds.length > 0
+                ? /*#__PURE__*/React.createElement("div", { key: "__refunds__", style: { marginTop: envTxns.length ? 8 : 0 } },
+                    /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0 5px", marginBottom: 2 } },
+                      /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, fontWeight: 800, color: "var(--color-success)", letterSpacing: ".07em", fontFamily: "'Syne',sans-serif", textTransform: "uppercase" } }, "Refunds"),
+                      /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, fontWeight: 700, color: "var(--color-success)" } }, "+" + fmt(totalRefunded))
+                    ),
+                    envRefunds.map((t, i) =>
+                      /*#__PURE__*/React.createElement("div", {
+                        key: t.id || i,
+                        style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0 5px 8px", borderBottom: "1px solid rgba(255,255,255,.03)", cursor: "pointer" },
+                        onClick: e => { e.stopPropagation(); setEditingTxn(t); setEditTxnForm({ envelopeId: t.envelopeId || "other", subCat: t.subCat || "" }); }
+                      },
+                        /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                          /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--color-success)", margin: "0 0 1px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, t.desc || t.category),
+                          /*#__PURE__*/React.createElement("p", { style: { fontSize: 9, color: "var(--text-muted)", margin: 0 } }, t.date + " \xB7 " + t.card)
+                        ),
+                        /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--color-success)", flexShrink: 0, paddingLeft: 8 } }, "+" + fmt(t.amount))
+                      )
+                    )
+                  )
+                : null;
+              return /*#__PURE__*/React.createElement(React.Fragment, null, netSummary, ...expenseRows, refundRows);
             })()
           )
         );
@@ -1704,13 +1735,23 @@ Return exactly ${bRows.length} objects. No markdown.`;
                 /*#__PURE__*/React.createElement("option", { value: "alpha_desc" }, "Z \u2192 A"),
                 /*#__PURE__*/React.createElement("option", { value: "amount_desc" }, "Amount \u2193 Highest"),
                 /*#__PURE__*/React.createElement("option", { value: "amount_asc" }, "Amount \u2191 Lowest")
-              )
+              ),
+              (() => {
+                const refundCount = transactions.filter(t => t.isRefund).length;
+                if (!refundCount) return null;
+                return /*#__PURE__*/React.createElement("button", {
+                  onClick: () => setTxnFilter(f => ({ ...f, refundOnly: !f.refundOnly })),
+                  style: { padding: "6px 10px", borderRadius: 7, border: txnFilter.refundOnly ? "1px solid rgba(74,222,128,.5)" : "1px solid rgba(255,255,255,.1)", background: txnFilter.refundOnly ? "rgba(74,222,128,.15)" : "rgba(255,255,255,.06)", color: txnFilter.refundOnly ? "var(--color-success)" : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }
+                }, "+ Refunds (" + refundCount + ")");
+              })()
             ),
             // ── Count + import ──
             /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 } },
               /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, (() => {
-                const filtered = transactions.filter(t => (!txnFilter.card || t.card === txnFilter.card) && (!txnFilter.envelopeId || t.envelopeId === txnFilter.envelopeId));
-                return filtered.length + " transaction" + (filtered.length !== 1 ? "s" : "") + (txnFilter.card || txnFilter.envelopeId ? " (filtered)" : " \xB7 " + transactions.filter(t=>t.isRefund).length + " refunds");
+                const filtered = transactions.filter(t => (!txnFilter.card || t.card === txnFilter.card) && (!txnFilter.envelopeId || t.envelopeId === txnFilter.envelopeId) && (!txnFilter.refundOnly || t.isRefund));
+                const refundCount = transactions.filter(t => t.isRefund).length;
+                const refundTotal = transactions.filter(t => t.isRefund).reduce((a,t) => a + t.amount, 0);
+                return filtered.length + " transaction" + (filtered.length !== 1 ? "s" : "") + (txnFilter.refundOnly ? " · +" + fmt(refundTotal) + " back" : (txnFilter.card || txnFilter.envelopeId ? " (filtered)" : refundCount ? " · " + refundCount + " refund" + (refundCount !== 1 ? "s" : "") : ""));
               })()),
               /*#__PURE__*/React.createElement("button", { onClick: () => setView("import"), style: { background: "rgba(167,139,250,.12)", border: "1px solid rgba(167,139,250,.25)", borderRadius: 6, padding: "4px 10px", color: "var(--color-accent-purple)", fontSize: 10, fontWeight: 700, cursor: "pointer" } }, "\u2B06 Import more")
             ),
@@ -1725,7 +1766,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
                 amount_asc: (a,b) => a.amount - b.amount,
               };
               const visible = [...transactions]
-                .filter(t => (!txnFilter.card || t.card === txnFilter.card) && (!txnFilter.envelopeId || t.envelopeId === txnFilter.envelopeId))
+                .filter(t => (!txnFilter.card || t.card === txnFilter.card) && (!txnFilter.envelopeId || t.envelopeId === txnFilter.envelopeId) && (!txnFilter.refundOnly || t.isRefund))
                 .sort(sortFns[txnFilter.sort] || sortFns.date_desc);
               return visible.map((t, i) => {
                 const env = envelopeCatalog.find(e => e.id === t.envelopeId);
