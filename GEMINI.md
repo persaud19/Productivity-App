@@ -2,7 +2,7 @@
 
 ## What This App Is
 Corevado is a mobile-first personal life OS for Ryan Persaud and Sabrina. It tracks daily logs, workouts, meals, household chores, pantry inventory, goals, and weekly reviews.
-- **Live URL:** https://dailyappproductivity.netlify.app
+- **Live URL:** https://corevado.netlify.app
 - **GitHub:** https://github.com/persaud19/Productivity-App
 
 ## Tech Stack

@@ -8,7 +8,7 @@
 - **Realtime Database** — all app data
   URL: https://mission-log-aef65-default-rtdb.firebaseio.com
 - **Authentication** — Google Sign-In
-  Authorised domains: localhost, mission-log-aef65.firebaseapp.com, dailyappproductivity.netlify.app
+  Authorised domains: localhost, mission-log-aef65.firebaseapp.com, corevado.netlify.app
 
 ## Database Structure
 ```

@@ -1,7 +1,7 @@
 # Corevado — Roadmap
 
 ## Status: Live
-URL: https://dailyappproductivity.netlify.app
+URL: https://corevado.netlify.app
 Both Ryan and Sabrina can sign in with their own Google accounts.
 
 ---
