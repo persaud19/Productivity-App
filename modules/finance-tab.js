@@ -235,11 +235,16 @@ function FinanceTab({ settings, householdId }) {
   const [showAddIncome, setShowAddIncome] = useState(false);
   const [addIncomeForm, setAddIncomeForm] = useState({ date: getToday(), amount: "", source: "Salary", type: "salary" });
   const [importMode, setImportMode] = useState("credit_card"); // "credit_card" | "bank_statement"
+  const [selectedCard, setSelectedCard] = useState("Amex");
   const [cardParsing, setCardParsing] = useState(false);
   const [cardResults, setCardResults] = useState(null);
   const [flaggedScanIds, setFlaggedScanIds] = useState(new Set());
   const [flaggedCardIds, setFlaggedCardIds] = useState(new Set());
   const [deduping, setDeduping] = useState(false);
+  const [remapping, setRemapping] = useState(false);
+  const [cardRemapSelections, setCardRemapSelections] = useState({}); // { "Amex Feb 13 - April 5th": "Amex" }
+  const [showCardRemap, setShowCardRemap] = useState(false);
+  const [dirtyCards, setDirtyCards] = useState([]); // unique card values currently in DB
   const [merchantRules, setMerchantRules] = useState(MERCHANT_RULES_SEED);
   const [showRulesTable, setShowRulesTable] = useState(false);
   const [runningRules, setRunningRules] = useState(false);
@@ -821,7 +826,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
       } else {
         const expenses = rawRows.map((r, i) => {
           const cat = catMap[i] || {};
-          return { date: r.date, amount: r.amount, desc: r.rawDesc, isRefund: r.isRefund, month: r.date.slice(0, 7), id: txnId("cc", r.date, r.amount, r.rawDesc), card: srcLabel, category: srcLabel, envelopeId: cat.envelopeId || "other", subCat: cat.subCat || "", highlevel: "" };
+          return { date: r.date, amount: r.amount, desc: r.rawDesc, isRefund: r.isRefund, month: r.date.slice(0, 7), id: txnId("cc", r.date, r.amount, r.rawDesc), card: selectedCard, category: selectedCard, envelopeId: cat.envelopeId || "other", subCat: cat.subCat || "", highlevel: "" };
         });
         if (!expenses.length) { setImportMsg("No transactions found in file."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
         setCardResults({ mode: "credit_card", expenses, income: [], label: srcLabel });
@@ -869,6 +874,55 @@ Return exactly ${bRows.length} objects. No markdown.`;
       setImportMsg("Dedup failed: " + err.message);
     }
     setDeduping(false);
+  };
+
+  const loadDirtyCards = async () => {
+    const months = await DB.get(FK.allMonths()) || [];
+    const seen = new Set();
+    for (const m of months) {
+      const txns = await DB.get(FK.transactions(m)) || [];
+      txns.forEach(t => { if (t.card) seen.add(t.card); });
+    }
+    const clean = ["Amex", "TD Visa", "CIBC", "PC Financial", "Bank", "Other"];
+    const dirty = [...seen].filter(c => !clean.includes(c)).sort();
+    setDirtyCards(dirty);
+    const defaults = {};
+    dirty.forEach(d => {
+      const dl = d.toLowerCase();
+      if (dl.includes("amex") || dl.includes("cobalt")) defaults[d] = "Amex";
+      else if (dl.includes("td") || dl.includes("aeroplan")) defaults[d] = "TD Visa";
+      else if (dl.includes("cibc")) defaults[d] = "CIBC";
+      else if (dl.includes("pc") || dl.includes("president")) defaults[d] = "PC Financial";
+      else if (dl.includes("bank") || dl.includes("chequing") || dl.includes("savings")) defaults[d] = "Bank";
+      else defaults[d] = "Other";
+    });
+    setCardRemapSelections(defaults);
+    setShowCardRemap(true);
+  };
+
+  const applyCardRemap = async () => {
+    setRemapping(true);
+    try {
+      const months = await DB.get(FK.allMonths()) || [];
+      let total = 0;
+      for (const m of months) {
+        const txns = await DB.get(FK.transactions(m)) || [];
+        let changed = false;
+        const updated = txns.map(t => {
+          const mapped = cardRemapSelections[t.card];
+          if (mapped && mapped !== t.card) { changed = true; total++; return { ...t, card: mapped, category: mapped }; }
+          return t;
+        });
+        if (changed) await DB.set(FK.transactions(m), updated);
+      }
+      setImportMsg(`Remapped ${total} transaction${total !== 1 ? "s" : ""} — card filter is now clean.`);
+      setShowCardRemap(false);
+      setDirtyCards([]);
+      await loadMonth(currentMonth);
+    } catch(err) {
+      setImportMsg("Remap failed: " + err.message);
+    }
+    setRemapping(false);
   };
 
   const confirmCardResults = async () => {
@@ -1937,7 +1991,27 @@ Return exactly ${bRows.length} objects. No markdown.`;
         "credit card payments (already captured in CC import)"
       ),
 
-      // ── Upload button ──
+        // ── Card picker (CC mode only) ──
+      !cardResults && importMode === "credit_card" && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 14 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", margin: "0 0 8px" } }, "Which card is this statement for?"),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
+          ["Amex", "TD Visa", "CIBC", "PC Financial", "Other"].map(c =>
+            /*#__PURE__*/React.createElement("button", {
+              key: c,
+              onClick: () => setSelectedCard(c),
+              style: {
+                padding: "7px 14px", borderRadius: 8,
+                border: selectedCard === c ? "1px solid var(--color-accent-blue)" : "1px solid rgba(255,255,255,.1)",
+                background: selectedCard === c ? "rgba(96,165,250,.15)" : "rgba(255,255,255,.03)",
+                color: selectedCard === c ? "var(--color-accent-blue)" : "var(--text-secondary)",
+                fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif"
+              }
+            }, c)
+          )
+        )
+      ),
+
+    // ── Upload button ──
       !cardResults && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 16 } },
         /*#__PURE__*/React.createElement("input", { ref: cardFileRef, type: "file", accept: ".csv,.txt,.xlsx,.xls", style: { display: "none" }, onChange: handleCardCSV }),
         /*#__PURE__*/React.createElement("button", {
@@ -2035,6 +2109,46 @@ Return exactly ${bRows.length} objects. No markdown.`;
           /*#__PURE__*/React.createElement("button", { onClick: confirmScan, style: { flex: 1, padding: "10px 0", background: "var(--color-success)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, flaggedScanIds.size ? "Import All (" + flaggedScanIds.size + " flagged)" : "Import All"),
           /*#__PURE__*/React.createElement("button", { onClick: () => { setScanResults(null); setFlaggedScanIds(new Set()); }, style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Discard")
         )
+      ),
+
+      // ── Card remap tool ──
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(96,165,250,.05)", border: "1px solid rgba(96,165,250,.15)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 } },
+        /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "var(--color-accent-blue)", letterSpacing: ".06em", margin: "0 0 4px" } }, "FIX CARD NAMES"),
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 10px", lineHeight: 1.5 } }, "Maps old messy card values (e.g. \"Amex Feb 13 - April 5th\") to clean names so the card filter dropdown stays tidy."),
+        !showCardRemap
+          ? /*#__PURE__*/React.createElement("button", {
+              onClick: loadDirtyCards,
+              style: { padding: "9px 18px", background: "rgba(96,165,250,.2)", border: "1px solid rgba(96,165,250,.3)", borderRadius: 9, color: "var(--color-accent-blue)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+            }, "🔍 Scan for Messy Card Names")
+          : dirtyCards.length === 0
+            ? /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--color-success)", fontWeight: 600 } }, "✓ All card names are already clean!")
+            : /*#__PURE__*/React.createElement("div", null,
+                dirtyCards.map(d =>
+                  /*#__PURE__*/React.createElement("div", { key: d, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } },
+                    /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, d),
+                    /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 11 } }, "→"),
+                    /*#__PURE__*/React.createElement("select", {
+                      value: cardRemapSelections[d] || "Other",
+                      onChange: e => setCardRemapSelections(prev => ({ ...prev, [d]: e.target.value })),
+                      style: { background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 6, padding: "4px 6px", color: "var(--text-primary)", fontSize: 11, outline: "none", colorScheme: "dark", flexShrink: 0 }
+                    },
+                      ["Amex", "TD Visa", "CIBC", "PC Financial", "Bank", "Other"].map(c =>
+                        /*#__PURE__*/React.createElement("option", { key: c, value: c }, c)
+                      )
+                    )
+                  )
+                ),
+                /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 10 } },
+                  /*#__PURE__*/React.createElement("button", {
+                    onClick: applyCardRemap, disabled: remapping,
+                    style: { flex: 1, padding: "9px 0", background: "var(--color-accent-blue)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 12, fontWeight: 800, cursor: remapping ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif", opacity: remapping ? .6 : 1 }
+                  }, remapping ? "Remapping…" : "Apply Remap"),
+                  /*#__PURE__*/React.createElement("button", {
+                    onClick: () => setShowCardRemap(false),
+                    style: { padding: "9px 14px", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 12, cursor: "pointer" }
+                  }, "Cancel")
+                )
+              )
       ),
 
       // ── Dedup tool ──
