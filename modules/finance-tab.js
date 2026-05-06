@@ -379,7 +379,7 @@ Return ONLY a JSON array, no markdown:
 [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","card":"Amex","envelopeId":"food_drink","subCat":"Grocery"}]
 - date: use full YYYY-MM-DD format. If the statement only shows month/day without year, use ${currentYear} as the year.
 - amount: positive number
-- card: Amex, TD Visa, CIBC, PC Financial, or Unknown
+- card: Amex, TD Visa, CIBC, Costco MC, Banking, or Unknown
 - envelopeId: best match from — ${envelopeList}
 - subCat: short sub-category (e.g. Grocery, Coffee, Gas) or ""` }
         ]}] })
@@ -883,7 +883,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
       const txns = await DB.get(FK.transactions(m)) || [];
       txns.forEach(t => { if (t.card) seen.add(t.card); });
     }
-    const clean = ["Amex", "TD Visa", "CIBC", "PC Financial", "Bank", "Other"];
+    const clean = ["Amex", "TD Visa", "CIBC", "Costco MC", "Banking", "Other"];
     const dirty = [...seen].filter(c => !clean.includes(c)).sort();
     setDirtyCards(dirty);
     const defaults = {};
@@ -892,8 +892,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
       if (dl.includes("amex") || dl.includes("cobalt")) defaults[d] = "Amex";
       else if (dl.includes("td") || dl.includes("aeroplan")) defaults[d] = "TD Visa";
       else if (dl.includes("cibc")) defaults[d] = "CIBC";
-      else if (dl.includes("pc") || dl.includes("president")) defaults[d] = "PC Financial";
-      else if (dl.includes("bank") || dl.includes("chequing") || dl.includes("savings")) defaults[d] = "Bank";
+      else if (dl.includes("costco")) defaults[d] = "Costco MC";
+      else if (dl.includes("bank") || dl.includes("chequing") || dl.includes("savings")) defaults[d] = "Banking";
       else defaults[d] = "Other";
     });
     setCardRemapSelections(defaults);
@@ -1995,7 +1995,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
       !cardResults && importMode === "credit_card" && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 14 } },
         /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", margin: "0 0 8px" } }, "Which card is this statement for?"),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
-          ["Amex", "TD Visa", "CIBC", "PC Financial", "Other"].map(c =>
+          ["Amex", "TD Visa", "CIBC", "Costco MC", "Banking", "Other"].map(c =>
             /*#__PURE__*/React.createElement("button", {
               key: c,
               onClick: () => setSelectedCard(c),
@@ -2132,7 +2132,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
                       onChange: e => setCardRemapSelections(prev => ({ ...prev, [d]: e.target.value })),
                       style: { background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 6, padding: "4px 6px", color: "var(--text-primary)", fontSize: 11, outline: "none", colorScheme: "dark", flexShrink: 0 }
                     },
-                      ["Amex", "TD Visa", "CIBC", "PC Financial", "Bank", "Other"].map(c =>
+                      ["Amex", "TD Visa", "CIBC", "Costco MC", "Banking", "Other"].map(c =>
                         /*#__PURE__*/React.createElement("option", { key: c, value: c }, c)
                       )
                     )
@@ -2191,7 +2191,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
             /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
               /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CARD"),
               /*#__PURE__*/React.createElement("select", { value: addTxnForm.card, onChange: e => setAddTxnForm(f => ({ ...f, card: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none", colorScheme: "dark" } },
-                ["Amex", "TD Visa", "CIBC", "PC Financial", "Cash", "Other"].map(c => /*#__PURE__*/React.createElement("option", { key: c, value: c }, c))
+                ["Amex", "TD Visa", "CIBC", "Costco MC", "Banking", "Cash", "Other"].map(c => /*#__PURE__*/React.createElement("option", { key: c, value: c }, c))
               )
             ),
             /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
