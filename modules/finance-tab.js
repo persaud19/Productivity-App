@@ -554,14 +554,14 @@ Return ONLY a JSON array, no markdown:
 
   // Detect TD CSV format: no header, date is MM/DD/YYYY, no masked card number in last col
   const isTdFormat = (text) => {
-    const firstLine = text.split(/\r?\n/).find(l => l.trim());
-    if (!firstLine) return false;
-    return /^\d{2}\/\d{2}\/\d{4},/.test(firstLine.trim());
+    // Strip UTF-8 BOM and check first two non-empty lines (handles files with or without a header row)
+    const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter(l => l.trim());
+    return lines.slice(0, 2).some(l => /^\d{1,2}\/\d{1,2}\/\d{4},/.test(l.trim()));
   };
 
   // Normalise TD CSV to standard Date,Description,Amount CSV for Claude
   const parseTdCsv = (text) => {
-    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter(l => l.trim());
     const csvRows = [["Date", "Description", "Amount"]];
     for (const line of lines) {
       const cols = [];
@@ -573,15 +573,16 @@ Return ONLY a JSON array, no markdown:
       }
       cols.push(cur);
       if (cols.length < 3) continue;
-      const rawDate = cols[0].trim();
+      const rawDate = cols[0].trim().replace(/^"|"$/g, "");
+      // Skip header rows — any line where the first column isn't a date
+      if (!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(rawDate)) continue;
       const desc    = cols[1].trim().replace(/^"|"$/g, "");
       const debit   = parseFloat(cols[2]) || 0;
       const credit  = parseFloat(cols[3] || "") || 0;
       // Convert MM/DD/YYYY → YYYY-MM-DD
       const dp = rawDate.split("/");
-      if (dp.length !== 3) continue;
       const date = `${dp[2]}-${dp[0].padStart(2,"0")}-${dp[1].padStart(2,"0")}`;
-      // Skip inter-card payments (e.g. "CIBC", "PAYMENT", plain bank/card names)
+      // Skip inter-card payments
       if (/^(payment|cibc|amex|td|visa payment|mastercard payment|e-transfer)$/i.test(desc.trim())) continue;
       if (debit > 0)  csvRows.push([date, desc, debit]);
       else if (credit > 0) csvRows.push([date, "REFUND: " + desc, credit]);
@@ -686,7 +687,7 @@ Return ONLY a JSON array, no markdown:
           return;
         }
       } else {
-        text = await file.text();
+        text = (await file.text()).replace(/^﻿/, ""); // strip UTF-8 BOM if present
         // Auto-detect and normalise known CC formats before sending to Claude
         if (isCibcFormat(text)) {
           text = parseCibcCsv(text);
@@ -716,7 +717,7 @@ Return ONLY a JSON array, no markdown:
       }
       // Parse our normalised CSV into raw rows — IDs will be built from these, not from Claude output
       const rawRows = parseNormCsvRows(text).slice(0, 300);
-      if (!rawRows.length) { setImportMsg("Could not parse any transactions from the file — check the format."); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
+      if (!rawRows.length) { setImportMsg("No transactions found in file. If this is a TD or CIBC statement, make sure you downloaded the CSV export (not a PDF). File: " + file.name); setCardParsing(false); if (cardFileRef.current) cardFileRef.current.value = ""; return; }
 
       const envelopeList = envelopeCatalog.map(env => `  ${env.id}: ${env.name}`).join("\n");
 
