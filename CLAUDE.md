@@ -1,7 +1,7 @@
-# Mission Log — Claude Code Context
+# Corevado — Claude Code Context
 
 ## What This App Is
-Mission Log is a mobile-first personal life OS for Ryan Persaud and Sabrina (his wife).
+Corevado is a mobile-first personal life OS for Ryan Persaud and Sabrina (his wife).
 It tracks daily logs, workouts, meals, household chores, pantry inventory, goals, and weekly reviews.
 Live at: https://dailyappproductivity.netlify.app
 GitHub: https://github.com/persaud19/Productivity-App (user: persaud19)

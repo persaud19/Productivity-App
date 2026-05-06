@@ -86,7 +86,7 @@ function AuthGate({
       margin: "0 0 4px",
       letterSpacing: ".05em"
     }
-  }, "MISSION LOG"), /*#__PURE__*/React.createElement("p", {
+  }, "COREVADO"), /*#__PURE__*/React.createElement("p", {
     style: {
       color: "var(--text-muted)",
       fontSize: 12,
@@ -2541,7 +2541,7 @@ function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `mission-log-export-${getToday()}.json`;
+    a.download = `corevado-export-${getToday()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -2722,7 +2722,7 @@ function App() {
       color: "var(--text-heading)",
       letterSpacing: ".06em"
     }
-  }, "MISSION LOG"), /*#__PURE__*/React.createElement("p", {
+  }, "COREVADO"), /*#__PURE__*/React.createElement("p", {
     style: {
       color: "var(--text-muted)",
       fontSize: 10,

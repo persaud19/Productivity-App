@@ -1,4 +1,4 @@
-// Mission Log — Cardio Sessions
+// Corevado — Cardio Sessions
 // CARDIO_SESSIONS: treadmill interval programs for indoor cardio
 // Loaded before app.js — exposes window.CARDIO_SESSIONS globally
 window.CARDIO_SESSIONS = {

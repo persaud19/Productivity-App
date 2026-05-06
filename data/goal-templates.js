@@ -1,4 +1,4 @@
-// Mission Log — Goal Templates
+// Corevado — Goal Templates
 // GOAL_CATEGORY_META: category display config (colour, icon, label)
 // GOAL_TEMPLATES: wizard templates grouped by category
 // Loaded before app.js — exposes window globals

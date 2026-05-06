@@ -1,4 +1,4 @@
-// Mission Log — Chore / Task Seed Data
+// Corevado — Chore / Task Seed Data
 // Pure data file — no React, no window.__ml. Loaded before app.js.
 window.CHORE_SEED = [{
   id: "c01",

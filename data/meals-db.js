@@ -1,4 +1,4 @@
-// Mission Log — Meals Database
+// Corevado — Meals Database
 // Static meal seed data (20 built-in meals)
 // Loaded before app.js — exposes window.MEALS_DB globally
 window.MEALS_DB = [

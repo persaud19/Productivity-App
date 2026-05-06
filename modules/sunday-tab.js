@@ -1,4 +1,4 @@
-// Mission Log — Sunday Tab Module
+// Corevado — Sunday Tab Module
 // Contains: SundayBrief, Sunday (weekly review + all optional modules)
 (function () {
   'use strict';

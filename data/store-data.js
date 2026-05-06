@@ -1,4 +1,4 @@
-// Mission Log — Store Data
+// Corevado — Store Data
 // STORES: Guelph grocery store info, card strategy, price tiers
 // Loaded before app.js — exposes window.STORES globally
 window.STORES = {

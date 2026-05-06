@@ -1,4 +1,4 @@
-// Mission Log — Train Tab Module
+// Corevado — Train Tab Module
 // Contains: Train, StrengthSession, CardioSession, IntervalTimer, OutdoorWalk, IndoorWalk
 (function () {
   'use strict';

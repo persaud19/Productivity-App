@@ -1,4 +1,4 @@
-// Mission Log — Mobility Exercise Pool Data
+// Corevado — Mobility Exercise Pool Data
 // Pure data file — no React, no window.__ml. Loaded before app.js.
 window.ALL_EXERCISES = [
 // SPINE (6)

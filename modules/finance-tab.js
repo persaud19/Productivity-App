@@ -1,4 +1,4 @@
-// Mission Log — Finance Tab Module
+// Corevado — Finance Tab Module
 // Standalone module: envelope budgeting, transaction import, spending analytics
 // Depends on window.__ml (set by app.js) and React globals
 (function () {

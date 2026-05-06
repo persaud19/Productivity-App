@@ -1,7 +1,7 @@
-# Gemini Project Context: Mission Log
+# Gemini Project Context: Corevado
 
 ## What This App Is
-Mission Log is a mobile-first personal life OS for Ryan Persaud and Sabrina. It tracks daily logs, workouts, meals, household chores, pantry inventory, goals, and weekly reviews.
+Corevado is a mobile-first personal life OS for Ryan Persaud and Sabrina. It tracks daily logs, workouts, meals, household chores, pantry inventory, goals, and weekly reviews.
 - **Live URL:** https://dailyappproductivity.netlify.app
 - **GitHub:** https://github.com/persaud19/Productivity-App
 

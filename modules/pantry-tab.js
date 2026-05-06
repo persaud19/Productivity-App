@@ -1,4 +1,4 @@
-// Mission Log — Pantry Tab Module
+// Corevado — Pantry Tab Module
 // Standalone module: inventory management, barcode scanner, AI add, receipt scan
 // Depends on window.__ml (set by app.js) and React globals
 (function () {

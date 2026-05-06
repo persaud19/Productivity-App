@@ -1,4 +1,4 @@
-// Mission Log — Training Data
+// Corevado — Training Data
 // STRENGTH_POOL: exercise library grouped by equipment type
 // EQUIP_COLORS: colour map for equipment badges
 // Loaded before app.js — exposes window.STRENGTH_POOL and window.EQUIP_COLORS globally

@@ -1,4 +1,4 @@
-// Mission Log — Home Tab Module
+// Corevado — Home Tab Module
 // Contains: TasksTab (household tasks/chores) + RemindersTab
 (function () {
   'use strict';

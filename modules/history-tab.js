@@ -1,4 +1,4 @@
-// Mission Log — History Tab Module
+// Corevado — History Tab Module
 // Contains: DayDetailView, HistoryBrowser
 // Loaded after app.js so window.__ml is available.
 (function () {

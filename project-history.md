@@ -1,4 +1,4 @@
-# Mission Log — Full Project History
+# Corevado — Full Project History
 **App:** dailyappproductivity.netlify.app
 **Repo:** github.com/persaud19/Productivity-App
 **Stack:** React 18 (no build tool) · Firebase Realtime DB · Firebase Auth · Netlify · Claude API

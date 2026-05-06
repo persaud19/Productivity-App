@@ -1,4 +1,4 @@
-// Mission Log — Food Tab Module
+// Corevado — Food Tab Module
 // Standalone module: meal library, week planner, grocery route, macro tracking
 // Depends on window.__ml (set by app.js) and React globals
 (function () {

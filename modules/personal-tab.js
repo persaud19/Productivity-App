@@ -1,4 +1,4 @@
-// Mission Log — Personal Tab Module
+// Corevado — Personal Tab Module
 // Contains: Morning, Evening, Goals, Sunday and all sub-components
 (function () {
   'use strict';
