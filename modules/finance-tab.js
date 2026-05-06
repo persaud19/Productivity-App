@@ -2294,6 +2294,21 @@ Return exactly ${bRows.length} objects. No markdown.`;
           }, "SAVE"),
           /*#__PURE__*/React.createElement("button", { onClick: () => setEditingTxn(null), style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" } }, "Cancel")
         ),
+        editingTxn.needsReview && /*#__PURE__*/React.createElement("button", {
+          onClick: async () => {
+            const txnMonth = editingTxn.month || editingTxn.date?.slice(0, 7) || currentMonth;
+            if (txnMonth === currentMonth) {
+              const updated = transactions.map(t => t.id === editingTxn.id ? { ...t, needsReview: false } : t);
+              setTransactions(updated);
+              await DB.set(FK.transactions(currentMonth), updated);
+            } else {
+              const existing = await DB.get(FK.transactions(txnMonth)) || [];
+              await DB.set(FK.transactions(txnMonth), existing.map(t => t.id === editingTxn.id ? { ...t, needsReview: false } : t));
+            }
+            setEditingTxn(null);
+          },
+          style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(244,168,35,.08)", border: "1px solid rgba(244,168,35,.3)", borderRadius: 9, color: "var(--color-primary)", fontSize: 12, fontWeight: 700, cursor: "pointer" }
+        }, "\u2713 Mark as Reviewed"),
         /*#__PURE__*/React.createElement("button", { onClick: handleMoveTxnToIncome, style: { width: "100%", marginTop: 8, padding: "10px 0", background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.25)", borderRadius: 9, color: "var(--color-success)", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u21C4 Move to Money In"),
         txnReceiptData && /*#__PURE__*/React.createElement("div", { style: { marginTop: 14, borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: 12 } },
           /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "var(--color-accent-purple)", letterSpacing: ".06em", margin: "0 0 8px" } }, "\uD83E\uDDFE RECEIPT: " + (txnReceiptData.vendor || "") + (txnReceiptData.date ? "  \xB7  " + txnReceiptData.date : "")),
