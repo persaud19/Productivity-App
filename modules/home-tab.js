@@ -89,10 +89,8 @@ function TasksTab({
     ok: tasks.filter(t => choreStatus(t).status === "ok").length
   };
   const urgentHigh = tasks.filter(t => {
-    const {
-      status
-    } = choreStatus(t);
-    return (status === "overdue" || status === "soon") && t.priority === "High";
+    const { daysUntil } = choreStatus(t);
+    return daysUntil <= 1 && t.priority === "High";
   });
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -218,7 +216,7 @@ function TasksTab({
     const {
       daysUntil
     } = choreStatus(t);
-    return `${t.name} (${daysUntil < 0 ? Math.abs(daysUntil) + "d overdue" : "today"})`;
+    return `${t.name} (${daysUntil < 0 ? Math.abs(daysUntil) + "d overdue" : daysUntil === 0 ? "today" : "tomorrow"})`;
   }).join(" · "), urgentHigh.length > 3 ? ` +${urgentHigh.length - 3} more` : "")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",

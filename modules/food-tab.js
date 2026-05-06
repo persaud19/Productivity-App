@@ -12,7 +12,8 @@
   const MEALS_DB = window.MEALS_DB;
 
   // ── Food Tab functions ──────────────────────────────────────────────────────
-  function buildRoutes(ingredients) {
+  function buildRoutes(ingredients, userCards) {
+    const hasCard = id => !userCards || userCards.length === 0 || userCards.includes(id);
     const items = ingredients.map(ing => {
       const prices = {};
       Object.keys(STORES).forEach(sid => {
@@ -56,10 +57,10 @@
       sid,
       t: items.reduce((a, i) => a + i.prices[sid], 0)
     })).sort((a, b) => a.t - b.t);
-    return [mk("A", "Lowest Total Cost", "🟢", "#22c55e", "Cheapest price per item, any store, any card. May require multiple cards.", item => item.cheapest), mk("B", "Best Card Strategy", "💳", "var(--color-accent-purple)", "Routes each item to the store where your best card earns the most — Cobalt 5x at Metro/Farm Boy, Costco MC at Costco, TD Aeroplan at Walmart.", item => {
-      if (item.preferred === "costco") return "costco";
-      if (amexStores.includes(item.preferred)) return item.preferred;
-      return "walmart";
+    return [mk("A", "Lowest Total Cost", "🟢", "#22c55e", "Cheapest price per item, any store, any card. May require multiple cards.", item => item.cheapest), mk("B", "Best Card Strategy", "💳", "var(--color-accent-purple)", "Routes each item to the store where your best card earns the most.", item => {
+      if (item.preferred === "costco" && hasCard("costco")) return "costco";
+      if (amexStores.includes(item.preferred) && hasCard("cobalt")) return item.preferred;
+      return "walmart"; // TD Visa or fallback
     }), mk("C", "Fewest Stops", "⚡", "var(--color-primary)", `Everything from ${STORES[singles[0].sid]?.name}. One trip, one card.`, () => singles[0].sid)];
   }
   
@@ -1242,7 +1243,7 @@
         style: { background: "rgba(167,139,250,.08)", border: "1px solid rgba(167,139,250,.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 12 }
       },
         React.createElement("p", { style: { color: "var(--color-accent-purple)", fontWeight: 800, fontSize: 12, margin: "0 0 2px", fontFamily: "'Syne',sans-serif" } }, "\uD83D\uDCD6 " + (importedLibMeta[0].name || "Starter Library")),
-        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: 0 } }, "Curated by " + (importedLibMeta[0].author || "Ryan") + " \xB7 Read-only \xB7 Available in your week planner")
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: 0 } }, "Curated by " + (importedLibMeta[0].author || userName || "the household") + " \xB7 Read-only \xB7 Available in your week planner")
       ),
 
       /*#__PURE__*/React.createElement("div", {
@@ -2211,7 +2212,7 @@
         });
       });
     });
-    const routes = hasPlan ? buildRoutes(allIng) : [];
+    const routes = hasPlan ? buildRoutes(allIng, settings?.cards) : [];
     const active = activeRouteId ? routes.find(r => r.id === activeRouteId) : null;
     const toggle = async key => {
       const up = {
@@ -2265,7 +2266,7 @@
       name: "TD Visa Infinite Aeroplan",
       earn: "1.5x Aeroplan at grocery stores",
       use: "Walmart + anywhere Amex isn't accepted"
-    }].map(card => /*#__PURE__*/React.createElement("div", {
+    }].filter(card => !settings?.cards || settings.cards.length === 0 || settings.cards.includes(card.id)).map(card => /*#__PURE__*/React.createElement("div", {
       key: card.id,
       style: {
         display: "flex",

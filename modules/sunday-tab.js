@@ -952,7 +952,7 @@
             FieldLabel({ t: "Had a meaningful conversation this week?" }),
             React.createElement("div", { style: { marginBottom: 12 } }, React.createElement(YesNo, { val: relDeepConvo, set: setRelDeepConvo })),
             FieldLabel({ t: "One moment worth keeping (optional)" }),
-            React.createElement("input", { type: "text", value: relMoment, onChange: e => setRelMoment(e.target.value), placeholder: "e.g. Long talk with Sabrina about the future...", style: { ...inp, fontSize: 13 } })
+            React.createElement("input", { type: "text", value: relMoment, onChange: e => setRelMoment(e.target.value), placeholder: "e.g. Long talk with your partner about the future...", style: { ...inp, fontSize: 13 } })
           ),
           s: { marginBottom: 12 }
         }),

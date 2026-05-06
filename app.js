@@ -495,7 +495,10 @@ const DEFAULT_SETTINGS = {
   partnerUid: "",
   claudeApiKey: "",
   householdId: "",
-  theme: "dark"
+  theme: "dark",
+  cards: ["cobalt", "costco", "td"],
+  morningReminder: "",
+  eveningReminder: ""
 };
 const DEFAULT_GOALS = {
   weightGoal: "",
@@ -1432,8 +1435,8 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       const cm = await db.ref(`households/${householdId}/ml/food/custommeal`).once("value");
       const meals = cm.exists() ? (cm.val() || []) : [];
       await db.ref(`publishedLibraries/${householdId}/meta`).set({
-        name: "Ryan's Kitchen",
-        author: "Ryan",
+        name: (settings.name || "My") + "'s Kitchen",
+        author: settings.name || "",
         publishedAt: new Date().toISOString(),
         mealCount: meals.length
       });
@@ -1912,7 +1915,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                           React.createElement("p", { style: { color: "var(--color-primary)", fontSize: 11, fontWeight: 800, margin: "0 0 2px", letterSpacing: ".05em", fontFamily: "'Syne',sans-serif" } }, "MEAL LIBRARY ACCESS"),
                           React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } },
                             (viewingHousehold.meta.unlockedLibraries && viewingHousehold.meta.unlockedLibraries[householdId])
-                              ? "Has access to Ryan's Kitchen"
+                              ? "Has access to " + (settings.name || "their") + "'s Kitchen"
                               : "No library access granted"
                           )
                         ),
@@ -2255,6 +2258,177 @@ window.__ml = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SETUP WIZARD — runs once on first sign-in, collects name/partner/weight/cards/reminders
+// ─────────────────────────────────────────────────────────────────────────────
+function SetupWizard({ googleDisplayName, onComplete }) {
+  const [step, setStep] = useState(1);
+  const [name, setName] = useState(googleDisplayName ? googleDisplayName.split(" ")[0] : "");
+  const [partnerName, setPartnerName] = useState("");
+  const [currentWeight, setCurrentWeight] = useState("");
+  const [weightGoal, setWeightGoal] = useState("");
+  const [cards, setCards] = useState(["cobalt", "costco", "td"]);
+  const [morningReminder, setMorningReminder] = useState("07:00");
+  const [eveningReminder, setEveningReminder] = useState("21:00");
+  const [saving, setSaving] = useState(false);
+
+  const CARD_OPTIONS = [
+    { id: "cobalt", emoji: "🟩", name: "Amex Cobalt", detail: "5x MR at Metro / Farm Boy" },
+    { id: "costco", emoji: "🟦", name: "Costco Mastercard", detail: "2% cash back at Costco" },
+    { id: "td",     emoji: "🟥", name: "TD Visa Infinite Aeroplan", detail: "1.5x Aeroplan at Walmart + everywhere else" }
+  ];
+
+  const toggleCard = id => setCards(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+
+  const handleFinish = async () => {
+    setSaving(true);
+    const trimmedName = name.trim() || "User";
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      name: trimmedName,
+      partnerName: partnerName.trim(),
+      currentWeight: currentWeight ? parseFloat(currentWeight) : "",
+      weightGoal: weightGoal ? parseFloat(weightGoal) : "",
+      weightStart: currentWeight ? parseFloat(currentWeight) : "",
+      cards,
+      morningReminder,
+      eveningReminder
+    };
+    await DB.set(KEYS.settings(), settings);
+    // Seed a weight goal if both values provided
+    if (currentWeight && weightGoal) {
+      const today = getToday();
+      const goalObj = [{
+        id: "wg_" + Date.now(),
+        type: "weight",
+        label: "Weight Goal",
+        start: parseFloat(currentWeight),
+        target: parseFloat(weightGoal),
+        startDate: today,
+        deadline: "",
+        unit: "lbs"
+      }];
+      await DB.set(KEYS.goals(), goalObj);
+    }
+    await DB.set(KEYS.setupDone(), true);
+    setSaving(false);
+    onComplete(settings);
+  };
+
+  const inp = {
+    width: "100%", padding: "12px 14px", background: "rgba(255,255,255,.06)",
+    border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, color: "var(--text-primary)",
+    fontSize: 15, fontFamily: "'DM Sans',sans-serif", outline: "none", boxSizing: "border-box"
+  };
+  const btnPrimary = {
+    width: "100%", padding: "14px", background: "var(--color-primary)", border: "none",
+    borderRadius: 12, color: "#000", fontSize: 15, fontWeight: 700, cursor: "pointer",
+    fontFamily: "'DM Sans',sans-serif", letterSpacing: ".02em"
+  };
+  const btnSecondary = {
+    width: "100%", padding: "14px", background: "transparent",
+    border: "1px solid rgba(255,255,255,.15)", borderRadius: 12, color: "var(--text-secondary)",
+    fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginTop: 10
+  };
+  const label = { color: "var(--text-muted)", fontSize: 11, fontWeight: 600, letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 };
+
+  const STEPS = 4;
+  const pct = (step / STEPS) * 100;
+
+  return React.createElement("div", {
+    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 28px", fontFamily: "'DM Sans',sans-serif" }
+  },
+    React.createElement("div", { style: { width: "100%", maxWidth: 400 } },
+      // Header
+      React.createElement("p", { style: { color: "var(--color-primary)", fontFamily: "'Syne',sans-serif", fontSize: 24, fontWeight: 800, margin: "0 0 4px", letterSpacing: ".05em" } }, "COREVADO"),
+      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 28px", letterSpacing: ".08em", textTransform: "uppercase" } }, "Quick Setup"),
+      // Progress bar
+      React.createElement("div", { style: { height: 3, background: "rgba(255,255,255,.08)", borderRadius: 99, marginBottom: 32, overflow: "hidden" } },
+        React.createElement("div", { style: { height: "100%", width: pct + "%", background: "var(--color-primary)", borderRadius: 99, transition: "width .35s ease" } })
+      ),
+      // Step 1: Names
+      step === 1 && React.createElement("div", null,
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Who's using the app?"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px" } }, "Your name will appear throughout the app."),
+        React.createElement("div", { style: { marginBottom: 16 } },
+          React.createElement("span", { style: label }, "Your first name"),
+          React.createElement("input", { style: inp, value: name, onChange: e => setName(e.target.value), placeholder: "e.g. Ryan", autoFocus: true })
+        ),
+        React.createElement("div", { style: { marginBottom: 28 } },
+          React.createElement("span", { style: label }, "Partner's first name"),
+          React.createElement("input", { style: inp, value: partnerName, onChange: e => setPartnerName(e.target.value), placeholder: "e.g. Sabrina (optional)" })
+        ),
+        React.createElement("button", { style: { ...btnPrimary, opacity: name.trim() ? 1 : .5 }, disabled: !name.trim(), onClick: () => setStep(2) }, "Continue →")
+      ),
+      // Step 2: Health baseline
+      step === 2 && React.createElement("div", null,
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Health baseline"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px" } }, "Used to seed your weight tracking graph. You can skip this."),
+        React.createElement("div", { style: { marginBottom: 16 } },
+          React.createElement("span", { style: label }, "Current weight (lbs)"),
+          React.createElement("input", { type: "number", style: inp, value: currentWeight, onChange: e => setCurrentWeight(e.target.value), placeholder: "e.g. 185" })
+        ),
+        React.createElement("div", { style: { marginBottom: 28 } },
+          React.createElement("span", { style: label }, "Goal weight (lbs)"),
+          React.createElement("input", { type: "number", style: inp, value: weightGoal, onChange: e => setWeightGoal(e.target.value), placeholder: "e.g. 170" })
+        ),
+        React.createElement("button", { style: btnPrimary, onClick: () => setStep(3) }, "Continue →"),
+        React.createElement("button", { style: btnSecondary, onClick: () => setStep(3) }, "Skip for now")
+      ),
+      // Step 3: Credit cards
+      step === 3 && React.createElement("div", null,
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Your credit cards"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "The grocery route planner uses this to recommend where to shop for the best rewards."),
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 } },
+          CARD_OPTIONS.map(card => {
+            const selected = cards.includes(card.id);
+            return React.createElement("div", {
+              key: card.id,
+              onClick: () => toggleCard(card.id),
+              style: {
+                display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+                background: selected ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)",
+                border: selected ? "1px solid rgba(244,168,35,.4)" : "1px solid rgba(255,255,255,.08)",
+                borderRadius: 10, cursor: "pointer", transition: "all .15s"
+              }
+            },
+              React.createElement("span", { style: { fontSize: 18, flexShrink: 0 } }, card.emoji),
+              React.createElement("div", { style: { flex: 1 } },
+                React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 600, margin: "0 0 2px" } }, card.name),
+                React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: 0 } }, card.detail)
+              ),
+              React.createElement("div", {
+                style: {
+                  width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                  background: selected ? "var(--color-primary)" : "transparent",
+                  border: selected ? "none" : "2px solid rgba(255,255,255,.2)",
+                  display: "flex", alignItems: "center", justifyContent: "center"
+                }
+              }, selected && React.createElement("span", { style: { color: "#000", fontSize: 11, fontWeight: 700 } }, "✓"))
+            );
+          })
+        ),
+        React.createElement("button", { style: btnPrimary, onClick: () => setStep(4) }, "Continue →")
+      ),
+      // Step 4: Reminders
+      step === 4 && React.createElement("div", null,
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Check-in reminders"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px" } }, "Set the times you want to be reminded to log your morning and evening check-ins."),
+        React.createElement("div", { style: { marginBottom: 16 } },
+          React.createElement("span", { style: label }, "Morning check-in"),
+          React.createElement("input", { type: "time", style: inp, value: morningReminder, onChange: e => setMorningReminder(e.target.value) })
+        ),
+        React.createElement("div", { style: { marginBottom: 28 } },
+          React.createElement("span", { style: label }, "Evening check-in"),
+          React.createElement("input", { type: "time", style: inp, value: eveningReminder, onChange: e => setEveningReminder(e.target.value) })
+        ),
+        React.createElement("button", { style: { ...btnPrimary, opacity: saving ? .6 : 1 }, disabled: saving, onClick: handleFinish }, saving ? "Setting up..." : "Get Started"),
+        React.createElement("button", { style: btnSecondary, onClick: () => setStep(3) }, "← Back")
+      )
+    )
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // APP ROOT
 // ─────────────────────────────────────────────────────────────────────────────
 function App() {
@@ -2430,13 +2604,9 @@ function App() {
     }
 
     if (!sd) {
-      const displayName = (window.__firebase_auth && window.__firebase_auth.currentUser && window.__firebase_auth.currentUser.displayName) || "";
-      const firstName = displayName.split(" ")[0] || "User";
-      const autoSettings = { ...DEFAULT_SETTINGS, name: firstName };
-      await DB.set(KEYS.settings(), autoSettings);
-      await DB.set(KEYS.setupDone(), true);
-      setSettings(autoSettings);
-      setSetupDone(true);
+      // First-time user — show setup wizard (setupDone stays false, wizard will save settings)
+      if (st) setSettings(st);
+      setSetupDone(false);
     } else {
       setSetupDone(true);
       if (st) setSettings(st);
@@ -2666,6 +2836,17 @@ function App() {
       letterSpacing: ".1em"
     }
   }, "LOADING...");
+  // First-run setup wizard
+  if (setupDone === false) {
+    const displayName = (window.__firebase_auth && window.__firebase_auth.currentUser && window.__firebase_auth.currentUser.displayName) || "";
+    return /*#__PURE__*/React.createElement(SetupWizard, {
+      googleDisplayName: displayName,
+      onComplete: (savedSettings) => {
+        setSettings(savedSettings);
+        setSetupDone(true);
+      }
+    });
+  }
   // Full-screen household setup flow
   if (showHouseholdSetup) return /*#__PURE__*/React.createElement(HouseholdSetup, {
     currentUser: window.__firebase_auth && window.__firebase_auth.currentUser,
