@@ -527,17 +527,22 @@ function Morning({
   };
 
   // Today's exercise objects from the week plan
+  const poolById = useMemo(() => new Map(mobilityPool.map(e => [e.id, e])), [mobilityPool]);
   const todayDayKey = getDayKey(getToday());
   const todayIds = weekPlan?.[todayDayKey] || [];
-  const dailyList = todayIds.map(id => mobilityPool.find(e => e.id === id)).filter(Boolean);
+  const dailyList = todayIds.map(id => poolById.get(id)).filter(Boolean);
   const mobDone = dailyList.filter(e => mobility[e.id]).length;
   const gap = (wt && settings?.weightGoal) ? (parseFloat(wt) - parseFloat(settings.weightGoal)).toFixed(1) : null;
   const stepGoal = settings?.stepGoal || 10000;
   const stepPct = steps ? Math.min(100, Math.round(parseInt(steps) / stepGoal * 100)) : 0;
 
   // Auto-calc sleep duration
+  // Bedtime is always from the previous evening's log (even if after midnight).
+  // Yesterday's log is the authoritative source; fall back to todayLog if somehow present.
   const sleepDuration = (() => {
-    const lastBed = todayLog?.evening?.bedtime;
+    const yesterday = getPrevDay();
+    const yLog = allLogsArr.find(l => l.date === yesterday);
+    const lastBed = yLog?.evening?.bedtime || todayLog?.evening?.bedtime;
     if (!wake || !lastBed) return null;
     const [bh, bm] = lastBed.split(":").map(Number);
     const [wh, wm] = wake.split(":").map(Number);
@@ -1045,12 +1050,14 @@ function MobilityTab({ todayLog, onSave }) {
   const todayLogRef = useRef(todayLog);
   useEffect(() => { todayLogRef.current = todayLog; }, [todayLog]);
 
+  const poolById = useMemo(() => new Map(mobilityPool.map(e => [e.id, e])), [mobilityPool]);
+
   const setMobility = async (updated) => {
     const checked = typeof updated === "function" ? updated(mobility) : updated;
     setMobilityState(checked);
     const todayDayKey = getDayKey(getToday());
     const todayIds = weekPlan?.[todayDayKey] || [];
-    const dailyList = todayIds.map(id => mobilityPool.find(e => e.id === id)).filter(Boolean);
+    const dailyList = todayIds.map(id => poolById.get(id)).filter(Boolean);
     const mobDone = dailyList.filter(e => checked[e.id]).length;
     // Use the ref instead of DB.get — no round-trip, instant save
     const existing = todayLogRef.current || {};
@@ -1084,7 +1091,7 @@ function MobilityTab({ todayLog, onSave }) {
 
   const todayDayKey = getDayKey(getToday());
   const todayIds = weekPlan?.[todayDayKey] || [];
-  const dailyList = todayIds.map(id => mobilityPool.find(e => e.id === id)).filter(Boolean);
+  const dailyList = todayIds.map(id => poolById.get(id)).filter(Boolean);
   const mobDone = dailyList.filter(e => mobility[e.id]).length;
 
   return /*#__PURE__*/React.createElement("div", null,
@@ -1854,105 +1861,19 @@ function GoalWizard({ onSave, onClose }) {
   );
 }
 
-// ─── Legacy GoalEditor stub (unused — kept to avoid reference errors) ─────────
-function GoalEditor({
-  goals,
-  onSave,
-  settings
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(goals);
-  const s = (k, v) => setDraft(p => ({
-    ...p,
-    [k]: v
-  }));
-  if (!editing) return /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      setDraft(goals);
-      setEditing(true);
-    },
-    style: {
-      padding: "6px 14px",
-      background: "rgba(255,255,255,.05)",
-      border: "1px solid rgba(255,255,255,.1)",
-      color: "var(--text-secondary)",
-      borderRadius: 8,
-      fontSize: 12,
-      cursor: "pointer"
-    }
-  }, "\u270E Edit Goals");
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: "var(--card-bg)",
-      border: "1px solid rgba(255,255,255,.08)",
-      borderRadius: 12,
-      padding: "16px",
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--color-primary)",
-      fontFamily: "'Syne',sans-serif",
-      fontSize: 13,
-      fontWeight: 800,
-      margin: "0 0 14px"
-    }
-  }, "EDIT GOALS"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 10
-    }
-  }, [["weightGoal", "Weight goal (lbs)", "number"], ["weightStart", "Starting weight (lbs)", "number"], ["weightDeadline", "Weight deadline", "date"], ["stepGoal", "Daily step goal", "number"], ["sleepGoal", "Sleep goal (hours)", "number"], ["loanBalance", "Loan current balance ($)", "number"], ["loanDeadline", "Loan payoff deadline", "date"], ["savingsCurrent", "Current savings ($)", "number"], ["savingsTarget", "Savings target ($)", "number"]].map(([k, lbl, type]) => /*#__PURE__*/React.createElement("div", {
-    key: k
-  }, /*#__PURE__*/React.createElement(Lbl, {
-    c: lbl
-  }), /*#__PURE__*/React.createElement("input", {
-    type: type,
-    value: draft[k] || "",
-    onChange: e => s(k, type === "number" ? parseFloat(e.target.value) : e.target.value),
-    style: {
-      ...inp,
-      fontSize: 13,
-      colorScheme: "dark"
-    }
-  })))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8,
-      marginTop: 14
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      onSave(draft);
-      setEditing(false);
-    },
-    style: {
-      flex: 1,
-      padding: "11px 0",
-      background: "var(--color-primary)",
-      color: "var(--bg)",
-      border: "none",
-      borderRadius: 9,
-      fontSize: 13,
-      fontWeight: 800,
-      cursor: "pointer",
-      fontFamily: "'Syne',sans-serif"
-    }
-  }, "SAVE \u2192"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setEditing(false),
-    style: {
-      flex: 1,
-      padding: "11px 0",
-      background: "transparent",
-      border: "1px solid rgba(255,255,255,.1)",
-      color: "var(--text-secondary)",
-      borderRadius: 9,
-      fontSize: 13,
-      cursor: "pointer"
-    }
-  }, "Cancel")));
+// Shared helper: count consecutive days ending today where hasFn(dateStr) is true
+function countCurrentStreak(startDate, today, hasFn) {
+  let cur = 0;
+  let d = new Date(today);
+  while (true) {
+    const ds = d.toISOString().split("T")[0];
+    if (ds < startDate || !hasFn(ds)) break;
+    cur++;
+    d.setDate(d.getDate() - 1);
+  }
+  return cur;
 }
+
 function Goals({
   goals: goalsData,
   onSaveGoals,
@@ -2051,11 +1972,9 @@ function Goals({
   const computeStreak = startDate => {
     const trainDates = new Set(trainHistory.map(h => h.date));
     const today = getToday();
-    let cur = 0;
-    let d = new Date(today);
-    while (true) { const ds = d.toISOString().split("T")[0]; if (ds < startDate || !trainDates.has(ds)) break; cur++; d.setDate(d.getDate() - 1); }
+    const cur = countCurrentStreak(startDate, today, ds => trainDates.has(ds));
     let run = 0, longest = 0;
-    d = new Date(startDate);
+    let d = new Date(startDate);
     while (d <= new Date(today)) { const ds = d.toISOString().split("T")[0]; trainDates.has(ds) ? (run++, longest = Math.max(longest, run)) : (run = 0); d.setDate(d.getDate() + 1); }
     const last30 = [];
     for (let i = 29; i >= 0; i--) { const dd = new Date(today); dd.setDate(dd.getDate() - i); const ds = dd.toISOString().split("T")[0]; last30.push({ d: fmtDate(ds), v: trainDates.has(ds) ? 1 : 0 }); }
@@ -2075,9 +1994,8 @@ function Goals({
   };
   const computeHabitStreak = (goalId, startDate) => {
     const log = habitLogs[goalId] || {}, today = getToday();
-    let cur = 0; let d = new Date(today);
-    while (true) { const ds = d.toISOString().split("T")[0]; if (ds < startDate || !log[ds]) break; cur++; d.setDate(d.getDate() - 1); }
-    let total = 0; d = new Date(startDate);
+    const cur = countCurrentStreak(startDate, today, ds => !!log[ds]);
+    let total = 0; let d = new Date(startDate);
     while (d <= new Date(today)) { const ds = d.toISOString().split("T")[0]; if (log[ds]) total++; d.setDate(d.getDate() + 1); }
     const last30 = [];
     for (let i = 29; i >= 0; i--) { const dd = new Date(today); dd.setDate(dd.getDate() - i); const ds = dd.toISOString().split("T")[0]; last30.push({ d: fmtDate(ds), v: log[ds] ? 1 : 0 }); }

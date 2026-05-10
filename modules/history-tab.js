@@ -541,8 +541,9 @@ function HistoryBrowser({
   const [insight, setInsight] = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
 
-  // Build a lookup set of dates with data
-  const loggedDates = new Set(allLogs.map(l => l.date));
+  // Build lookup structures once — reused by calendar dots, day open, and detail dots
+  const loggedDates = useMemo(() => new Set(allLogs.map(l => l.date)), [allLogs]);
+  const logMap = useMemo(() => new Map(allLogs.map(l => [l.date, l])), [allLogs]);
 
   // Current displayed month
   const displayDate = new Date();
@@ -562,7 +563,7 @@ function HistoryBrowser({
   const openDay = async dateStr => {
     if (!loggedDates.has(dateStr)) return;
     setLoadingDate(dateStr);
-    const log = allLogs.find(l => l.date === dateStr) || (await DB.get(KEYS.log(dateStr)));
+    const log = logMap.get(dateStr) || (await DB.get(KEYS.log(dateStr)));
     setDetailLog(log);
     setSelectedDate(dateStr);
     setLoadingDate(null);
@@ -592,12 +593,12 @@ function HistoryBrowser({
       }
 
       // Also pull all logs for weight trend + workout patterns
-      const weightData = allLogs.filter(l => l.morning?.weight).slice(-90).map(l => ({
-        date: l.date,
-        w: l.morning.weight
-      }));
-      const workoutData = allLogs.filter(l => l.evening?.cardio || l.evening?.strength).slice(-90);
-      const snackData = allLogs.filter(l => typeof l.evening?.snack === "number").slice(-90);
+      const { weightData, workoutData, snackData } = allLogs.reduce((acc, l) => {
+        if (l.morning?.weight) acc.weightData.push({ date: l.date, w: l.morning.weight });
+        if (l.evening?.cardio || l.evening?.strength) acc.workoutData.push(l);
+        if (typeof l.evening?.snack === "number") acc.snackData.push(l);
+        return acc;
+      }, { weightData: [], workoutData: [], snackData: [] });
       const avgSnack = snackData.length ? (snackData.reduce((a, l) => a + l.evening.snack, 0) / snackData.length).toFixed(1) : "?";
       const workoutRate = allLogs.length ? Math.round(workoutData.length / Math.min(allLogs.length, 90) * 100) : 0;
       const reviewSummaries = reviews.slice(0, 12).map((r, i) => {
@@ -772,7 +773,7 @@ function HistoryBrowser({
     const isFuture = dateStr > today;
     const isLoading = loadingDate === dateStr;
     const isSelected = dateStr === selectedDate;
-    const log = allLogs.find(l => l.date === dateStr);
+    const log = logMap.get(dateStr);
     const hasMorning = !!(log?.morning?.weight || log?.morning?.intention);
     const hasEvening = !!(log?.evening?.win || log?.evening?.dayRating);
     const exceptional = log?.morning?.exceptionalDay || log?.evening?.exceptionalDay;

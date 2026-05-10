@@ -81,7 +81,7 @@
       const moodV = ml.filter(d => d.morning?.mood > 0);
       const avgMood = moodV.length ? (moodV.reduce((a, d) => a + d.morning.mood, 0) / moodV.length).toFixed(1) : null;
       const steps = ml.reduce((a, d) => a + (d.morning?.steps || 0), 0);
-      const wins = el.filter(d => d.evening?.win).map(d => d.evening.win).join(" | ");
+      const wins = el.reduce((acc, d) => { if (d.evening?.win) acc.push(d.evening.win); return acc; }, []).join(" | ");
       const choresDone = el.filter(d => d.evening?.choresDone).length;
       const familyMoments = el.filter(d => d.evening?.familyMoment).length;
       const exceptional = wk.filter(d => d.morning?.exceptionalDay || d.evening?.exceptionalDay).length;

@@ -58,9 +58,15 @@ function TasksTab({
     await saveTasks(tasks.filter(t => t.id !== id));
     setEditTask(null);
   };
+  // Compute choreStatus once per task per render — reused by sort, filter, counts, and card render
+  const statusMap = useMemo(() => {
+    const m = new Map();
+    tasks.forEach(t => m.set(t.id, choreStatus(t)));
+    return m;
+  }, [tasks]);
   const sorted = [...tasks].sort((a, b) => {
-    const sa = choreStatus(a),
-      sb = choreStatus(b);
+    const sa = statusMap.get(a.id),
+      sb = statusMap.get(b.id);
     const so = {
       overdue: 0,
       soon: 1,
@@ -72,9 +78,7 @@ function TasksTab({
     return sa.daysUntil - sb.daysUntil;
   });
   const filtered = sorted.filter(t => {
-    const {
-      status
-    } = choreStatus(t);
+    const { status } = statusMap.get(t.id);
     if (filter === "overdue" && status !== "overdue") return false;
     if (filter === "soon" && status !== "soon") return false;
     if (filter === "ok" && status !== "ok") return false;
@@ -83,13 +87,10 @@ function TasksTab({
     if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
-  const counts = {
-    overdue: tasks.filter(t => choreStatus(t).status === "overdue").length,
-    soon: tasks.filter(t => choreStatus(t).status === "soon").length,
-    ok: tasks.filter(t => choreStatus(t).status === "ok").length
-  };
+  const counts = { overdue: 0, soon: 0, ok: 0 };
+  tasks.forEach(t => { counts[statusMap.get(t.id).status]++; });
   const urgentHigh = tasks.filter(t => {
-    const { daysUntil } = choreStatus(t);
+    const { daysUntil } = statusMap.get(t.id);
     return daysUntil <= 1 && t.priority === "High";
   });
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -215,7 +216,7 @@ function TasksTab({
   }, urgentHigh.slice(0, 3).map(t => {
     const {
       daysUntil
-    } = choreStatus(t);
+    } = statusMap.get(t.id);
     return `${t.name} (${daysUntil < 0 ? Math.abs(daysUntil) + "d overdue" : daysUntil === 0 ? "today" : "tomorrow"})`;
   }).join(" · "), urgentHigh.length > 3 ? ` +${urgentHigh.length - 3} more` : "")), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -316,7 +317,7 @@ function TasksTab({
       nextDue,
       daysUntil,
       status
-    } = choreStatus(task);
+    } = statusMap.get(task.id);
     const sc = status === "overdue" ? "var(--color-danger)" : status === "soon" ? "var(--color-primary)" : "var(--color-success)";
     const sbg = status === "overdue" ? "rgba(239,68,68,.08)" : status === "soon" ? "rgba(244,168,35,.06)" : "rgba(74,222,128,.05)";
     const sbd = status === "overdue" ? "rgba(239,68,68,.2)" : status === "soon" ? "rgba(244,168,35,.15)" : "rgba(74,222,128,.12)";

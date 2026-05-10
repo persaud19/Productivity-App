@@ -1600,12 +1600,436 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
   return null;
 }
 
+// ─── Pantry Shelf Scanner ────────────────────────────────────────────────────
+// Takes a photo of a shelf/fridge, uses Claude Opus vision to identify all
+// visible products, walks user through confirming count → list summary →
+// per-item detail cards → inventory merge review → save.
+function PantryShelfScanner({ pantryItems, onApplyAll, onClose }) {
+  const [phase, setPhase] = useState("capture");
+  // capture | processing | confirm-count | summary | detail | merge-review | done
+  const [imagePreview, setImagePreview] = useState(null);
+  const [procError, setProcError] = useState("");
+  const [cards, setCards] = useState([]);
+  const [detailIdx, setDetailIdx] = useState(0);
+  const [currentCard, setCurrentCard] = useState(null);
+  const [mergeItems, setMergeItems] = useState([]);
+  const [mergeDecisions, setMergeDecisions] = useState({});
+  const [resultSummary, setResultSummary] = useState({ added: 0, updated: 0 });
+  const [applying, setApplying] = useState(false);
+  const fileRef = useRef(null);
+
+  const PACKAGING_TYPES = ["bottle", "jar", "bag", "box", "can", "tube", "sachet", "pack", "tray", "bunch", "loaf", "carton", "pouch", "container", "other"];
+
+  const compressImage = (file) => new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1600;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) { const r = Math.min(MAX / w, MAX / h); w = Math.round(w * r); h = Math.round(h * r); }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProcError("");
+    setPhase("processing");
+    const dataUrl = await compressImage(file);
+    setImagePreview(dataUrl);
+    const base64 = dataUrl.split(",")[1];
+    try {
+      const res = await fetch("/api/claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-opus-4-7",
+          max_tokens: 4000,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64 } },
+              {
+                type: "text", text: `You are analyzing a photo of pantry or fridge shelf items. Identify every distinct product visible, prioritizing labels facing the camera. Be thorough — scan the entire image.
+
+Return ONLY valid JSON, no markdown, no explanation:
+{
+  "items": [
+    {
+      "name": "Heinz Ketchup",
+      "brand": "Heinz",
+      "packaging": "bottle",
+      "qty": 1,
+      "unit": "bottle",
+      "unitSize": "750",
+      "sizeUnit": "ml",
+      "cat": "Sauces",
+      "expiry": "",
+      "confidence": "high",
+      "notes": "red squeeze bottle"
+    }
+  ]
+}
+
+Rules:
+- name: clean readable product name with variant if visible (e.g. "Dark Maple Syrup", "Penne Pasta")
+- brand: brand name if visible, else ""
+- packaging: one of: bottle, jar, bag, box, can, tube, sachet, pack, tray, bunch, loaf, carton, pouch, container, other
+- qty: how many of this exact product are visible (integer, minimum 1)
+- unit: one of: g,kg,ml,l,oz,lb,piece,can,bag,box,bottle,bunch,loaf,dozen,unit,roll,jar,pack,tray,tube,sachet
+- unitSize: numeric size per package if readable on label (e.g. "750"), else ""
+- sizeUnit: unit for unitSize: g,kg,ml,l,oz,lb — else ""
+- cat: one of: Produce,Protein,Dairy,Grains,Canned,Sauces,Spices,Frozen,Snacks,Other
+- expiry: YYYY-MM if expiry date visible on label, else ""
+- confidence: "high" if label clearly readable, "medium" if partially visible, "low" if mostly guessed
+- notes: one short phrase describing what you see (helps user verify)`
+              }
+            ]
+          }]
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      const raw = data.content?.[0]?.text || "{}";
+      const clean = raw.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
+      const parsed = JSON.parse(clean);
+      const items = (parsed.items || []).map(it => ({ ...it, qty: parseFloat(it.qty) || 1 }));
+      setCards(items);
+      setPhase("confirm-count");
+    } catch (err) {
+      setProcError("Could not analyze image: " + (err.message || "Unknown error"));
+      setPhase("capture");
+    }
+  };
+
+  const goToSummary = () => setPhase("summary");
+
+  const startDetail = () => {
+    setDetailIdx(0);
+    setCurrentCard({ ...cards[0] });
+    setPhase("detail");
+  };
+
+  const saveCard = () => {
+    const updated = cards.map((c, i) => i === detailIdx ? { ...currentCard } : c);
+    setCards(updated);
+    if (detailIdx + 1 < updated.length) {
+      const next = detailIdx + 1;
+      setDetailIdx(next);
+      setCurrentCard({ ...updated[next] });
+    } else {
+      runInventoryMatch(updated);
+    }
+  };
+
+  const skipCard = () => {
+    const updated = cards.filter((_, i) => i !== detailIdx);
+    setCards(updated);
+    if (updated.length === 0) { runInventoryMatch([]); return; }
+    const nextIdx = Math.min(detailIdx, updated.length - 1);
+    setDetailIdx(nextIdx);
+    setCurrentCard({ ...updated[nextIdx] });
+    if (detailIdx >= updated.length) runInventoryMatch(updated);
+  };
+
+  const runInventoryMatch = (finalCards) => {
+    if (finalCards.length === 0) { applyFinal([], {}); return; }
+    const pool = pantryItems.filter(p => p.essential !== false);
+    const withMatches = finalCards.map(card => {
+      const n = card.name.toLowerCase().trim();
+      let match = pool.find(p => p.name.toLowerCase() === n);
+      if (!match) match = pool.find(p => p.name.toLowerCase().includes(n) || n.includes(p.name.toLowerCase()));
+      if (!match) {
+        const words = n.split(/\s+/).filter(w => w.length > 2);
+        let best = null, bestScore = 0;
+        pool.forEach(p => {
+          const pw = p.name.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+          const overlap = words.filter(w => pw.some(pw2 => pw2.includes(w) || w.includes(pw2))).length;
+          const score = overlap / Math.max(words.length, pw.length, 1);
+          if (score >= 0.4 && score > bestScore) { bestScore = score; best = p; }
+        });
+        match = best;
+      }
+      return { card, existingItem: match || null };
+    });
+    const conflicts = withMatches.filter(x => x.existingItem);
+    if (conflicts.length > 0) {
+      setMergeItems(withMatches);
+      const decisions = {};
+      withMatches.forEach((x, i) => { if (x.existingItem) decisions[i] = "merge"; });
+      setMergeDecisions(decisions);
+      setPhase("merge-review");
+    } else {
+      applyFinal(withMatches, {});
+    }
+  };
+
+  const applyFinal = async (withMatches, decisions) => {
+    setApplying(true);
+    const newItems = [];
+    const edits = [];
+    (withMatches || mergeItems).forEach((x, i) => {
+      const card = x.card;
+      const dec = decisions[i] !== undefined ? decisions[i] : mergeDecisions[i];
+      if (x.existingItem && dec === "merge") {
+        edits.push({ match: x.existingItem.name, changes: { qtyDelta: parseFloat(card.qty) || 1 } });
+      } else {
+        newItems.push({
+          id: "p" + Date.now() + Math.random(),
+          name: card.name,
+          brand: card.brand || "",
+          qty: parseFloat(card.qty) || 1,
+          unit: card.unit || "piece",
+          unitSize: card.unitSize ? parseFloat(card.unitSize) : undefined,
+          sizeUnit: card.sizeUnit || undefined,
+          cat: card.cat || "Other",
+          expiry: card.expiry || "",
+          essential: true,
+          minQty: 0,
+          reorderQty: 1
+        });
+      }
+    });
+    setResultSummary({ added: newItems.length, updated: edits.length });
+    await onApplyAll({ items: newItems, edits });
+    setApplying(false);
+    setPhase("done");
+  };
+
+  const cardField = (label, value, onChange, type, opts) =>
+    /*#__PURE__*/React.createElement("div", { style: { marginBottom: 10 } },
+      /*#__PURE__*/React.createElement("label", { style: { color: "var(--text-secondary)", fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4 } }, label),
+      type === "select"
+        ? /*#__PURE__*/React.createElement("select", {
+          value: value || "",
+          onChange: e => onChange(e.target.value),
+          style: { width: "100%", background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, padding: "8px 10px", boxSizing: "border-box" }
+        }, (opts || []).map(o => /*#__PURE__*/React.createElement("option", { key: o, value: o }, o)))
+        : /*#__PURE__*/React.createElement("input", {
+          type: type || "text",
+          value: value || "",
+          onChange: e => onChange(e.target.value),
+          style: { width: "100%", background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, padding: "8px 10px", boxSizing: "border-box" }
+        })
+    );
+
+  const confidenceDot = (c) => {
+    const color = c === "high" ? "var(--color-success)" : c === "medium" ? "var(--color-accent-yellow)" : "var(--color-danger)";
+    return /*#__PURE__*/React.createElement("span", { style: { display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: color, marginRight: 5 } });
+  };
+
+  const sharedHeader = (title) =>
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 } },
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--color-accent-teal, #34d399)", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: 0 } }, title),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: onClose,
+        style: { padding: "5px 12px", background: "transparent", border: "1px solid var(--card-border)", color: "var(--text-secondary)", borderRadius: 7, fontSize: 11, cursor: "pointer" }
+      }, "✕ Cancel")
+    );
+
+  // ── Phase: capture ──
+  if (phase === "capture") return /*#__PURE__*/React.createElement("div", null,
+    sharedHeader("📸 Shelf Scan"),
+    procError ? /*#__PURE__*/React.createElement("div", { style: { background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.35)", borderRadius: 9, padding: "10px 12px", marginBottom: 12, color: "#ef4444", fontSize: 12 } }, procError) : null,
+    /*#__PURE__*/React.createElement("div", {
+      style: { background: "rgba(52,211,153,.06)", border: "2px dashed rgba(52,211,153,.25)", borderRadius: 14, padding: "32px 20px", textAlign: "center", marginBottom: 14 }
+    },
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 44, marginBottom: 10 } }, "📸"),
+      /*#__PURE__*/React.createElement("p", { style: { color: "#34d399", fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 6px" } }, "Scan Your Shelf"),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 6px", lineHeight: 1.6 } }, "Line up labels so they’re facing the camera. One clear shot captures everything."),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "0 0 20px" } }, "Powered by Claude Opus · Best vision model"),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => fileRef.current?.click(),
+        style: { padding: "11px 28px", background: "rgba(52,211,153,.15)", border: "1px solid rgba(52,211,153,.4)", color: "#34d399", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+      }, "Choose Photo or Take Picture")
+    ),
+    /*#__PURE__*/React.createElement("input", { ref: fileRef, type: "file", accept: "image/*", capture: "environment", style: { display: "none" }, onChange: handleFile })
+  );
+
+  // ── Phase: processing ──
+  if (phase === "processing") return /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "48px 20px" } },
+    /*#__PURE__*/React.createElement("div", { style: { fontSize: 48, marginBottom: 16 } }, "🔍"),
+    /*#__PURE__*/React.createElement("p", { style: { color: "#34d399", fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, margin: "0 0 8px" } }, "Scanning your shelf…"),
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12 } }, "Claude is identifying every product. This takes 5–10 seconds."),
+    imagePreview ? /*#__PURE__*/React.createElement("img", { src: imagePreview, style: { width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 10, marginTop: 16, opacity: 0.5 } }) : null
+  );
+
+  // ── Phase: confirm-count ──
+  if (phase === "confirm-count") return /*#__PURE__*/React.createElement("div", null,
+    sharedHeader("📸 Shelf Scan"),
+    /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "24px 16px" } },
+      /*#__PURE__*/React.createElement("div", { style: { fontSize: 72, fontWeight: 800, fontFamily: "'Syne',sans-serif", color: "#34d399", lineHeight: 1 } }, cards.length),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 16, fontWeight: 600, margin: "8px 0 4px" } }, cards.length === 1 ? "item spotted" : "items spotted"),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 24px" } }, "Does that count look right for what was in the photo?")
+    ),
+    imagePreview ? /*#__PURE__*/React.createElement("img", { src: imagePreview, style: { width: "100%", maxHeight: 140, objectFit: "cover", borderRadius: 10, marginBottom: 20, opacity: 0.75 } }) : null,
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 14 } },
+      /*#__PURE__*/React.createElement("button", {
+        onClick: goToSummary,
+        style: { flex: 1, padding: "12px 0", background: "rgba(52,211,153,.15)", border: "1px solid rgba(52,211,153,.4)", color: "#34d399", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+      }, "Looks right →"),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => { setCards([]); setPhase("capture"); },
+        style: { flex: 1, padding: "12px 0", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.3)", color: "#ef4444", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer" }
+      }, "Rescan")
+    )
+  );
+
+  // ── Phase: summary ──
+  if (phase === "summary") return /*#__PURE__*/React.createElement("div", null,
+    sharedHeader("📸 Shelf Scan"),
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 12px" } }, "Quick check — does this list match what was on your shelf?"),
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 } },
+      cards.map((item, i) =>
+        /*#__PURE__*/React.createElement("div", {
+          key: i,
+          style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 9 }
+        },
+          /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 11, fontWeight: 700, minWidth: 20 } }, i + 1),
+          confidenceDot(item.confidence),
+          /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+            /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, item.name),
+            /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: 0 } },
+              [item.brand, item.unitSize ? item.unitSize + (item.sizeUnit || "") : null, item.packaging].filter(Boolean).join(" · ")
+            )
+          ),
+          item.notes ? /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10, fontStyle: "italic", maxWidth: 80, textAlign: "right" } }, item.notes) : null
+        )
+      )
+    ),
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "0 0 12px" } },
+      "● green = high confidence · yellow = partial label · red = guessed"
+    ),
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 10 } },
+      /*#__PURE__*/React.createElement("button", {
+        onClick: startDetail,
+        style: { flex: 1, padding: "12px 0", background: "rgba(52,211,153,.15)", border: "1px solid rgba(52,211,153,.4)", color: "#34d399", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+      }, "Fill in details →"),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => setPhase("confirm-count"),
+        style: { padding: "12px 16px", background: "transparent", border: "1px solid rgba(255,255,255,.12)", color: "var(--text-secondary)", borderRadius: 9, fontSize: 13, cursor: "pointer" }
+      }, "← Back")
+    )
+  );
+
+  // ── Phase: detail ──
+  if (phase === "detail" && currentCard) {
+    const progress = detailIdx + 1;
+    const total = cards.length;
+    return /*#__PURE__*/React.createElement("div", null,
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+        /*#__PURE__*/React.createElement("p", { style: { color: "#34d399", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: 0 } },
+          "📝 Item " + progress + " of " + total
+        ),
+        /*#__PURE__*/React.createElement("button", { onClick: onClose, style: { padding: "5px 12px", background: "transparent", border: "1px solid var(--card-border)", color: "var(--text-secondary)", borderRadius: 7, fontSize: 11, cursor: "pointer" } }, "✕ Cancel")
+      ),
+      /*#__PURE__*/React.createElement("div", { style: { background: "rgba(52,211,153,.06)", borderRadius: 9, height: 4, marginBottom: 14, overflow: "hidden" } },
+        /*#__PURE__*/React.createElement("div", { style: { height: "100%", width: (progress / total * 100) + "%", background: "#34d399", transition: "width .3s" } })
+      ),
+      /*#__PURE__*/React.createElement("div", { style: { background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 12, padding: "14px" } },
+        currentCard.notes ? /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, fontStyle: "italic", margin: "0 0 12px" } }, "👁️ Claude saw: \"" + currentCard.notes + "\"") : null,
+        cardField("Product Name", currentCard.name, v => setCurrentCard(p => ({ ...p, name: v }))),
+        cardField("Brand", currentCard.brand, v => setCurrentCard(p => ({ ...p, brand: v }))),
+        /*#__PURE__*/React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } },
+          cardField("Packaging", currentCard.packaging, v => setCurrentCard(p => ({ ...p, packaging: v })), "select", PACKAGING_TYPES),
+          cardField("Category", currentCard.cat, v => setCurrentCard(p => ({ ...p, cat: v })), "select", PANTRY_CATEGORIES)
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 } },
+          cardField("Qty on shelf", currentCard.qty, v => setCurrentCard(p => ({ ...p, qty: v })), "number"),
+          cardField("Unit", currentCard.unit, v => setCurrentCard(p => ({ ...p, unit: v })), "select", PANTRY_UNITS),
+          cardField("Pack size (e.g. 750)", currentCard.unitSize, v => setCurrentCard(p => ({ ...p, unitSize: v })))
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } },
+          cardField("Size unit", currentCard.sizeUnit, v => setCurrentCard(p => ({ ...p, sizeUnit: v })), "select", ["", ...SIZE_UNITS]),
+          cardField("Expiry (YYYY-MM)", currentCard.expiry, v => setCurrentCard(p => ({ ...p, expiry: v })))
+        )
+      ),
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 12 } },
+        /*#__PURE__*/React.createElement("button", {
+          onClick: saveCard,
+          style: { flex: 2, padding: "12px 0", background: "rgba(52,211,153,.15)", border: "1px solid rgba(52,211,153,.4)", color: "#34d399", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+        }, progress < total ? "Save & Next →" : "Done → Check Inventory"),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: skipCard,
+          style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.12)", color: "var(--text-muted)", borderRadius: 9, fontSize: 12, cursor: "pointer" }
+        }, "Skip")
+      )
+    );
+  }
+
+  // ── Phase: merge-review ──
+  if (phase === "merge-review") return /*#__PURE__*/React.createElement("div", null,
+    sharedHeader("🔄 Inventory Matches"),
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 14px" } },
+      "Some items already exist in your pantry. Choose how to handle each one."
+    ),
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 } },
+      mergeItems.map((x, i) => {
+        const dec = mergeDecisions[i];
+        return /*#__PURE__*/React.createElement("div", {
+          key: i,
+          style: { background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, padding: "12px" }
+        },
+          /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 600, margin: "0 0 2px" } }, x.card.name),
+          x.existingItem
+            ? /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 10px" } },
+              "Matches “" + x.existingItem.name + "” · currently " + x.existingItem.qty + " " + x.existingItem.unit
+            )
+            : /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 10px" } }, "New item"),
+          x.existingItem
+            ? /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6 } },
+              /*#__PURE__*/React.createElement("button", {
+                onClick: () => setMergeDecisions(prev => ({ ...prev, [i]: "merge" })),
+                style: { flex: 1, padding: "8px 0", background: dec === "merge" ? "rgba(52,211,153,.2)" : "transparent", border: dec === "merge" ? "1px solid rgba(52,211,153,.5)" : "1px solid rgba(255,255,255,.12)", color: dec === "merge" ? "#34d399" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+              }, "+ Add to existing"),
+              /*#__PURE__*/React.createElement("button", {
+                onClick: () => setMergeDecisions(prev => ({ ...prev, [i]: "new" })),
+                style: { flex: 1, padding: "8px 0", background: dec === "new" ? "rgba(167,139,250,.2)" : "transparent", border: dec === "new" ? "1px solid rgba(167,139,250,.5)" : "1px solid rgba(255,255,255,.12)", color: dec === "new" ? "#a78bfa" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+              }, "New entry")
+            )
+            : null
+        );
+      })
+    ),
+    /*#__PURE__*/React.createElement("button", {
+      onClick: () => applyFinal(mergeItems, mergeDecisions),
+      disabled: applying,
+      style: { width: "100%", padding: "13px 0", background: applying ? "rgba(52,211,153,.08)" : "rgba(52,211,153,.15)", border: "1px solid rgba(52,211,153,.4)", color: "#34d399", borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: applying ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif" }
+    }, applying ? "Saving…" : "Apply All →")
+  );
+
+  // ── Phase: done ──
+  if (phase === "done") return /*#__PURE__*/React.createElement("div", { style: { textAlign: "center", padding: "32px 20px" } },
+    /*#__PURE__*/React.createElement("div", { style: { fontSize: 52, marginBottom: 12 } }, "✅"),
+    /*#__PURE__*/React.createElement("p", { style: { color: "#34d399", fontFamily: "'Syne',sans-serif", fontSize: 18, fontWeight: 800, margin: "0 0 8px" } }, "Shelf scanned!"),
+    /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 13, margin: "0 0 24px" } },
+      resultSummary.added > 0 ? resultSummary.added + " new item" + (resultSummary.added !== 1 ? "s" : "") + " added" : "",
+      resultSummary.added > 0 && resultSummary.updated > 0 ? " · " : "",
+      resultSummary.updated > 0 ? resultSummary.updated + " existing item" + (resultSummary.updated !== 1 ? "s" : "") + " updated" : ""
+    ),
+    /*#__PURE__*/React.createElement("button", {
+      onClick: onClose,
+      style: { padding: "12px 32px", background: "rgba(52,211,153,.15)", border: "1px solid rgba(52,211,153,.4)", color: "#34d399", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+    }, "Back to Pantry")
+  );
+
+  return null;
+}
+
 function PantryTab({
   pantryItems,
   setPantryItems,
   onAddToGrocery
 }) {
-  const [mode, setMode] = useState("list"); // list | chat | barcode | receipt
+  const [mode, setMode] = useState("list"); // list | chat | barcode | receipt | shelf
   const [showReceiptScanner, setShowReceiptScanner] = useState(false);
   const [saveError, setSaveError] = useState("");
 
@@ -1797,6 +2221,14 @@ function PantryTab({
     })
   );
 
+  if (mode === "shelf") return /*#__PURE__*/React.createElement("div", null,
+    /*#__PURE__*/React.createElement(PantryShelfScanner, {
+      pantryItems: pantryItems,
+      onApplyAll: applyAll,
+      onClose: () => setMode("list")
+    })
+  );
+
   // List mode — show add buttons + PantryEditor
   return /*#__PURE__*/React.createElement("div", null,
     saveError ? /*#__PURE__*/React.createElement("div", {
@@ -1851,7 +2283,24 @@ function PantryTab({
       cursor: "pointer",
       fontFamily: "'Syne',sans-serif"
     }
-  }, "\uD83E\uDDFE Scan Receipt")), /*#__PURE__*/React.createElement(PantryEditor, {
+  }, "\uD83E\uDDFE Scan Receipt")),
+  /*#__PURE__*/React.createElement("button", {
+    onClick: () => setMode("shelf"),
+    style: {
+      width: "100%",
+      padding: "11px 0",
+      background: "rgba(52,211,153,.1)",
+      border: "1px solid rgba(52,211,153,.3)",
+      color: "#34d399",
+      borderRadius: 9,
+      fontSize: 12,
+      fontWeight: 700,
+      cursor: "pointer",
+      fontFamily: "'Syne',sans-serif",
+      marginBottom: 8
+    }
+  }, "\uD83D\uDCF8 Shelf Scan  \u2014  photo \u2192 identify all items \u2192 add to inventory"),
+  /*#__PURE__*/React.createElement(PantryEditor, {
     pantryItems: pantryItems,
     setPantryItems: setPantryItems,
     onAddToGrocery: onAddToGrocery
