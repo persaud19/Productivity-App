@@ -1612,12 +1612,15 @@ function PantryShelfScanner({ pantryItems, onApplyAll, onClose }) {
   const [cards, setCards] = useState([]);
   const [detailIdx, setDetailIdx] = useState(0);
   const [currentCard, setCurrentCard] = useState(null);
+  const [nlInput, setNlInput] = useState("");
+  const [nlLoading, setNlLoading] = useState(false);
   const [mergeItems, setMergeItems] = useState([]);
   const [mergeDecisions, setMergeDecisions] = useState({});
   const [resultSummary, setResultSummary] = useState({ added: 0, updated: 0 });
   const [applying, setApplying] = useState(false);
   const fileRef = useRef(null);
 
+  const STORAGE_LOCATIONS = ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Bedroom", "Office", "Basement", "Car", "Other"];
   const PACKAGING_TYPES = ["bottle", "jar", "bag", "box", "can", "tube", "sachet", "pack", "tray", "bunch", "loaf", "carton", "pouch", "container", "other"];
 
   const compressImage = (file) => new Promise(resolve => {
@@ -1712,10 +1715,81 @@ Rules:
 
   const goToSummary = () => setPhase("summary");
 
+  const blankCard = (raw) => ({
+    name: raw.name || "",
+    brand: raw.brand || "",
+    packaging: raw.packaging || "other",
+    qty: raw.qty || 1,
+    unit: raw.unit || "unit",
+    unitSize: raw.unitSize || "",
+    sizeUnit: raw.sizeUnit || "g",
+    expiry: raw.expiry || "",
+    cat: raw.cat || "Other",
+    location: raw.location || "",
+    consumable: raw.consumable || false,
+    restockCycle: raw.restockCycle || 14,
+    confidence: raw.confidence || "medium",
+    notes: raw.notes || ""
+  });
+
   const startDetail = () => {
     setDetailIdx(0);
-    setCurrentCard({ ...cards[0] });
+    setCurrentCard(blankCard(cards[0]));
+    setNlInput("");
     setPhase("detail");
+  };
+
+  // Parse natural language into card fields via Claude
+  const parseNL = async () => {
+    if (!nlInput.trim() || nlLoading) return;
+    setNlLoading(true);
+    try {
+      const res = await fetch("/api/claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 400,
+          messages: [{
+            role: "user",
+            content: `You are filling out a pantry item card. Current values:
+${JSON.stringify(currentCard, null, 2)}
+
+User said: "${nlInput.trim()}"
+
+Extract any item details mentioned and return ONLY valid JSON with updated fields. Only include fields that were mentioned or corrected. Leave others unchanged.
+
+Available units: ${PANTRY_UNITS.join(", ")}
+Available size units: ${SIZE_UNITS.join(", ")}
+Available categories: ${PANTRY_CATEGORIES.join(", ")}
+Available locations: ${STORAGE_LOCATIONS.filter(Boolean).join(", ")}
+
+Return JSON only, no markdown:
+{
+  "name": "...",
+  "brand": "...",
+  "qty": 1,
+  "unit": "box",
+  "unitSize": "500",
+  "sizeUnit": "ml",
+  "expiry": "2027-01-10",
+  "cat": "Grains",
+  "location": "Pantry Closet",
+  "consumable": false
+}`
+          }]
+        })
+      });
+      const data = await res.json();
+      const raw = data.content?.[0]?.text || "{}";
+      const clean = raw.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
+      const patch = JSON.parse(clean);
+      setCurrentCard(prev => ({ ...prev, ...patch }));
+      setNlInput("");
+    } catch (e) {
+      // silent — user can still edit fields manually
+    }
+    setNlLoading(false);
   };
 
   const saveCard = () => {
@@ -1724,7 +1798,8 @@ Rules:
     if (detailIdx + 1 < updated.length) {
       const next = detailIdx + 1;
       setDetailIdx(next);
-      setCurrentCard({ ...updated[next] });
+      setCurrentCard(blankCard(updated[next]));
+      setNlInput("");
     } else {
       runInventoryMatch(updated);
     }
@@ -1736,7 +1811,8 @@ Rules:
     if (updated.length === 0) { runInventoryMatch([]); return; }
     const nextIdx = Math.min(detailIdx, updated.length - 1);
     setDetailIdx(nextIdx);
-    setCurrentCard({ ...updated[nextIdx] });
+    setCurrentCard(blankCard(updated[nextIdx]));
+    setNlInput("");
     if (detailIdx >= updated.length) runInventoryMatch(updated);
   };
 
@@ -1764,7 +1840,7 @@ Rules:
     if (conflicts.length > 0) {
       setMergeItems(withMatches);
       const decisions = {};
-      withMatches.forEach((x, i) => { if (x.existingItem) decisions[i] = "merge"; });
+      withMatches.forEach((x, i) => { decisions[i] = x.existingItem ? "merge" : "new"; });
       setMergeDecisions(decisions);
       setPhase("merge-review");
     } else {
@@ -1779,6 +1855,7 @@ Rules:
     (withMatches || mergeItems).forEach((x, i) => {
       const card = x.card;
       const dec = decisions[i] !== undefined ? decisions[i] : mergeDecisions[i];
+      if (dec === "skip") return; // user chose not to import this item
       if (x.existingItem && dec === "merge") {
         edits.push({ match: x.existingItem.name, changes: { qtyDelta: parseFloat(card.qty) || 1 } });
       } else {
@@ -1792,6 +1869,9 @@ Rules:
           sizeUnit: card.sizeUnit || undefined,
           cat: card.cat || "Other",
           expiry: card.expiry || "",
+          location: card.location || "",
+          consumable: card.consumable || false,
+          restockCycle: card.consumable ? (parseInt(card.restockCycle) || 14) : undefined,
           essential: true,
           minQty: 0,
           reorderQty: 1
@@ -1924,6 +2004,10 @@ Rules:
   if (phase === "detail" && currentCard) {
     const progress = detailIdx + 1;
     const total = cards.length;
+    const set = (k, v) => setCurrentCard(p => ({ ...p, [k]: v }));
+    const fieldStyle = { ...inp, fontSize: 13 };
+    const selectStyle = { ...inp, fontSize: 13, padding: "10px 8px" };
+
     return /*#__PURE__*/React.createElement("div", null,
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
         /*#__PURE__*/React.createElement("p", { style: { color: "#34d399", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: 0 } },
@@ -1934,24 +2018,108 @@ Rules:
       /*#__PURE__*/React.createElement("div", { style: { background: "rgba(52,211,153,.06)", borderRadius: 9, height: 4, marginBottom: 14, overflow: "hidden" } },
         /*#__PURE__*/React.createElement("div", { style: { height: "100%", width: (progress / total * 100) + "%", background: "#34d399", transition: "width .3s" } })
       ),
-      /*#__PURE__*/React.createElement("div", { style: { background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 12, padding: "14px" } },
-        currentCard.notes ? /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, fontStyle: "italic", margin: "0 0 12px" } }, "👁️ Claude saw: \"" + currentCard.notes + "\"") : null,
-        cardField("Product Name", currentCard.name, v => setCurrentCard(p => ({ ...p, name: v }))),
-        cardField("Brand", currentCard.brand, v => setCurrentCard(p => ({ ...p, brand: v }))),
-        /*#__PURE__*/React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } },
-          cardField("Packaging", currentCard.packaging, v => setCurrentCard(p => ({ ...p, packaging: v })), "select", PACKAGING_TYPES),
-          cardField("Category", currentCard.cat, v => setCurrentCard(p => ({ ...p, cat: v })), "select", PANTRY_CATEGORIES)
+
+      /*#__PURE__*/React.createElement("div", { style: { background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 12, padding: "14px", display: "flex", flexDirection: "column", gap: 10 } },
+
+        /* NL correction box */
+        currentCard.notes ? /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, fontStyle: "italic", margin: 0 } }, "👁️ Claude saw: \"" + currentCard.notes + "\"") : null,
+        /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement(Lbl, { c: "Correct or fill in anything — type naturally" }),
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6 } },
+            /*#__PURE__*/React.createElement("input", {
+              value: nlInput,
+              onChange: e => setNlInput(e.target.value),
+              onKeyDown: e => { if (e.key === "Enter") parseNL(); },
+              placeholder: "e.g. 1 box, 500ml, expiry Jan 10 2027, in the pantry",
+              style: { ...fieldStyle, flex: 1 }
+            }),
+            /*#__PURE__*/React.createElement("button", {
+              onClick: parseNL,
+              disabled: nlLoading || !nlInput.trim(),
+              style: { padding: "10px 14px", background: nlLoading ? "rgba(52,211,153,.05)" : "rgba(52,211,153,.15)", border: "1px solid rgba(52,211,153,.35)", color: "#34d399", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: nlLoading ? "not-allowed" : "pointer", whiteSpace: "nowrap" }
+            }, nlLoading ? "…" : "Fill ↵")
+          )
         ),
-        /*#__PURE__*/React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 } },
-          cardField("Qty on shelf", currentCard.qty, v => setCurrentCard(p => ({ ...p, qty: v })), "number"),
-          cardField("Unit", currentCard.unit, v => setCurrentCard(p => ({ ...p, unit: v })), "select", PANTRY_UNITS),
-          cardField("Pack size (e.g. 750)", currentCard.unitSize, v => setCurrentCard(p => ({ ...p, unitSize: v })))
+
+        /* Name */
+        /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement(Lbl, { c: "Item Name" }),
+          /*#__PURE__*/React.createElement("input", { value: currentCard.name, onChange: e => set("name", e.target.value), placeholder: "e.g. Heinz Ketchup", style: fieldStyle })
         ),
-        /*#__PURE__*/React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } },
-          cardField("Size unit", currentCard.sizeUnit, v => setCurrentCard(p => ({ ...p, sizeUnit: v })), "select", ["", ...SIZE_UNITS]),
-          cardField("Expiry (YYYY-MM)", currentCard.expiry, v => setCurrentCard(p => ({ ...p, expiry: v })))
+
+        /* Qty + Unit */
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+          /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+            /*#__PURE__*/React.createElement(Lbl, { c: "Quantity" }),
+            /*#__PURE__*/React.createElement("input", { type: "number", value: currentCard.qty, onChange: e => set("qty", parseFloat(e.target.value) || 1), style: fieldStyle })
+          ),
+          /*#__PURE__*/React.createElement("div", { style: { width: 110 } },
+            /*#__PURE__*/React.createElement(Lbl, { c: "Unit" }),
+            /*#__PURE__*/React.createElement("select", { value: currentCard.unit, onChange: e => set("unit", e.target.value), style: selectStyle },
+              PANTRY_UNITS.map(u => /*#__PURE__*/React.createElement("option", { key: u, value: u }, u))
+            )
+          )
+        ),
+
+        /* Size per unit + Size unit */
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+          /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+            /*#__PURE__*/React.createElement(Lbl, { c: "Size per unit (optional)" }),
+            /*#__PURE__*/React.createElement("input", { type: "number", value: currentCard.unitSize, onChange: e => set("unitSize", e.target.value), placeholder: "e.g. 500", style: fieldStyle })
+          ),
+          /*#__PURE__*/React.createElement("div", { style: { width: 90 } },
+            /*#__PURE__*/React.createElement(Lbl, { c: "Size unit" }),
+            /*#__PURE__*/React.createElement("select", { value: currentCard.sizeUnit, onChange: e => set("sizeUnit", e.target.value), style: selectStyle },
+              SIZE_UNITS.map(u => /*#__PURE__*/React.createElement("option", { key: u, value: u }, u))
+            )
+          )
+        ),
+
+        /* Expiry */
+        /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement(Lbl, { c: "Expiry Date (optional)" }),
+          /*#__PURE__*/React.createElement("input", { type: "date", value: currentCard.expiry, onChange: e => set("expiry", e.target.value), style: { ...fieldStyle, colorScheme: "dark" } })
+        ),
+
+        /* Brand */
+        /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement(Lbl, { c: "Brand (optional)" }),
+          /*#__PURE__*/React.createElement("input", { value: currentCard.brand, onChange: e => set("brand", e.target.value), placeholder: "e.g. Heinz", style: fieldStyle })
+        ),
+
+        /* Category + Storage Location */
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
+          /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+            /*#__PURE__*/React.createElement(Lbl, { c: "Category" }),
+            /*#__PURE__*/React.createElement("select", { value: currentCard.cat, onChange: e => set("cat", e.target.value), style: selectStyle },
+              PANTRY_CATEGORIES.map(c => /*#__PURE__*/React.createElement("option", { key: c, value: c }, c))
+            )
+          ),
+          /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+            /*#__PURE__*/React.createElement(Lbl, { c: "Storage Location" }),
+            /*#__PURE__*/React.createElement("select", { value: currentCard.location, onChange: e => set("location", e.target.value), style: selectStyle },
+              STORAGE_LOCATIONS.map(l => /*#__PURE__*/React.createElement("option", { key: l, value: l }, l || "— Select —"))
+            )
+          )
+        ),
+
+        /* Consumable toggle */
+        /*#__PURE__*/React.createElement("div", null,
+          /*#__PURE__*/React.createElement(Lbl, { c: "Item Type" }),
+          /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
+            /*#__PURE__*/React.createElement("button", {
+              onClick: () => set("consumable", !currentCard.consumable),
+              style: { padding: "7px 14px", borderRadius: 8, border: "1px solid " + (currentCard.consumable ? "rgba(96,165,250,.4)" : "rgba(255,255,255,.1)"), background: currentCard.consumable ? "rgba(96,165,250,.15)" : "transparent", color: currentCard.consumable ? "var(--color-accent-blue)" : "var(--text-muted)", fontSize: 11, fontWeight: 700, cursor: "pointer" }
+            }, "♻️ Consumable"),
+            currentCard.consumable ? /*#__PURE__*/React.createElement("select", {
+              value: currentCard.restockCycle,
+              onChange: e => set("restockCycle", parseInt(e.target.value)),
+              style: { ...selectStyle, flex: 1 }
+            }, [[7, "Every week"], [14, "Every 2 weeks"], [21, "Every 3 weeks"], [28, "Every 4 weeks"]].map(([v, l]) => /*#__PURE__*/React.createElement("option", { key: v, value: v }, l))) : null
+          )
         )
       ),
+
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 12 } },
         /*#__PURE__*/React.createElement("button", {
           onClick: saveCard,
@@ -1993,9 +2161,22 @@ Rules:
               /*#__PURE__*/React.createElement("button", {
                 onClick: () => setMergeDecisions(prev => ({ ...prev, [i]: "new" })),
                 style: { flex: 1, padding: "8px 0", background: dec === "new" ? "rgba(167,139,250,.2)" : "transparent", border: dec === "new" ? "1px solid rgba(167,139,250,.5)" : "1px solid rgba(255,255,255,.12)", color: dec === "new" ? "#a78bfa" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
-              }, "New entry")
+              }, "New entry"),
+              /*#__PURE__*/React.createElement("button", {
+                onClick: () => setMergeDecisions(prev => ({ ...prev, [i]: "skip" })),
+                style: { flex: 1, padding: "8px 0", background: dec === "skip" ? "rgba(239,68,68,.15)" : "transparent", border: dec === "skip" ? "1px solid rgba(239,68,68,.4)" : "1px solid rgba(255,255,255,.12)", color: dec === "skip" ? "#ef4444" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+              }, "Skip")
             )
-            : null
+            : /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6 } },
+              /*#__PURE__*/React.createElement("button", {
+                onClick: () => setMergeDecisions(prev => ({ ...prev, [i]: "new" })),
+                style: { flex: 1, padding: "8px 0", background: dec !== "skip" ? "rgba(52,211,153,.15)" : "transparent", border: dec !== "skip" ? "1px solid rgba(52,211,153,.4)" : "1px solid rgba(255,255,255,.12)", color: dec !== "skip" ? "#34d399" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+              }, "Add"),
+              /*#__PURE__*/React.createElement("button", {
+                onClick: () => setMergeDecisions(prev => ({ ...prev, [i]: "skip" })),
+                style: { flex: 1, padding: "8px 0", background: dec === "skip" ? "rgba(239,68,68,.15)" : "transparent", border: dec === "skip" ? "1px solid rgba(239,68,68,.4)" : "1px solid rgba(255,255,255,.12)", color: dec === "skip" ? "#ef4444" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+              }, "Skip")
+            )
         );
       })
     ),
