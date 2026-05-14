@@ -516,7 +516,8 @@
                   padding: "6px 6px", fontSize: 11, marginBottom: 0
                 }),
                 value: m.qty,
-                onChange: function (e) { setMatch(i, { qty: parseFloat(e.target.value) || 1 }); }
+                onChange: function (e) { setMatch(i, { qty: e.target.value }); },
+                onBlur: function (e) { setMatch(i, { qty: parseFloat(e.target.value) || 1 }); }
               })
             ),
 

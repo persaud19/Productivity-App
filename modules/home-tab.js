@@ -641,10 +641,8 @@ function TasksTab({
   }), /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: editTask.freq || 7,
-    onChange: e => setEditTask(p => ({
-      ...p,
-      freq: parseInt(e.target.value) || 1
-    })),
+    onChange: e => setEditTask(p => ({ ...p, freq: e.target.value })),
+    onBlur: e => setEditTask(p => ({ ...p, freq: parseInt(e.target.value) || 1 })),
     style: {
       ...inp,
       fontSize: 13

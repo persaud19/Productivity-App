@@ -1750,10 +1750,8 @@
       }, lbl), /*#__PURE__*/React.createElement("input", {
         type: "number",
         value: d[k],
-        onChange: e => setD(p => ({
-          ...p,
-          [k]: parseFloat(e.target.value) || 0
-        })),
+        onChange: e => setD(p => ({ ...p, [k]: e.target.value })),
+        onBlur: e => setD(p => ({ ...p, [k]: parseFloat(e.target.value) || 0 })),
         style: {
           ...inp,
           fontSize: 12,
@@ -3052,7 +3050,8 @@
           /*#__PURE__*/React.createElement("input", {
             type: "number",
             value: qty,
-            onChange: e => setQty(parseFloat(e.target.value) || 0),
+            onChange: e => setQty(e.target.value),
+            onBlur: e => setQty(parseFloat(e.target.value) || 0),
             step: "0.5",
             min: "0",
             style: { width: 64, padding: "6px 8px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, textAlign: "center", outline: "none" }

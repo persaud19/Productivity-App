@@ -209,7 +209,8 @@ function PantryEditModal({
   }), /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: form.qty,
-    onChange: e => s("qty", parseFloat(e.target.value) || 1),
+    onChange: e => s("qty", e.target.value),
+    onBlur: e => s("qty", parseFloat(e.target.value) || 1),
     style: {
       ...inp,
       fontSize: 13
@@ -617,7 +618,7 @@ Return ONLY valid JSON. No markdown fences.`;
           // Row 2: qty + unit + size per unit + size unit
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 5, marginBottom: 5 } },
             /*#__PURE__*/React.createElement("input", {
-              type: "number", value: item.qty, onChange: e => upd("qty", parseFloat(e.target.value) || 1),
+              type: "number", value: item.qty, onChange: e => upd("qty", e.target.value), onBlur: e => upd("qty", parseFloat(e.target.value) || 1),
               style: { ...fieldStyle, width: 50 }
             }),
             /*#__PURE__*/React.createElement("select", {
@@ -2051,7 +2052,7 @@ Return JSON only, no markdown:
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8 } },
           /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
             /*#__PURE__*/React.createElement(Lbl, { c: "Quantity" }),
-            /*#__PURE__*/React.createElement("input", { type: "number", value: currentCard.qty, onChange: e => set("qty", parseFloat(e.target.value) || 1), style: fieldStyle })
+            /*#__PURE__*/React.createElement("input", { type: "number", value: currentCard.qty, onChange: e => set("qty", e.target.value), onBlur: e => set("qty", parseFloat(e.target.value) || 1), style: fieldStyle })
           ),
           /*#__PURE__*/React.createElement("div", { style: { width: 110 } },
             /*#__PURE__*/React.createElement(Lbl, { c: "Unit" }),
