@@ -12,6 +12,9 @@
 
 | File | Period | Key Work |
 |------|--------|----------|
+| `session-log-2026-05-17.md` | May 17 2026 | Full build audit (bugs, dead code, half-built features) + revised roadmap: Landing page, Desktop layout, Google Calendar, Push notifications |
+| `session-log-2026-05-16.md` | May 16 2026 | (see file) |
+| `session-log-2026-04-21.md` | Apr 21 2026 | (see file) |
 | `session-log-2026-04-19.md` | Apr 19 2026 | Firebase persistence bug fix, dual qty tracking, duplicate detection, permanent delete, editable voice preview |
 | `weekly-log-2026-W15.md` | Apr 6–12 2026 | Finance overhaul, Goals bug, Mobility tab, Scorecard, code cleanup |
 | `session-log-2026-04-06.md` | Apr 6 2026 | Same detail as above — daily log for W15 Mon |
