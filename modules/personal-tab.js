@@ -158,6 +158,11 @@ function MorningReadOnly({
     value: m.readiness + "/5",
     c: "var(--color-success)"
   });
+  if (m.showingUp) fields.push({
+    label: "Showing Up",
+    value: m.showingUp + "/5",
+    c: "var(--color-accent-blue)"
+  });
   if (m.mood) fields.push({
     label: "Mood",
     value: m.mood + "/5",
@@ -257,6 +262,17 @@ function MorningReadOnly({
         lineHeight: 1.6
       }
     }, m.gratitude))
+  }), m.reflection && /*#__PURE__*/React.createElement(Card, {
+    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
+      c: m.reflectionPrompt ? "Check-in (" + m.reflectionPrompt + ")" : "Morning Reflection"
+    }), /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "var(--text-primary)",
+        fontSize: 13,
+        margin: 0,
+        lineHeight: 1.6
+      }
+    }, m.reflection))
   }));
 }
 function EveningReadOnly({
@@ -282,6 +298,11 @@ function EveningReadOnly({
   const snackLabels = ["None", "Light", "Moderate", "Heavy"];
   const snackColors = ["var(--color-success)", "var(--color-accent-yellow)", "var(--color-accent-orange)", "var(--color-danger)"];
   const fields = [];
+  if (e.steps) fields.push({
+    label: "Steps",
+    value: parseInt(e.steps).toLocaleString(),
+    c: "var(--color-accent-teal)"
+  });
   if (e.cardio) fields.push({
     label: "Cardio",
     value: "✓ Done",
@@ -415,8 +436,174 @@ function EveningReadOnly({
         margin: 0
       }
     }, e.moodNote))
+  }), e.reflection && /*#__PURE__*/React.createElement(Card, {
+    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
+      c: e.reflectionPrompt ? "Reflection (" + e.reflectionPrompt + ")" : "Evening Reflection"
+    }), /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "var(--text-primary)",
+        fontSize: 13,
+        margin: 0,
+        lineHeight: 1.6
+      }
+    }, e.reflection))
   }));
 }
+// ── AI-powered dynamic prompt engine ──
+// Summarizes recent logs into a compact snapshot for the AI call
+function buildLogSnapshot(allLogs, trainHistory, todayLog, type) {
+  const recent = (allLogs || []).slice(0, 14);
+  if (!recent.length) return null;
+  var lines = [];
+  recent.forEach(function(l) {
+    var parts = [l.date];
+    if (l.morning) {
+      var m = l.morning;
+      if (m.showingUp || m.energy) parts.push("showing-up:" + (m.showingUp || m.energy) + "/5");
+      if (m.sleep) parts.push("sleep:" + m.sleep + "/5");
+      if (m.weight) parts.push("wt:" + m.weight);
+      if (m.intention) parts.push('intention:"' + m.intention + '"');
+      if (m.reflection) parts.push('reflection:"' + m.reflection.slice(0, 80) + '"');
+      if (m.gratitude) parts.push('gratitude:"' + m.gratitude.slice(0, 60) + '"');
+    }
+    if (l.evening) {
+      var e = l.evening;
+      if (e.dayRating) parts.push("dayRating:" + e.dayRating + "/5");
+      if (e.win) parts.push('win:"' + e.win.slice(0, 60) + '"');
+      if (e.steps) parts.push("steps:" + e.steps);
+      if (e.glasses) parts.push("water:" + e.glasses + "/8");
+      if (e.reflection) parts.push('evReflection:"' + e.reflection.slice(0, 80) + '"');
+      if (e.cardio) parts.push("cardio:yes");
+      if (e.strength) parts.push("strength:yes");
+      if (e.familyMoment) parts.push('family:"' + e.familyMoment.slice(0, 60) + '"');
+    }
+    if (parts.length > 1) lines.push(parts.join(" | "));
+  });
+  // Add training context
+  var trainDates = new Set((trainHistory || []).map(function(s) { return s.date; }));
+  var daysNoTrain = 0;
+  for (var i = 0; i < 7; i++) {
+    if (!trainDates.has(addDays(getToday(), -i))) daysNoTrain++; else break;
+  }
+  if (daysNoTrain >= 2) lines.push("NOTE: " + daysNoTrain + " consecutive days without training");
+  // Add today's morning context for evening prompts
+  if (type === "evening" && todayLog?.morning) {
+    var tm = todayLog.morning;
+    var todayParts = ["TODAY morning:"];
+    if (tm.intention) todayParts.push('intention="' + tm.intention + '"');
+    if (tm.showingUp) todayParts.push("showing-up:" + tm.showingUp + "/5");
+    if (tm.sleep) todayParts.push("sleep:" + tm.sleep + "/5");
+    if (tm.reflection) todayParts.push('reflection="' + tm.reflection.slice(0, 100) + '"');
+    lines.push(todayParts.join(" | "));
+  }
+  return lines.join("\n");
+}
+
+// Cache key for localStorage — one prompt per type per day
+function promptCacheKey(type) { return "corevado_prompt_" + type + "_" + getToday(); }
+
+// Instant fallback while AI loads (or if API fails)
+function getFallbackPrompt(type, allLogs, todayLog, trainHistory, settings) {
+  var dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  if (type === "morning") {
+    var bank = [
+      "What's one thing you've been avoiding?",
+      "Who needs your attention today?",
+      "What would make today a 5 out of 5?",
+      "What are you grateful for right now?",
+      "Where do you want to put your energy today?",
+      "What do you need to let go of to show up fully today?",
+      "What went well yesterday that you want to repeat?",
+      "What's one boundary you need to hold today?",
+      "What will future-you thank you for doing today?",
+      "What does success look like for you today?"
+    ];
+    return { id: "fallback", prompt: bank[dayOfYear % bank.length], color: "var(--color-primary)" };
+  }
+  // Evening — check intention first
+  var intention = todayLog?.morning?.intention;
+  if (intention) return { id: "intention_check", prompt: 'Your intention was "' + intention + '." Did you live it?', color: "var(--color-primary)" };
+  var eBank = [
+    "What surprised you today?",
+    "If you could redo one thing today, what would it be?",
+    "What moment today are you most proud of?",
+    "What did you learn today that you didn't know yesterday?",
+    "What's the one thing you want to carry into tomorrow?"
+  ];
+  return { id: "fallback", prompt: eBank[dayOfYear % eBank.length], color: "var(--color-accent-blue)" };
+}
+
+// AI prompt generator — calls Claude to analyze recent data and create a personalized question
+async function generateAIPrompt(type, allLogs, trainHistory, todayLog, settings) {
+  var cacheKey = promptCacheKey(type);
+  var cached = null;
+  try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch(e) {}
+  if (cached && cached.prompt) return cached;
+
+  var snapshot = buildLogSnapshot(allLogs, trainHistory, todayLog, type);
+  if (!snapshot) return null;
+
+  var userName = settings?.name || "the user";
+  var partnerName = window.__ml?.getPartnerName ? window.__ml.getPartnerName(settings || {}) : "their partner";
+
+  var systemPrompt = "You are a personal life coach embedded in a daily check-in app. " +
+    "The user's name is " + userName + " and their partner is " + partnerName + ". " +
+    "You will receive 7-14 days of their daily log data (sleep, energy, mood, wins, reflections, workouts, weight, etc). " +
+    "Your job is to generate ONE deeply personal " + type + " check-in question based on patterns you notice. " +
+    "Look for: streaks (good or bad), momentum shifts, recurring themes in reflections, training gaps, " +
+    "weight trends, sleep patterns, missing data, emotional patterns, consistency wins. " +
+    "The question should feel like it comes from someone who's been watching their journey — specific, " +
+    "not generic. Reference actual data points when relevant (e.g. '3 good days in a row', 'your sleep dipped Tuesday'). " +
+    "Return JSON: {\"prompt\": \"the question\", \"id\": \"short_slug\", \"color\": \"one of: var(--color-primary), var(--color-accent-blue), var(--color-accent-purple), var(--color-accent-orange), var(--color-success), var(--color-accent-teal), var(--color-accent-pink), var(--color-danger)\"}. " +
+    "Keep the question under 120 characters. Be warm but direct. " +
+    (type === "morning" ? "This is a MORNING prompt — forward-looking, about intention and planning." : "This is an EVENING prompt — reflective, about what happened and what to learn.");
+
+  try {
+    var result = await callClaude(
+      [{ role: "user", content: "Here are the recent daily logs:\n\n" + snapshot + "\n\nGenerate one personalized " + type + " check-in question." }],
+      systemPrompt,
+      200
+    );
+    if (result && result.prompt) {
+      localStorage.setItem(cacheKey, JSON.stringify(result));
+      return result;
+    }
+  } catch(e) {
+    // API failure — silently fall back
+  }
+  return null;
+}
+
+// React hook: returns prompt object, starts with fallback, upgrades to AI when ready
+function useSmartPrompt(type, allLogs, trainHistory, todayLog, settings) {
+  var fallback = getFallbackPrompt(type, allLogs, todayLog, trainHistory, settings);
+  var _s = useState(function() {
+    try { var c = JSON.parse(localStorage.getItem(promptCacheKey(type))); if (c && c.prompt) return c; } catch(e) {}
+    return fallback;
+  });
+  var prompt = _s[0], setPrompt = _s[1];
+  var _l = useState(false);
+  var loading = _l[0], setLoading = _l[1];
+
+  useEffect(function() {
+    if (!allLogs || allLogs.length < 3) return;
+    var cached = null;
+    try { cached = JSON.parse(localStorage.getItem(promptCacheKey(type))); } catch(e) {}
+    if (cached && cached.prompt) { setPrompt(cached); return; }
+
+    var cancelled = false;
+    setLoading(true);
+    generateAIPrompt(type, allLogs, trainHistory, todayLog, settings).then(function(result) {
+      if (cancelled) return;
+      if (result && result.prompt) setPrompt(result);
+      setLoading(false);
+    }).catch(function() { if (!cancelled) setLoading(false); });
+    return function() { cancelled = true; };
+  }, [allLogs?.length >= 3 ? 1 : 0]);
+
+  return { prompt: prompt, loading: loading };
+}
+
 function Morning({
   todayLog,
   onSave,
@@ -428,117 +615,47 @@ function Morning({
 }) {
   const allLogsArr = allLogs || [];
   const [histDate, setHistDate] = useState(initialDate || getToday());
-  const [view, setView] = useState(initialDate && initialDate !== getToday() ? "history" : "log"); // "log" | "history"
+  const [view, setView] = useState(initialDate && initialDate !== getToday() ? "history" : "log");
   const [histLog, setHistLog] = useState(null);
   const isHistory = view === "history";
   const ex = isHistory ? histLog && histLog.morning || {} : todayLog?.morning || {};
   const [wt, setWt] = useState(ex.weight || "");
   const [wake, setWake] = useState(ex.wakeTime || "");
   const [sl, setSl] = useState(ex.sleep || 0);
-  const [en, setEn] = useState(ex.energy || 0);
-  const [hu, setHu] = useState(ex.hunger || 0);
-  const [ready, setReady] = useState(ex.readiness || 0);
-  const [steps, setSteps] = useState(ex.steps || "");
-  const [mood, setMood] = useState(ex.mood || 0);
-  const [gr, setGr] = useState(ex.gratitude || "");
+  const [showUp, setShowUp] = useState(ex.showingUp || ex.energy || 0);
   const [it, setIt] = useState(ex.intention || "");
-  const [mobility, setMobility] = useState(ex.mobilityChecked || {});
+  const [reflection, setReflection] = useState(ex.reflection || "");
   const [isExceptional, setIsExceptional] = useState(ex.exceptionalDay || false);
   const [exceptionalReason, setExceptionalReason] = useState(ex.exceptionalReason || "");
   const [backfill, setBackfill] = useState(false);
   const [backfillDate, setBackfillDate] = useState(getPrevDay());
   const [busy, setBusy] = useState(false);
   const [ok, setOk] = useState(false);
-  const [mobilityPool, setMobilityPool] = useState(ALL_EXERCISES);
-  const [weekPlan, setWeekPlan] = useState(null);
-  const [mobLoading, setMobLoading] = useState(true);
-  const [showPoolManager, setShowPoolManager] = useState(false);
-  const [poolForm, setPoolForm] = useState({ name: "", zone: "full", reps: "", tip: "" });
 
-  // Load pool + generate/fetch weekly plan
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setMobLoading(true);
-      const poolData = await DB.get(KEYS.mobilityPool());
-      const pool = Array.isArray(poolData) && poolData.length ? poolData : ALL_EXERCISES;
-      const monday = getMondayOfWeek(getToday());
-      let plan = await DB.get(KEYS.mobilityWeek(monday));
-      if (!plan || !plan.mon || !plan.mon.length) {
-        plan = generateWeeklyPlan(pool, monday);
-        await DB.set(KEYS.mobilityWeek(monday), plan);
-      }
-      if (!cancelled) { setMobilityPool(pool); setWeekPlan(plan); setMobLoading(false); }
-    };
-    load();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Load history log when view or selected date changes
   useEffect(() => {
     if (view === "history") {
       DB.get(KEYS.log(histDate)).then(l => setHistLog(l || null));
     }
   }, [view, histDate]);
 
-  // Reset form fields when history log loads so we edit the selected day
   useEffect(() => {
     if (view !== "history") return;
     const m = (histLog && histLog.morning) || {};
     setWt(m.weight || "");
     setWake(m.wakeTime || "");
     setSl(m.sleep || 0);
-    setEn(m.energy || 0);
-    setHu(m.hunger || 0);
-    setReady(m.readiness || 0);
-    setSteps(m.steps || "");
-    setMood(m.mood || 0);
-    setGr(m.gratitude || "");
+    setShowUp(m.showingUp || m.energy || 0);
     setIt(m.intention || "");
-    setMobility(m.mobilityChecked || {});
+    setReflection(m.reflection || "");
     setIsExceptional(m.exceptionalDay || false);
     setExceptionalReason(m.exceptionalReason || "");
     setOk(false);
   }, [histLog]);
 
-  const handleAddPoolExercise = async () => {
-    if (!poolForm.name.trim()) return;
-    const newEx = { id: "custom_" + Date.now(), name: poolForm.name.trim(), zone: poolForm.zone, reps: poolForm.reps.trim() || "10 reps", tip: poolForm.tip.trim() || "" };
-    const updated = [...mobilityPool, newEx];
-    setMobilityPool(updated);
-    await DB.set(KEYS.mobilityPool(), updated);
-    setPoolForm({ name: "", zone: "full", reps: "", tip: "" });
-  };
-
-  const handleDeletePoolExercise = async (id) => {
-    const updated = mobilityPool.filter(e => e.id !== id);
-    setMobilityPool(updated);
-    await DB.set(KEYS.mobilityPool(), updated);
-  };
-
-  const handleResetPool = async () => {
-    setMobilityPool(ALL_EXERCISES);
-    await DB.set(KEYS.mobilityPool(), ALL_EXERCISES);
-    // Regenerate this week's plan with the reset pool
-    const monday = getMondayOfWeek(getToday());
-    const plan = generateWeeklyPlan(ALL_EXERCISES, monday);
-    setWeekPlan(plan);
-    await DB.set(KEYS.mobilityWeek(monday), plan);
-  };
-
-  // Today's exercise objects from the week plan
-  const poolById = useMemo(() => new Map(mobilityPool.map(e => [e.id, e])), [mobilityPool]);
-  const todayDayKey = getDayKey(getToday());
-  const todayIds = weekPlan?.[todayDayKey] || [];
-  const dailyList = todayIds.map(id => poolById.get(id)).filter(Boolean);
-  const mobDone = dailyList.filter(e => mobility[e.id]).length;
+  const smartPrompt = useSmartPrompt("morning", allLogsArr, null, todayLog, settings);
+  const promptInfo = smartPrompt.prompt;
   const gap = (wt && settings?.weightGoal) ? (parseFloat(wt) - parseFloat(settings.weightGoal)).toFixed(1) : null;
-  const stepGoal = settings?.stepGoal || 10000;
-  const stepPct = steps ? Math.min(100, Math.round(parseInt(steps) / stepGoal * 100)) : 0;
 
-  // Auto-calc sleep duration
-  // Bedtime is always from the previous evening's log (even if after midnight).
-  // Yesterday's log is the authoritative source; fall back to todayLog if somehow present.
   const sleepDuration = (() => {
     const yesterday = getPrevDay();
     const yLog = allLogsArr.find(l => l.date === yesterday);
@@ -548,417 +665,154 @@ function Morning({
     const [wh, wm] = wake.split(":").map(Number);
     let mins = wh * 60 + wm - (bh * 60 + bm);
     if (mins < 0) mins += 1440;
-    const h = Math.floor(mins / 60),
-      m = mins % 60;
-    return `${h}h ${m > 0 ? m + "m" : ""}`;
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return h + "h " + (m > 0 ? m + "m" : "");
   })();
+
   const data = {
     weight: parseFloat(wt) || null,
     wakeTime: wake,
     sleep: sl,
-    energy: en,
-    hunger: hu,
-    readiness: ready,
-    steps: parseInt(steps) || 0,
-    mood,
-    gratitude: gr,
+    showingUp: showUp,
     intention: it,
-    mobilityChecked: mobility,
-    mobilityCount: mobDone,
+    reflection: reflection,
+    reflectionPrompt: promptInfo.id,
     exceptionalDay: isExceptional,
     exceptionalReason
   };
-  useAutoSave(backfill || isHistory ? null : KEYS.log(getToday()), {
-    morning: data
-  }, !busy && !isHistory);
+  useAutoSave(backfill || isHistory ? null : KEYS.log(getToday()), { morning: data }, !busy && !isHistory);
+
   const go = async () => {
     setBusy(true);
     const date = backfill ? backfillDate : isHistory ? histDate : getToday();
     const existing = (await DB.get(KEYS.log(date))) || {};
-    await DB.set(KEYS.log(date), {
-      ...existing,
-      morning: data
-    });
+    await DB.set(KEYS.log(date), { ...existing, morning: data });
     setBusy(false);
     setOk(true);
-    onSave && onSave(); // refresh allLogs so History/Calendar update
-    // Check milestones (only for today's log)
-    const stepGoalHit = parseInt(steps) >= stepGoal;
-    if (stepGoalHit && onMilestone && !isHistory) onMilestone(`${parseInt(steps).toLocaleString()} steps — goal hit! 💪`);
+    onSave && onSave();
   };
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      marginBottom: 22
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionHead, {
-    label: "Morning Check-in",
-    color: "var(--color-primary)"
-  }), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-muted)",
-      fontSize: 12,
-      margin: "0 0 0 13px"
-    }
-  }, fmtMid(getToday()))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      borderRadius: 8,
-      overflow: "hidden",
-      border: "1px solid rgba(255,255,255,.09)"
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setView("log"),
-    style: {
-      padding: "6px 12px",
-      border: "none",
-      background: view === "log" ? "rgba(244,168,35,.15)" : "transparent",
-      color: view === "log" ? "var(--color-primary)" : "var(--text-secondary)",
-      fontWeight: view === "log" ? 700 : 400,
-      fontSize: 11,
-      cursor: "pointer",
-      fontFamily: "'Syne',sans-serif"
-    }
-  }, "TODAY"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setView("history"),
-    style: {
-      padding: "6px 12px",
-      border: "none",
-      background: view === "history" ? "rgba(96,165,250,.15)" : "transparent",
-      color: view === "history" ? "var(--color-accent-blue)" : "var(--text-secondary)",
-      fontWeight: view === "history" ? 700 : 400,
-      fontSize: 11,
-      cursor: "pointer",
-      fontFamily: "'Syne',sans-serif"
-    }
-  }, "HISTORY"))), view === "history" && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(HistoryStrip, {
-    selectedDate: histDate,
-    onSelectDate: d => {
-      setHistDate(d);
-      setHistLog(null);
-    },
-    allLogs: allLogsArr,
-    accentColor: "var(--color-primary)"
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "9px 13px",
-      background: "rgba(244,168,35,.06)",
-      border: "1px solid rgba(244,168,35,.15)",
-      borderRadius: 10,
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--color-primary)",
-      fontSize: 11,
-      fontWeight: 700,
-      margin: 0
-    }
-  }, "\u270f\ufe0f Editing " + fmtLong(histDate)))), ok && /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--color-success)",
-        margin: 0,
-        fontSize: 13
-      }
-    }, "\u2713 Morning logged \u2014 stay intentional today."),
-    s: {
-      borderColor: "rgba(74,222,128,.25)",
-      background: "rgba(74,222,128,.06)",
-      marginBottom: 16
-    }
-  }), view === "log" && todayLog?.morning && !ok && /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "10px 13px",
-      background: "rgba(244,168,35,.06)",
-      border: "1px solid rgba(244,168,35,.15)",
-      borderRadius: 10,
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--color-primary)",
-      fontSize: 11,
-      fontWeight: 700,
-      margin: "0 0 2px"
-    }
-  }, "\u2713 Today already logged"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-secondary)",
-      fontSize: 10,
-      margin: 0
-    }
-  }, "Updates will overwrite. Scroll down to re-submit.")), (view === "log" || isHistory) && /*#__PURE__*/React.createElement(React.Fragment, null, view === "log" && new Date().getHours() >= 10 && !todayLog?.morning && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 14,
-      padding: "10px 13px",
-      background: "rgba(167,139,250,.06)",
-      border: "1px solid rgba(167,139,250,.15)",
-      borderRadius: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center"
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--color-accent-purple)",
-      fontSize: 11,
-      fontWeight: 700,
-      margin: 0
-    }
-  }, "Did you miss yesterday?"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setBackfill(!backfill),
-    style: {
-      padding: "4px 10px",
-      background: backfill ? "rgba(167,139,250,.2)" : "transparent",
-      border: "1px solid rgba(167,139,250,.3)",
-      color: "var(--color-accent-purple)",
-      borderRadius: 6,
-      fontSize: 10,
-      cursor: "pointer",
-      fontWeight: 700
-    }
-  }, backfill ? "Cancel" : "Log Yesterday")), backfill && /*#__PURE__*/React.createElement("input", {
-    type: "date",
-    value: backfillDate,
-    onChange: e => setBackfillDate(e.target.value),
-    style: {
-      ...inp,
-      marginTop: 8,
-      fontSize: 13,
-      colorScheme: "dark"
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 13
-    }
-  }, /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Weight (lbs)"
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 16
-      }
-    }, /*#__PURE__*/React.createElement("input", {
-      type: "number",
-      value: wt,
-      onChange: e => setWt(e.target.value),
-      placeholder: settings?.weightStart ? String(settings.weightStart) : "lbs",
-      style: {
-        ...inp,
-        width: 88
-      }
-    }), gap !== null && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--color-primary)",
-        fontWeight: 800,
-        fontSize: 20,
-        margin: 0,
-        fontFamily: "'Syne',sans-serif"
-      }
-    }, parseFloat(gap) > 0 ? "+" : "", gap, " lbs"), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--text-muted)",
-        fontSize: 10,
-        margin: 0
-      }
-    }, settings?.weightGoal ? "from " + settings.weightGoal + " lb goal" : "set a weight goal in Goals"))))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Wake-up Time"
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 14
-      }
-    }, /*#__PURE__*/React.createElement("input", {
-      type: "time",
-      value: wake,
-      onChange: e => setWake(e.target.value),
-      style: {
-        ...inp,
-        width: 130,
-        colorScheme: "dark"
-      }
-    }), sleepDuration && /*#__PURE__*/React.createElement("div", {
-      style: {
-        padding: "6px 12px",
-        background: "rgba(167,139,250,.1)",
-        borderRadius: 8
-      }
-    }, /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--color-accent-purple)",
-        fontSize: 13,
-        fontWeight: 700,
-        margin: 0
-      }
-    }, sleepDuration), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--text-muted)",
-        fontSize: 10,
-        margin: 0
-      }
-    }, "slept"))))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Sleep Quality"
-    }), /*#__PURE__*/React.createElement(Dots, {
-      val: sl,
-      set: setSl,
-      col: "var(--color-accent-purple)"
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Morning Energy (physical)"
-    }), /*#__PURE__*/React.createElement(Dots, {
-      val: en,
-      set: setEn,
-      col: "var(--color-accent-blue)"
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Hunger Level"
-    }), /*#__PURE__*/React.createElement(Dots, {
-      val: hu,
-      set: setHu,
-      col: "var(--color-accent-orange)"
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Recovery / Readiness"
-    }), /*#__PURE__*/React.createElement(Dots, {
-      val: ready,
-      set: setReady,
-      col: "var(--color-success)"
-    }), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--text-muted)",
-        fontSize: 10,
-        margin: "6px 0 0"
-      }
-    }, "Used in Train to flag low-recovery days"))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: `Yesterday's Steps (goal: ${stepGoal.toLocaleString()})`
-    }), /*#__PURE__*/React.createElement("input", {
-      type: "number",
-      value: steps,
-      onChange: e => setSteps(e.target.value),
-      placeholder: "e.g. 8432",
-      style: {
-        ...inp,
-        width: 150,
-        marginBottom: 8
-      }
-    }), steps && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ProgBar, {
-      pct: stepPct,
-      col: stepPct >= 100 ? "var(--color-success)" : "var(--color-accent-blue)",
-      h: 6
-    }), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: stepPct >= 100 ? "var(--color-success)" : "var(--text-secondary)",
-        fontSize: 11,
-        margin: "5px 0 0",
-        fontWeight: stepPct >= 100 ? 700 : 400
-      }
-    }, stepPct >= 100 ? "Goal hit! ✓" : `${stepPct}% of goal`)), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--text-muted)",
-        fontSize: 10,
-        margin: "6px 0 0"
-      }
-    }, "Samsung Health sync available in Phase 2 (native app)"))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Mindset / Mood (emotional)"
-    }), /*#__PURE__*/React.createElement(Dots, {
-      val: mood,
-      set: setMood,
-      col: "var(--color-accent-pink)"
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Gratitude \u2014 one thing"
-    }), /*#__PURE__*/React.createElement("textarea", {
-      value: gr,
-      onChange: e => setGr(e.target.value),
-      placeholder: "What are you grateful for today?",
-      style: {
-        ...inp,
-        resize: "none",
-        minHeight: 72,
-        lineHeight: 1.6
-      },
-      maxLength: 200
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Today's Intention"
-    }), /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      value: it,
-      onChange: e => setIt(e.target.value),
-      placeholder: "focused \xB7 present \xB7 strong...",
-      style: inp,
-      maxLength: 40
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Exceptional Day?"
-    }), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--text-secondary)",
-        fontSize: 11,
-        margin: "0 0 8px",
-        lineHeight: 1.5
-      }
-    }, "Sick, travelling, or outside normal circumstances? Flag it to protect your averages."), /*#__PURE__*/React.createElement(YN, {
-      val: isExceptional,
-      set: setIsExceptional
-    }), isExceptional && /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      value: exceptionalReason,
-      onChange: e => setExceptionalReason(e.target.value),
-      placeholder: "Reason (optional)...",
-      style: {
-        ...inp,
-        marginTop: 10,
-        fontSize: 13
-      }
-    }))
-  }),
 
-  /*#__PURE__*/React.createElement("button", {
-    onClick: go,
-    disabled: busy,
-    style: {
-      background: busy ? "rgba(244,168,35,.45)" : "var(--color-primary)",
-      color: "var(--bg)",
-      border: "none",
-      borderRadius: 10,
-      padding: "14px 0",
-      fontSize: 15,
-      fontWeight: 800,
-      cursor: busy ? "wait" : "pointer",
-      width: "100%",
-      fontFamily: "'Syne',sans-serif",
-      letterSpacing: ".05em"
-    }
-  }, busy ? "SAVING..." : isHistory ? "SAVE CHANGES \u2192" : "LOG MORNING \u2192"))));
+  const insightBanner = useMemo(() => {
+    if (isHistory || allLogsArr.length < 3) return null;
+    const last7 = allLogsArr.slice(0, 7);
+    const sleepScores = last7.map(l => l.morning?.sleep).filter(Boolean);
+    const avgSleep = sleepScores.length ? (sleepScores.reduce((a, b) => a + b, 0) / sleepScores.length).toFixed(1) : null;
+    const showUpScores = last7.map(l => l.morning?.showingUp || l.morning?.energy).filter(Boolean);
+    const avgShowUp = showUpScores.length ? (showUpScores.reduce((a, b) => a + b, 0) / showUpScores.length).toFixed(1) : null;
+    const streak = allLogsArr.filter((l, i) => i < 14 && l.morning).length;
+    const parts = [];
+    if (avgSleep) parts.push("Sleep avg: " + avgSleep + "/5");
+    if (avgShowUp) parts.push("Showing up avg: " + avgShowUp + "/5");
+    if (streak >= 3) parts.push(streak + " day streak");
+    if (!parts.length) return null;
+    return parts.join("  \xB7  ");
+  }, [allLogsArr.length, isHistory]);
+
+  return React.createElement("div", null,
+    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 } },
+      React.createElement("div", null,
+        React.createElement(SectionHead, { label: "Morning Check-in", color: "var(--color-primary)" }),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 0 13px" } }, fmtMid(getToday()))
+      ),
+      React.createElement("div", { style: { display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,.09)" } },
+        React.createElement("button", { onClick: () => setView("log"), style: { padding: "6px 12px", border: "none", background: view === "log" ? "rgba(244,168,35,.15)" : "transparent", color: view === "log" ? "var(--color-primary)" : "var(--text-secondary)", fontWeight: view === "log" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "TODAY"),
+        React.createElement("button", { onClick: () => setView("history"), style: { padding: "6px 12px", border: "none", background: view === "history" ? "rgba(96,165,250,.15)" : "transparent", color: view === "history" ? "var(--color-accent-blue)" : "var(--text-secondary)", fontWeight: view === "history" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "HISTORY")
+      )
+    ),
+
+    view === "history" && React.createElement("div", null,
+      React.createElement(HistoryStrip, { selectedDate: histDate, onSelectDate: function(d) { setHistDate(d); setHistLog(null); }, allLogs: allLogsArr, accentColor: "var(--color-primary)" }),
+      React.createElement("div", { style: { padding: "9px 13px", background: "rgba(244,168,35,.06)", border: "1px solid rgba(244,168,35,.15)", borderRadius: 10, marginBottom: 16 } },
+        React.createElement("p", { style: { color: "var(--color-primary)", fontSize: 11, fontWeight: 700, margin: 0 } }, "✏️ Editing " + fmtLong(histDate))
+      )
+    ),
+
+    ok && React.createElement(Card, { ch: React.createElement("p", { style: { color: "var(--color-success)", margin: 0, fontSize: 13 } }, "✓ Morning logged — stay intentional today."), s: { borderColor: "rgba(74,222,128,.25)", background: "rgba(74,222,128,.06)", marginBottom: 16 } }),
+
+    view === "log" && todayLog?.morning && !ok && React.createElement("div", { style: { padding: "10px 13px", background: "rgba(244,168,35,.06)", border: "1px solid rgba(244,168,35,.15)", borderRadius: 10, marginBottom: 14 } },
+      React.createElement("p", { style: { color: "var(--color-primary)", fontSize: 11, fontWeight: 700, margin: "0 0 2px" } }, "✓ Today already logged"),
+      React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 10, margin: 0 } }, "Updates will overwrite. Scroll down to re-submit.")
+    ),
+
+    insightBanner && view === "log" && React.createElement("div", { style: { padding: "10px 14px", background: "rgba(167,139,250,.06)", border: "1px solid rgba(167,139,250,.12)", borderRadius: 10, marginBottom: 14 } },
+      React.createElement("p", { style: { color: "var(--color-accent-purple)", fontSize: 11, fontWeight: 700, margin: 0, letterSpacing: ".03em" } }, insightBanner)
+    ),
+
+    (view === "log" || isHistory) && React.createElement(React.Fragment, null,
+
+      view === "log" && new Date().getHours() >= 10 && !todayLog?.morning && React.createElement("div", { style: { marginBottom: 14, padding: "10px 13px", background: "rgba(167,139,250,.06)", border: "1px solid rgba(167,139,250,.15)", borderRadius: 10 } },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+          React.createElement("p", { style: { color: "var(--color-accent-purple)", fontSize: 11, fontWeight: 700, margin: 0 } }, "Did you miss yesterday?"),
+          React.createElement("button", { onClick: function() { setBackfill(!backfill); }, style: { padding: "4px 10px", background: backfill ? "rgba(167,139,250,.2)" : "transparent", border: "1px solid rgba(167,139,250,.3)", color: "var(--color-accent-purple)", borderRadius: 6, fontSize: 10, cursor: "pointer", fontWeight: 700 } }, backfill ? "Cancel" : "Log Yesterday")
+        ),
+        backfill && React.createElement("input", { type: "date", value: backfillDate, onChange: function(e) { setBackfillDate(e.target.value); }, style: { ...inp, marginTop: 8, fontSize: 13, colorScheme: "dark" } })
+      ),
+
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 13 } },
+
+        // 1. Weight
+        React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+          React.createElement(Lbl, { c: "Weight (lbs)" }),
+          React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 16 } },
+            React.createElement("input", { type: "number", value: wt, onChange: function(e) { setWt(e.target.value); }, placeholder: settings?.weightStart ? String(settings.weightStart) : "lbs", style: { ...inp, width: 88 } }),
+            gap !== null && React.createElement("div", null,
+              React.createElement("p", { style: { color: "var(--color-primary)", fontWeight: 800, fontSize: 20, margin: 0, fontFamily: "'Syne',sans-serif" } }, parseFloat(gap) > 0 ? "+" : "", gap, " lbs"),
+              React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, settings?.weightGoal ? "from " + settings.weightGoal + " lb goal" : "set a weight goal in Goals")
+            )
+          )
+        ) }),
+
+        // 2. Wake Time + sleep calc
+        React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+          React.createElement(Lbl, { c: "Wake-up Time" }),
+          React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14 } },
+            React.createElement("input", { type: "time", value: wake, onChange: function(e) { setWake(e.target.value); }, style: { ...inp, width: 130, colorScheme: "dark" } }),
+            sleepDuration && React.createElement("div", { style: { padding: "6px 12px", background: "rgba(167,139,250,.1)", borderRadius: 8 } },
+              React.createElement("p", { style: { color: "var(--color-accent-purple)", fontSize: 13, fontWeight: 700, margin: 0 } }, sleepDuration),
+              React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, "slept")
+            )
+          )
+        ) }),
+
+        // 3. Sleep Quality
+        React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+          React.createElement(Lbl, { c: "Sleep Quality" }),
+          React.createElement(Dots, { val: sl, set: setSl, col: "var(--color-accent-purple)" })
+        ) }),
+
+        // 4. How are you showing up? (merged energy + mood)
+        React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+          React.createElement(Lbl, { c: "How are you showing up today?" }),
+          React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "0 0 8px" } }, "Body + mind combined — 1 = struggling, 5 = locked in"),
+          React.createElement(Dots, { val: showUp, set: setShowUp, col: "var(--color-accent-blue)" })
+        ) }),
+
+        // 5. Intention
+        React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+          React.createElement(Lbl, { c: "Today's Intention" }),
+          React.createElement("input", { type: "text", value: it, onChange: function(e) { setIt(e.target.value); }, placeholder: "focused \xB7 present \xB7 disciplined...", style: inp, maxLength: 60 })
+        ) }),
+
+        // 6. Contextual rotating prompt
+        React.createElement(Card, { s: { borderColor: promptInfo.color + "33", background: promptInfo.color + "0a" }, ch: React.createElement(React.Fragment, null,
+          React.createElement("p", { style: { color: promptInfo.color, fontSize: 11, fontWeight: 800, letterSpacing: ".05em", margin: "0 0 4px", fontFamily: "'Syne',sans-serif" } }, smartPrompt.loading ? "GENERATING YOUR CHECK-IN…" : "TODAY'S CHECK-IN"),
+          React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 14, margin: "0 0 10px", lineHeight: 1.5, fontWeight: 500 } }, promptInfo.prompt),
+          React.createElement("textarea", { value: reflection, onChange: function(e) { setReflection(e.target.value); }, placeholder: "Take a moment…", style: { ...inp, resize: "none", minHeight: 80, lineHeight: 1.6, fontSize: 13 }, maxLength: 500 })
+        ) }),
+
+        // Exceptional day — collapsed toggle
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 0" } },
+          React.createElement("button", { onClick: function() { setIsExceptional(!isExceptional); }, style: { background: isExceptional ? "rgba(167,139,250,.15)" : "transparent", border: "1px solid " + (isExceptional ? "rgba(167,139,250,.3)" : "rgba(255,255,255,.1)"), borderRadius: 8, padding: "6px 12px", color: isExceptional ? "var(--color-accent-purple)" : "var(--text-muted)", fontSize: 11, cursor: "pointer", fontWeight: isExceptional ? 700 : 400 } }, isExceptional ? "⚡ Exceptional day" : "Flag as exceptional day"),
+          isExceptional && React.createElement("input", { type: "text", value: exceptionalReason, onChange: function(e) { setExceptionalReason(e.target.value); }, placeholder: "Reason...", style: { ...inp, flex: 1, fontSize: 12 } })
+        ),
+
+        // Submit
+        React.createElement("button", { onClick: go, disabled: busy, style: { background: busy ? "rgba(244,168,35,.45)" : "var(--color-primary)", color: "var(--bg)", border: "none", borderRadius: 10, padding: "14px 0", fontSize: 15, fontWeight: 800, cursor: busy ? "wait" : "pointer", width: "100%", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" } }, busy ? "SAVING..." : isHistory ? "SAVE CHANGES →" : "LOG MORNING →")
+      )
+    )
+  );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // HEALTH SCORECARD — calorie in vs out banner shown at top of all Health tabs
 // ─────────────────────────────────────────────────────────────────────────────
 function HealthScorecard({ todayLog, todayMealLog, macroTargets }) {
@@ -1173,528 +1027,268 @@ function Evening({
   const [histDate, setHistDate] = useState(initialDate || getToday());
   const [histLog, setHistLog] = useState(null);
   const isHistory = view === "history";
-  useEffect(() => {
+  const [trainHistory, setTrainHistory] = useState([]);
+  useEffect(function() {
     if (isHistory) {
-      DB.get(KEYS.log(histDate)).then(l => setHistLog(l || null));
+      DB.get(KEYS.log(histDate)).then(function(l) { setHistLog(l || null); });
     }
   }, [view, histDate]);
+  useEffect(function() {
+    DB.get(KEYS.trainHistory()).then(function(h) { setTrainHistory(Array.isArray(h) ? h : []); });
+  }, []);
+
   const ex = todayLog?.evening || {};
-  const [ca, setCa] = useState(ex.cardio ?? false);
-  const [st, setSt] = useState(ex.strength ?? false);
-  const [sn, setSn] = useState(ex.snack ?? null);
-  const [fq, setFq] = useState(ex.foodQuality || 0);
-  const [fw, setFw] = useState(ex.financeWin ?? false);
-  const [fn, setFn] = useState(ex.financeNote || "");
-  const [mood, setMood] = useState(ex.eveningMood || 0);
-  const [moodNote, setMoodNote] = useState(ex.moodNote || "");
-  const [choresDone, setChoresDone] = useState(ex.choresDone ?? false);
-  const [choreNote, setChoreNote] = useState(ex.choreNote || "");
-  const [bedtime, setBedtime] = useState(ex.bedtime || "");
-  const [familyMoment, setFamilyMoment] = useState(ex.familyMoment || "");
-  const [exceptional, setExceptional] = useState(ex.exceptionalDay ?? false);
-  const [exceptReason, setExceptReason] = useState(ex.exceptionalReason || "");
+  const [steps, setSteps] = useState(ex.steps || "");
+  const [glasses, setGlasses] = useState(ex.glasses || 0);
   const [dr, setDr] = useState(ex.dayRating || 0);
   const [wi, setWi] = useState(ex.win || "");
-  const [hy, setHy] = useState(ex.hydration ?? null);
-  const [glasses, setGlasses] = useState(ex.glasses || 0);
+  const [bedtime, setBedtime] = useState(ex.bedtime || "");
+  const [reflection, setReflection] = useState(ex.reflection || "");
+  const [exceptional, setExceptional] = useState(ex.exceptionalDay || false);
+  const [exceptReason, setExceptReason] = useState(ex.exceptionalReason || "");
   const [busy, setBusy] = useState(false);
   const [ok, setOk] = useState(false);
 
-  // Reset form fields when history log loads so we edit the selected day
-  useEffect(() => {
+  // Reset form fields when history log loads
+  useEffect(function() {
     if (!isHistory) return;
-    const e = (histLog && histLog.evening) || {};
-    setCa(e.cardio ?? false);
-    setSt(e.strength ?? false);
-    setSn(e.snack ?? null);
-    setFq(e.foodQuality || 0);
-    setFw(e.financeWin ?? false);
-    setFn(e.financeNote || "");
-    setMood(e.eveningMood || 0);
-    setMoodNote(e.moodNote || "");
-    setChoresDone(e.choresDone ?? false);
-    setChoreNote(e.choreNote || "");
-    setBedtime(e.bedtime || "");
-    setFamilyMoment(e.familyMoment || "");
-    setExceptional(e.exceptionalDay ?? false);
-    setExceptReason(e.exceptionalReason || "");
+    var e = (histLog && histLog.evening) || {};
+    setSteps(e.steps || "");
+    setGlasses(e.glasses || 0);
     setDr(e.dayRating || 0);
     setWi(e.win || "");
-    setHy(e.hydration ?? null);
-    setGlasses(e.glasses || 0);
+    setBedtime(e.bedtime || "");
+    setReflection(e.reflection || "");
+    setExceptional(e.exceptionalDay || false);
+    setExceptReason(e.exceptionalReason || "");
     setOk(false);
   }, [histLog]);
 
+  const stepGoal = settings?.stepGoal || 10000;
+  const stepPct = steps ? Math.min(100, Math.round(parseInt(steps) / stepGoal * 100)) : 0;
+
+  const smartPrompt = useSmartPrompt("evening", allLogsArr, trainHistory, todayLog, settings);
+  const promptInfo = smartPrompt.prompt;
+
+  // Auto-detect workouts from Train tab
+  const todaySessions = useMemo(function() {
+    return trainHistory.filter(function(s) { return s.date === getToday(); });
+  }, [trainHistory]);
+  const didCardio = todaySessions.some(function(s) { return s.type === "cardio" || s.type === "walk"; });
+  const didStrength = todaySessions.some(function(s) { return s.type === "strength"; });
+
+  // No-meals-logged nudge
+  const mealsLogged = mealLog ? ["breakfast", "lunch", "dinner"].filter(function(s) { return mealLog[s]; }).length : 0;
+
   const data = {
-    cardio: ca,
-    strength: st,
-    snack: sn,
-    foodQuality: fq,
-    financeWin: fw,
-    financeNote: fn,
-    eveningMood: mood,
-    moodNote,
-    choresDone,
-    choreNote,
-    bedtime,
-    familyMoment,
-    exceptionalDay: exceptional,
-    exceptionalReason: exceptReason,
+    steps: parseInt(steps) || 0,
+    glasses: glasses,
     dayRating: dr,
     win: wi,
-    hydration: hy,
-    glasses
+    bedtime: bedtime,
+    reflection: reflection,
+    reflectionPrompt: promptInfo.id,
+    exceptionalDay: exceptional,
+    exceptionalReason: exceptReason,
+    // Preserve auto-detected workout flags for backward compat with history/Sunday
+    cardio: didCardio,
+    strength: didStrength
   };
-  useAutoSave(isHistory ? null : KEYS.log(getToday()), {
-    evening: data
-  }, !busy && !isHistory);
-  const go = async () => {
+  useAutoSave(isHistory ? null : KEYS.log(getToday()), { evening: data }, !busy && !isHistory);
+
+  const go = async function() {
     setBusy(true);
-    const saveDate = isHistory ? histDate : getToday();
-    const existing = (await DB.get(KEYS.log(saveDate))) || {};
-    await DB.set(KEYS.log(saveDate), {
-      ...existing,
-      evening: data
-    });
+    var saveDate = isHistory ? histDate : getToday();
+    var existing = (await DB.get(KEYS.log(saveDate))) || {};
+    await DB.set(KEYS.log(saveDate), { ...existing, evening: data });
     // Archive wins (only for today's log)
     if (!isHistory && wi.trim()) {
-      const arch = (await DB.get(KEYS.winsArchive())) || [];
-      if (!arch.find(w => w.date === getToday())) {
-        await DB.set(KEYS.winsArchive(), [{
-          date: getToday(),
-          win: wi,
-          ...(settings?.name ? {
-            who: settings.name
-          } : {})
-        }, ...arch].slice(0, 365));
+      var arch = (await DB.get(KEYS.winsArchive())) || [];
+      if (!arch.find(function(w) { return w.date === getToday(); })) {
+        await DB.set(KEYS.winsArchive(), [{ date: getToday(), win: wi, ...(settings?.name ? { who: settings.name } : {}) }, ...arch].slice(0, 365));
       }
     }
     setBusy(false);
     setOk(true);
-    onSave && onSave(); // refresh allLogs so History/Calendar update
+    onSave && onSave();
   };
-  const snacks = [{
-    l: "None",
-    e: "★",
-    c: "var(--color-success)"
-  }, {
-    l: "Light",
-    e: "·",
-    c: "var(--color-accent-yellow)"
-  }, {
-    l: "Moderate",
-    e: "··",
-    c: "var(--color-accent-orange)"
-  }, {
-    l: "Heavy",
-    e: "✗",
-    c: "var(--color-danger)"
-  }];
-  const childrenList = getChildren(settings);
-  const childNames = childrenList.map(c => c.name).filter(Boolean);
-  const familyNames = [window.__ml.getPartnerName(settings), ...childNames].join(" or ");
-  const partnerName = window.__ml.getPartnerName(settings);
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      marginBottom: 22
+
+  // Accountability banners
+  var accountabilityBanners = [];
+
+  // No training for 2+ days
+  if (!isHistory) {
+    var trainDates = new Set(trainHistory.map(function(s) { return s.date; }));
+    var daysNoTrain = 0;
+    for (var i = 0; i < 4; i++) {
+      var d = addDays(getToday(), -i);
+      if (!trainDates.has(d)) daysNoTrain++; else break;
     }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionHead, {
-    label: "Evening Check-in",
-    color: "var(--color-accent-blue)"
-  }), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-muted)",
-      fontSize: 12,
-      margin: "0 0 0 13px"
+    if (daysNoTrain >= 2) {
+      accountabilityBanners.push({ color: "var(--color-accent-orange)", bg: "rgba(251,146,60,.07)", border: "rgba(251,146,60,.15)", text: daysNoTrain + " days without training — what's been the blocker?" });
     }
-  }, fmtMid(getToday()))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      borderRadius: 8,
-      overflow: "hidden",
-      border: "1px solid rgba(255,255,255,.09)"
+
+    // No meals logged today
+    if (mealsLogged === 0) {
+      accountabilityBanners.push({ color: "var(--color-accent-orange)", bg: "rgba(251,146,60,.05)", border: "rgba(251,146,60,.12)", text: "No meals logged today — head to Food tab to track what you ate." });
     }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setView("log"),
-    style: {
-      padding: "6px 12px",
-      border: "none",
-      background: view === "log" ? "rgba(96,165,250,.15)" : "transparent",
-      color: view === "log" ? "var(--color-accent-blue)" : "var(--text-secondary)",
-      fontWeight: view === "log" ? 700 : 400,
-      fontSize: 11,
-      cursor: "pointer",
-      fontFamily: "'Syne',sans-serif"
-    }
-  }, "TODAY"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setView("history"),
-    style: {
-      padding: "6px 12px",
-      border: "none",
-      background: view === "history" ? "rgba(96,165,250,.15)" : "transparent",
-      color: view === "history" ? "var(--color-accent-blue)" : "var(--text-secondary)",
-      fontWeight: view === "history" ? 700 : 400,
-      fontSize: 11,
-      cursor: "pointer",
-      fontFamily: "'Syne',sans-serif"
-    }
-  }, "HISTORY"))), view === "history" && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(HistoryStrip, {
-    selectedDate: histDate,
-    onSelectDate: d => {
-      setHistDate(d);
-      setHistLog(null);
-    },
-    allLogs: allLogsArr,
-    accentColor: "var(--color-accent-blue)"
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "9px 13px",
-      background: "rgba(96,165,250,.06)",
-      border: "1px solid rgba(96,165,250,.15)",
-      borderRadius: 10,
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--color-accent-blue)",
-      fontSize: 11,
-      fontWeight: 700,
-      margin: 0
-    }
-  }, "\u270f\ufe0f Editing " + fmtLong(histDate)))), ok && /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--color-accent-blue)",
-        margin: 0,
-        fontSize: 13
-      }
-    }, "\u2713 Day closed. Rest well."),
-    s: {
-      borderColor: "rgba(96,165,250,.25)",
-      background: "rgba(96,165,250,.06)",
-      marginBottom: 16
-    }
-  }), (view === "log" || isHistory) && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Workouts Completed"
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        gap: 9
-      }
-    }, [["Cardio", ca, setCa], ["Strength", st, setSt]].map(([l, v, sv]) => /*#__PURE__*/React.createElement("button", {
-      key: l,
-      onClick: () => sv(!v),
-      style: {
-        flex: 1,
-        padding: "10px 0",
-        borderRadius: 8,
-        cursor: "pointer",
-        fontSize: 13,
-        background: v ? "rgba(74,222,128,.13)" : "var(--card-bg-3)",
-        border: `1px solid ${v ? "var(--color-success)" : "var(--card-border)"}`,
-        color: v ? "var(--color-success)" : "var(--text-secondary)",
-        fontWeight: v ? 700 : 400
-      }
-    }, v ? "✓ " : "", l))), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--text-muted)",
-        fontSize: 10,
-        margin: "7px 0 0"
-      }
-    }, "Auto-logged from Train tab \xB7 Mobility tracked in morning"))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Evening Snacking"
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        gap: 7
-      }
-    }, snacks.map((s, i) => /*#__PURE__*/React.createElement("button", {
-      key: i,
-      onClick: () => setSn(i),
-      style: {
-        flex: 1,
-        padding: "9px 3px",
-        borderRadius: 8,
-        fontSize: 11,
-        cursor: "pointer",
-        background: sn === i ? `${s.c}1f` : "var(--card-bg-3)",
-        border: `1px solid ${sn === i ? s.c : "var(--card-border)"}`,
-        color: sn === i ? s.c : "var(--text-secondary)",
-        fontWeight: sn === i ? 700 : 400
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        display: "block",
-        fontSize: 14,
-        marginBottom: 2
-      }
-    }, s.e), s.l))))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Overall Food Quality"
-    }), /*#__PURE__*/React.createElement(Dots, {
-      val: fq,
-      set: setFq,
-      col: "var(--color-accent-orange)"
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Water Intake Today"
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        marginTop: 8
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        gap: 4,
-        flexWrap: "wrap"
-      }
-    }, [0, 1, 2, 3, 4, 5, 6, 7, 8].map(n => /*#__PURE__*/React.createElement("button", {
-      key: n,
-      onClick: () => setGlasses(n),
-      style: {
-        width: 30,
-        height: 30,
-        borderRadius: 7,
-        border: `2px solid ${glasses >= n && n > 0 ? "var(--color-accent-blue)" : "rgba(255,255,255,.12)"}`,
-        background: glasses >= n && n > 0 ? "rgba(96,165,250,.18)" : "transparent",
-        cursor: "pointer",
-        color: glasses >= n && n > 0 ? "var(--color-accent-blue)" : "var(--text-muted)",
-        fontSize: 12,
-        fontWeight: 700,
-        padding: 0
-      }
-    }, n === 0 ? "0" : n))), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: glasses >= 8 ? "var(--color-success)" : glasses >= 5 ? "var(--color-accent-blue)" : "var(--text-secondary)",
-        fontSize: 11,
-        margin: 0,
-        fontWeight: 700
-      }
-    }, glasses, "/8 glasses ", glasses >= 8 ? "✓" : "")))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Finance Win Today?"
-    }), /*#__PURE__*/React.createElement(YN, {
-      val: fw,
-      set: setFw
-    }), fw && /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      value: fn,
-      onChange: e => setFn(e.target.value),
-      placeholder: "What did you do?",
-      style: {
-        ...inp,
-        marginTop: 10
-      }
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Evening Mood"
-    }), /*#__PURE__*/React.createElement(Dots, {
-      val: mood,
-      set: setMood,
-      col: "var(--color-accent-purple)"
-    }), /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      value: moodNote,
-      onChange: e => setMoodNote(e.target.value),
-      placeholder: "How are you feeling? (optional)",
-      style: {
-        ...inp,
-        marginTop: 10,
-        fontSize: 13
-      }
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Tackled Any Chores Today?"
-    }), /*#__PURE__*/React.createElement(YN, {
-      val: choresDone,
-      set: setChoresDone
-    }), choresDone && /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      value: choreNote,
-      onChange: e => setChoreNote(e.target.value),
-      placeholder: "Which one(s)?",
-      style: {
-        ...inp,
-        marginTop: 10,
-        fontSize: 13
-      }
-    }))
-  }), (() => {
-    const today = getToday();
-    const allRem = [...(reminders || []), ...(jointReminders || [])];
-    const doneToday = allRem.filter(r => r.done && r.doneAt && r.doneAt.slice(0, 10) === today);
-    if (!doneToday.length) return null;
-    return /*#__PURE__*/React.createElement(Card, {
-      ch: /*#__PURE__*/React.createElement(React.Fragment, null,
-        /*#__PURE__*/React.createElement(Lbl, { c: "Reminders Completed Today" }),
-        doneToday.map(r => /*#__PURE__*/React.createElement("div", {
-          key: r.id,
-          style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.05)", fontSize: 13, color: "var(--text-secondary)" }
-        },
-          /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-success)", fontSize: 12 } }, "\u2713"),
-          /*#__PURE__*/React.createElement("span", { style: { flex: 1 } }, r.title),
-          r.type === "joint" && /*#__PURE__*/React.createElement("span", {
-            style: { fontSize: 10, background: "rgba(96,165,250,.15)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 4, padding: "1px 6px", color: "var(--color-accent-blue)", fontWeight: 700 }
-          }, "JOINT")
-        ))
+  }
+
+  return React.createElement("div", null,
+    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 } },
+      React.createElement("div", null,
+        React.createElement(SectionHead, { label: "Evening Check-in", color: "var(--color-accent-blue)" }),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 0 13px" } }, fmtMid(getToday()))
+      ),
+      React.createElement("div", { style: { display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,.09)" } },
+        React.createElement("button", { onClick: function() { setView("log"); }, style: { padding: "6px 12px", border: "none", background: view === "log" ? "rgba(96,165,250,.15)" : "transparent", color: view === "log" ? "var(--color-accent-blue)" : "var(--text-secondary)", fontWeight: view === "log" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "TODAY"),
+        React.createElement("button", { onClick: function() { setView("history"); }, style: { padding: "6px 12px", border: "none", background: view === "history" ? "rgba(96,165,250,.15)" : "transparent", color: view === "history" ? "var(--color-accent-blue)" : "var(--text-secondary)", fontWeight: view === "history" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "HISTORY")
       )
-    });
-  })(), (() => {
-    const today = getToday();
-    const tasksDoneToday = (tasks || []).filter(t => t.last === today);
-    if (!tasksDoneToday.length) return null;
-    return /*#__PURE__*/React.createElement(Card, {
-      ch: /*#__PURE__*/React.createElement(React.Fragment, null,
-        /*#__PURE__*/React.createElement(Lbl, { c: "Tasks Completed Today" }),
-        tasksDoneToday.map(t => /*#__PURE__*/React.createElement("div", {
-          key: t.id,
-          style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.05)", fontSize: 13, color: "var(--text-secondary)" }
-        },
-          /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-success)", fontSize: 12 } }, "\u2713"),
-          /*#__PURE__*/React.createElement("span", { style: { flex: 1 } }, t.name || t.title),
-          t.completedBy && /*#__PURE__*/React.createElement("span", {
-            style: { fontSize: 10, color: "var(--text-muted)" }
-          }, t.completedBy)
-        ))
+    ),
+
+    view === "history" && React.createElement("div", null,
+      React.createElement(HistoryStrip, { selectedDate: histDate, onSelectDate: function(d) { setHistDate(d); setHistLog(null); }, allLogs: allLogsArr, accentColor: "var(--color-accent-blue)" }),
+      React.createElement("div", { style: { padding: "9px 13px", background: "rgba(96,165,250,.06)", border: "1px solid rgba(96,165,250,.15)", borderRadius: 10, marginBottom: 16 } },
+        React.createElement("p", { style: { color: "var(--color-accent-blue)", fontSize: 11, fontWeight: 700, margin: 0 } }, "✏️ Editing " + fmtLong(histDate))
       )
-    });
-  })(), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: `Moment with ${familyNames}?`
-    }), /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      value: familyMoment,
-      onChange: e => setFamilyMoment(e.target.value),
-      placeholder: `A moment worth remembering today...`,
-      style: inp
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Exceptional Day?"
-    }), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--text-secondary)",
-        fontSize: 11,
-        margin: "0 0 8px",
-        lineHeight: 1.5
-      }
-    }, "Flag if today was outside normal \u2014 sick, travel, hard circumstance. Protects your averages."), /*#__PURE__*/React.createElement(YN, {
-      val: exceptional,
-      set: setExceptional
-    }), exceptional && /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      value: exceptReason,
-      onChange: e => setExceptReason(e.target.value),
-      placeholder: "Reason...",
-      style: {
-        ...inp,
-        marginTop: 10,
-        fontSize: 13
-      }
-    }))
-  }), (() => {
-    // Compute macro-based day rating
-    const score = macroTargets && mealLog ? macroScore((() => {
-      const slots = ["breakfast","lunch","dinner"];
-      let cal=0,prot=0,carbs=0,fat=0;
-      slots.forEach(s => { if(mealLog[s]){cal+=mealLog[s].calories||0;prot+=mealLog[s].protein||0;carbs+=mealLog[s].carbs||0;fat+=mealLog[s].fat||0;}});
-      (mealLog.snacks||[]).forEach(s=>{cal+=s.calories||0;prot+=s.protein||0;carbs+=s.carbs||0;fat+=s.fat||0;});
-      return {calories:cal,protein:prot,carbs,fat};
-    })(), macroTargets) : null;
-    const computedRating = score !== null ? Math.max(1, Math.min(5, Math.round(score))) : null;
-    // Keep dr in sync with computed rating for autosave/history
-    if (computedRating !== null && computedRating !== dr) { setDr(computedRating); }
-    const mealCount = ["breakfast","lunch","dinner"].filter(s => mealLog?.[s]).length + (mealLog?.snacks?.length || 0);
-    const mealSummaryLines = ["breakfast","lunch","dinner"].filter(s => mealLog?.[s]).map(s => `${s.charAt(0).toUpperCase()+s.slice(1)}: ${mealLog[s].name} (${mealLog[s].calories}cal)`);
-    const ratingLabel = computedRating ? ["","Poor","Below average","On track","Good","Nailed it"][computedRating] : null;
-    return /*#__PURE__*/React.createElement(Card, {
-      ch: /*#__PURE__*/React.createElement(React.Fragment, null,
-        /*#__PURE__*/React.createElement(Lbl, { c: "Day Rating" }),
-        computedRating !== null
-          ? /*#__PURE__*/React.createElement("div", null,
-              /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: mealCount > 0 ? 10 : 0 } },
-                [1,2,3,4,5].map(n => /*#__PURE__*/React.createElement("div", {
-                  key: n,
-                  style: { width: 28, height: 28, borderRadius: "50%", background: n <= computedRating ? "var(--color-primary)" : "rgba(255,255,255,.07)", border: `2px solid ${n <= computedRating ? "var(--color-primary)" : "rgba(255,255,255,.1)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: n <= computedRating ? "var(--bg)" : "var(--text-muted)" }
-                }, n)),
-                /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--color-primary)", fontWeight: 700 } }, ratingLabel)
-              ),
-              mealCount > 0 && /*#__PURE__*/React.createElement("div", null,
-                /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", marginBottom: 4, letterSpacing: ".05em", fontWeight: 700 } }, mealCount + " MEAL" + (mealCount !== 1 ? "S" : "") + " LOGGED"),
-                mealSummaryLines.map((line, i) => /*#__PURE__*/React.createElement("p", { key: i, style: { fontSize: 11, color: "var(--text-secondary)", margin: "0 0 2px", lineHeight: 1.4 } }, line)),
-                mealLog?.snacks?.length > 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-secondary)", margin: 0 } }, "Snacks: " + mealLog.snacks.map(s => s.name).join(", "))
-              ),
-              !mealCount && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", marginTop: 4 } }, "Log meals in the Food tab to see your full score")
-            )
-          : /*#__PURE__*/React.createElement("div", null,
-              /*#__PURE__*/React.createElement(Dots, { val: dr, set: setDr, col: "var(--color-primary)" }),
-              /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", marginTop: 6 } }, "Log meals + set macro targets for auto-scoring")
-            )
+    ),
+
+    ok && React.createElement(Card, { ch: React.createElement("p", { style: { color: "var(--color-accent-blue)", margin: 0, fontSize: 13 } }, "✓ Day closed. Rest well."), s: { borderColor: "rgba(96,165,250,.25)", background: "rgba(96,165,250,.06)", marginBottom: 16 } }),
+
+    // Accountability banners
+    accountabilityBanners.map(function(b, idx) {
+      return React.createElement("div", { key: idx, style: { padding: "10px 13px", background: b.bg, border: "1px solid " + b.border, borderRadius: 10, marginBottom: 12 } },
+        React.createElement("p", { style: { color: b.color, fontSize: 12, fontWeight: 700, margin: 0, lineHeight: 1.5 } }, b.text)
+      );
+    }),
+
+    // Auto-detected workout summary
+    !isHistory && (didCardio || didStrength) && React.createElement("div", { style: { padding: "10px 13px", background: "rgba(74,222,128,.06)", border: "1px solid rgba(74,222,128,.15)", borderRadius: 10, marginBottom: 12 } },
+      React.createElement("p", { style: { color: "var(--color-success)", fontSize: 12, fontWeight: 700, margin: 0 } },
+        "✓ Today's training: " + [didStrength && "Strength", didCardio && "Cardio"].filter(Boolean).join(" + ") + " (" + todaySessions.length + " session" + (todaySessions.length !== 1 ? "s" : "") + ")"
       )
-    });
-  })(), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Win of the Day"
-    }), /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      value: wi,
-      onChange: e => setWi(e.target.value),
-      placeholder: "One real win \u2014 no matter how small",
-      style: inp
-    }))
-  }), /*#__PURE__*/React.createElement(Card, {
-    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
-      c: "Bedtime Tonight"
-    }), /*#__PURE__*/React.createElement("input", {
-      type: "time",
-      value: bedtime,
-      onChange: e => setBedtime(e.target.value),
-      style: {
-        ...inp,
-        width: 130,
-        colorScheme: "dark"
-      }
-    }), /*#__PURE__*/React.createElement("p", {
-      style: {
-        color: "var(--text-muted)",
-        fontSize: 10,
-        margin: "6px 0 0"
-      }
-    }, "Tomorrow's morning will calculate how long you slept"))
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: go,
-    disabled: busy,
-    style: {
-      background: busy ? "rgba(96,165,250,.45)" : "var(--color-accent-blue)",
-      color: "var(--bg)",
-      border: "none",
-      borderRadius: 10,
-      padding: "14px 0",
-      fontSize: 15,
-      fontWeight: 800,
-      cursor: busy ? "wait" : "pointer",
-      width: "100%",
-      fontFamily: "'Syne',sans-serif",
-      letterSpacing: ".05em"
-    }
-  }, busy ? "SAVING..." : isHistory ? "SAVE CHANGES \u2192" : "CLOSE THE DAY \u2192")));
+    ),
+
+    (view === "log" || isHistory) && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 13 } },
+
+      // 1. Steps
+      React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+        React.createElement(Lbl, { c: "Today's Steps (goal: " + stepGoal.toLocaleString() + ")" }),
+        React.createElement("input", { type: "number", value: steps, onChange: function(e) { setSteps(e.target.value); }, placeholder: "e.g. 8432", style: { ...inp, width: 150, marginBottom: 8 } }),
+        steps && React.createElement(React.Fragment, null,
+          React.createElement(ProgBar, { pct: stepPct, col: stepPct >= 100 ? "var(--color-success)" : "var(--color-accent-blue)", h: 6 }),
+          React.createElement("p", { style: { color: stepPct >= 100 ? "var(--color-success)" : "var(--text-secondary)", fontSize: 11, margin: "5px 0 0", fontWeight: stepPct >= 100 ? 700 : 400 } }, stepPct >= 100 ? "Goal hit! ✓" : stepPct + "% of goal")
+        )
+      ) }),
+
+      // 2. Water
+      React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+        React.createElement(Lbl, { c: "Water Intake Today" }),
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8 } },
+          React.createElement("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" } },
+            [0, 1, 2, 3, 4, 5, 6, 7, 8].map(function(n) {
+              return React.createElement("button", { key: n, onClick: function() { setGlasses(n); }, style: { width: 30, height: 30, borderRadius: 7, border: "2px solid " + (glasses >= n && n > 0 ? "var(--color-accent-blue)" : "rgba(255,255,255,.12)"), background: glasses >= n && n > 0 ? "rgba(96,165,250,.18)" : "transparent", cursor: "pointer", color: glasses >= n && n > 0 ? "var(--color-accent-blue)" : "var(--text-muted)", fontSize: 12, fontWeight: 700, padding: 0 } }, n === 0 ? "0" : n);
+            })
+          ),
+          React.createElement("p", { style: { color: glasses >= 8 ? "var(--color-success)" : glasses >= 5 ? "var(--color-accent-blue)" : "var(--text-secondary)", fontSize: 11, margin: 0, fontWeight: 700 } }, glasses + "/8 glasses " + (glasses >= 8 ? "✓" : ""))
+        )
+      ) }),
+
+      // 3. Day Rating
+      (function() {
+        var computedRating = null;
+        if (macroTargets && mealLog) {
+          var slots = ["breakfast","lunch","dinner"];
+          var cal=0,prot=0,carbs=0,fat=0;
+          slots.forEach(function(s) { if(mealLog[s]){cal+=mealLog[s].calories||0;prot+=mealLog[s].protein||0;carbs+=mealLog[s].carbs||0;fat+=mealLog[s].fat||0;}});
+          (mealLog.snacks||[]).forEach(function(s){cal+=s.calories||0;prot+=s.protein||0;carbs+=s.carbs||0;fat+=s.fat||0;});
+          if (typeof macroScore === "function") {
+            var score = macroScore({calories:cal,protein:prot,carbs:carbs,fat:fat}, macroTargets);
+            computedRating = score !== null ? Math.max(1, Math.min(5, Math.round(score))) : null;
+          }
+        }
+        if (computedRating !== null && computedRating !== dr) { setDr(computedRating); }
+        var ratingLabel = dr ? ["","Poor","Below avg","On track","Good","Nailed it"][dr] : null;
+        return React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+          React.createElement(Lbl, { c: "Day Rating" }),
+          React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+            [1,2,3,4,5].map(function(n) {
+              return React.createElement("div", { key: n, onClick: function() { setDr(n); }, style: { width: 28, height: 28, borderRadius: "50%", background: n <= dr ? "var(--color-primary)" : "rgba(255,255,255,.07)", border: "2px solid " + (n <= dr ? "var(--color-primary)" : "rgba(255,255,255,.1)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: n <= dr ? "var(--bg)" : "var(--text-muted)", cursor: "pointer" } }, n);
+            }),
+            ratingLabel && React.createElement("span", { style: { fontSize: 12, color: "var(--color-primary)", fontWeight: 700 } }, ratingLabel)
+          ),
+          computedRating !== null && React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", marginTop: 6 } }, "Auto-scored from your meals + macro targets"),
+          mealsLogged > 0 && React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", marginTop: 4 } }, mealsLogged + " meal" + (mealsLogged !== 1 ? "s" : "") + " logged today")
+        ) });
+      })(),
+
+      // 4. Contextual rotating reflection
+      React.createElement(Card, { s: { borderColor: promptInfo.color + "33", background: promptInfo.color + "0a" }, ch: React.createElement(React.Fragment, null,
+        React.createElement("p", { style: { color: promptInfo.color, fontSize: 11, fontWeight: 800, letterSpacing: ".05em", margin: "0 0 4px", fontFamily: "'Syne',sans-serif" } }, smartPrompt.loading ? "READING YOUR WEEK…" : "EVENING REFLECTION"),
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 14, margin: "0 0 10px", lineHeight: 1.5, fontWeight: 500 } }, promptInfo.prompt),
+        React.createElement("textarea", { value: reflection, onChange: function(e) { setReflection(e.target.value); }, placeholder: "Be honest with yourself…", style: { ...inp, resize: "none", minHeight: 80, lineHeight: 1.6, fontSize: 13 }, maxLength: 500 })
+      ) }),
+
+      // 5. Win of the Day
+      React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+        React.createElement(Lbl, { c: "Win of the Day" }),
+        React.createElement("input", { type: "text", value: wi, onChange: function(e) { setWi(e.target.value); }, placeholder: "One real win — no matter how small", style: inp })
+      ) }),
+
+      // Reminders completed today
+      (function() {
+        var today = getToday();
+        var allRem = [].concat(reminders || [], jointReminders || []);
+        var doneToday = allRem.filter(function(r) { return r.done && r.doneAt && r.doneAt.slice(0, 10) === today; });
+        if (!doneToday.length) return null;
+        return React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+          React.createElement(Lbl, { c: "Reminders Completed Today" }),
+          doneToday.map(function(r) {
+            return React.createElement("div", { key: r.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.05)", fontSize: 13, color: "var(--text-secondary)" } },
+              React.createElement("span", { style: { color: "var(--color-success)", fontSize: 12 } }, "✓"),
+              React.createElement("span", { style: { flex: 1 } }, r.title),
+              r.type === "joint" && React.createElement("span", { style: { fontSize: 10, background: "rgba(96,165,250,.15)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 4, padding: "1px 6px", color: "var(--color-accent-blue)", fontWeight: 700 } }, "JOINT")
+            );
+          })
+        ) });
+      })(),
+
+      // Tasks completed today
+      (function() {
+        var today = getToday();
+        var tasksDoneToday = (tasks || []).filter(function(t) { return t.last === today; });
+        if (!tasksDoneToday.length) return null;
+        return React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+          React.createElement(Lbl, { c: "Tasks Completed Today" }),
+          tasksDoneToday.map(function(t) {
+            return React.createElement("div", { key: t.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.05)", fontSize: 13, color: "var(--text-secondary)" } },
+              React.createElement("span", { style: { color: "var(--color-success)", fontSize: 12 } }, "✓"),
+              React.createElement("span", { style: { flex: 1 } }, t.name || t.title),
+              t.completedBy && React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, t.completedBy)
+            );
+          })
+        ) });
+      })(),
+
+      // 6. Bedtime
+      React.createElement(Card, { ch: React.createElement(React.Fragment, null,
+        React.createElement(Lbl, { c: "Bedtime Tonight" }),
+        React.createElement("input", { type: "time", value: bedtime, onChange: function(e) { setBedtime(e.target.value); }, style: { ...inp, width: 130, colorScheme: "dark" } }),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "6px 0 0" } }, "Tomorrow's morning will calculate how long you slept")
+      ) }),
+
+      // Exceptional day — collapsed toggle
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 0" } },
+        React.createElement("button", { onClick: function() { setExceptional(!exceptional); }, style: { background: exceptional ? "rgba(167,139,250,.15)" : "transparent", border: "1px solid " + (exceptional ? "rgba(167,139,250,.3)" : "rgba(255,255,255,.1)"), borderRadius: 8, padding: "6px 12px", color: exceptional ? "var(--color-accent-purple)" : "var(--text-muted)", fontSize: 11, cursor: "pointer", fontWeight: exceptional ? 700 : 400 } }, exceptional ? "⚡ Exceptional day" : "Flag as exceptional day"),
+        exceptional && React.createElement("input", { type: "text", value: exceptReason, onChange: function(e) { setExceptReason(e.target.value); }, placeholder: "Reason...", style: { ...inp, flex: 1, fontSize: 12 } })
+      ),
+
+      // Submit
+      React.createElement("button", { onClick: go, disabled: busy, style: { background: busy ? "rgba(96,165,250,.45)" : "var(--color-accent-blue)", color: "var(--bg)", border: "none", borderRadius: 10, padding: "14px 0", fontSize: 15, fontWeight: 800, cursor: busy ? "wait" : "pointer", width: "100%", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" } }, busy ? "SAVING..." : isHistory ? "SAVE CHANGES →" : "CLOSE THE DAY →")
+    )
+  );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // GOALS TAB — user-editable goals, weight chart 30/90 day, wins archive
 // ─────────────────────────────────────────────────────────────────────────────
 function Arc({

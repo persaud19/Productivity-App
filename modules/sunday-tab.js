@@ -76,11 +76,11 @@
       const hy = ml.filter(d => d.morning?.hydration).length;
       const drV = el.filter(d => d.evening?.dayRating > 0);
       const avgDr = drV.length ? (drV.reduce((a, d) => a + d.evening.dayRating, 0) / drV.length).toFixed(1) : null;
-      const enV = ml.filter(d => d.morning?.energy > 0);
-      const avgEn = enV.length ? (enV.reduce((a, d) => a + d.morning.energy, 0) / enV.length).toFixed(1) : null;
-      const moodV = ml.filter(d => d.morning?.mood > 0);
-      const avgMood = moodV.length ? (moodV.reduce((a, d) => a + d.morning.mood, 0) / moodV.length).toFixed(1) : null;
-      const steps = ml.reduce((a, d) => a + (d.morning?.steps || 0), 0);
+      const enV = ml.filter(d => (d.morning?.showingUp || d.morning?.energy) > 0);
+      const avgEn = enV.length ? (enV.reduce((a, d) => a + (d.morning.showingUp || d.morning.energy), 0) / enV.length).toFixed(1) : null;
+      const moodV = ml.filter(d => (d.morning?.showingUp || d.morning?.mood) > 0);
+      const avgMood = moodV.length ? (moodV.reduce((a, d) => a + (d.morning.showingUp || d.morning.mood), 0) / moodV.length).toFixed(1) : null;
+      const steps = ml.reduce((a, d) => a + (d.evening?.steps || d.morning?.steps || 0), 0);
       const wins = el.reduce((acc, d) => { if (d.evening?.win) acc.push(d.evening.win); return acc; }, []).join(" | ");
       const choresDone = el.filter(d => d.evening?.choresDone).length;
       const familyMoments = el.filter(d => d.evening?.familyMoment).length;
@@ -425,8 +425,8 @@
         el = wk.filter(d => d.evening);
       const summary = {
         date: sunKey,
-        avgMood: ml.filter(d => d.morning?.mood > 0).length ? (ml.filter(d => d.morning?.mood > 0).reduce((a, d) => a + d.morning.mood, 0) / ml.filter(d => d.morning?.mood > 0).length).toFixed(1) : null,
-        avgEnergy: ml.filter(d => d.morning?.energy > 0).length ? (ml.filter(d => d.morning?.energy > 0).reduce((a, d) => a + d.morning.energy, 0) / ml.filter(d => d.morning?.energy > 0).length).toFixed(1) : null,
+        avgMood: ml.filter(d => (d.morning?.showingUp || d.morning?.mood) > 0).length ? (ml.filter(d => (d.morning?.showingUp || d.morning?.mood) > 0).reduce((a, d) => a + (d.morning.showingUp || d.morning.mood), 0) / ml.filter(d => (d.morning?.showingUp || d.morning?.mood) > 0).length).toFixed(1) : null,
+        avgEnergy: ml.filter(d => (d.morning?.showingUp || d.morning?.energy) > 0).length ? (ml.filter(d => (d.morning?.showingUp || d.morning?.energy) > 0).reduce((a, d) => a + (d.morning.showingUp || d.morning.energy), 0) / ml.filter(d => (d.morning?.showingUp || d.morning?.energy) > 0).length).toFixed(1) : null,
         snackFree: el.filter(d => d.evening?.snack === 0).length,
         cardio: el.filter(d => d.evening?.cardio).length,
         strength: el.filter(d => d.evening?.strength).length,
@@ -491,13 +491,13 @@
     const avgDr = drV.length ? (drV.reduce((a, d) => a + d.evening.dayRating, 0) / drV.length).toFixed(1) : null;
     const fwC = el.filter(d => d.evening?.financeWin).length;
     const hyC = ml.filter(d => d.morning?.hydration).length;
-    const enV = ml.filter(d => d.morning?.energy > 0);
-    const avgEn = enV.length ? (enV.reduce((a, d) => a + d.morning.energy, 0) / enV.length).toFixed(1) : null;
-    const moodV = ml.filter(d => d.morning?.mood > 0);
-    const avgMood = moodV.length ? (moodV.reduce((a, d) => a + d.morning.mood, 0) / moodV.length).toFixed(1) : null;
-    const avgSteps = ml.filter(d => d.morning?.steps > 0).length ? (ml.filter(d => d.morning?.steps > 0).reduce((a, d) => a + (d.morning?.steps || 0), 0) / ml.filter(d => d.morning?.steps > 0).length).toFixed(0) : null;
+    const enV = ml.filter(d => (d.morning?.showingUp || d.morning?.energy) > 0);
+    const avgEn = enV.length ? (enV.reduce((a, d) => a + (d.morning.showingUp || d.morning.energy), 0) / enV.length).toFixed(1) : null;
+    const moodV = ml.filter(d => (d.morning?.showingUp || d.morning?.mood) > 0);
+    const avgMood = moodV.length ? (moodV.reduce((a, d) => a + (d.morning.showingUp || d.morning.mood), 0) / moodV.length).toFixed(1) : null;
+    const avgSteps = wk.filter(d => (d.evening?.steps || d.morning?.steps) > 0).length ? (wk.filter(d => (d.evening?.steps || d.morning?.steps) > 0).reduce((a, d) => a + (d.evening?.steps || d.morning?.steps || 0), 0) / wk.filter(d => (d.evening?.steps || d.morning?.steps) > 0).length).toFixed(0) : null;
     const wins = el.filter(d => d.evening?.win).map(d => ({ date: d.date, w: d.evening.win }));
-    const grats = ml.filter(d => d.morning?.gratitude).map(d => ({ date: d.date, g: d.morning.gratitude }));
+    const grats = ml.filter(d => d.morning?.gratitude || d.morning?.reflection).map(d => ({ date: d.date, g: d.morning.gratitude || d.morning.reflection }));
     const familyMs = el.filter(d => d.evening?.familyMoment).map(d => ({ date: d.date, m: d.evening.familyMoment }));
     const exDays = wk.filter(d => d.morning?.exceptionalDay || d.evening?.exceptionalDay).length;
     const overdueChores = choreTasks ? choreTasks.filter(t => {
@@ -513,7 +513,7 @@
       const [wh, wm] = w.split(":").map(Number);
       let mins = wh * 60 + wm - (bh * 60 + bm);
       if (mins < 0) mins += 1440;
-      return { h: parseFloat((mins / 60).toFixed(1)), en: d.morning.energy, date: d.date };
+      return { h: parseFloat((mins / 60).toFixed(1)), en: d.morning.showingUp || d.morning.energy, date: d.date };
     }).filter(Boolean);
     const shortSleep = sleepCorr.filter(s => s.h < 6), longSleep = sleepCorr.filter(s => s.h >= 6);
     const avgEnShort = shortSleep.length ? (shortSleep.reduce((a, s) => a + s.en, 0) / shortSleep.length).toFixed(1) : null;
@@ -536,7 +536,7 @@
     const snChart = weekDates.map(date => ({ d: fmtShort(date), sn: dayLogMap[date]?.evening?.snack ?? null }));
     const moodChart = weekDates.map(date => {
       const d = dayLogMap[date];
-      return { d: fmtShort(date), mood: d?.morning?.mood > 0 ? d.morning.mood : null, energy: d?.morning?.energy > 0 ? d.morning.energy : null };
+      return { d: fmtShort(date), mood: (d?.morning?.showingUp || d?.morning?.mood) > 0 ? (d.morning.showingUp || d.morning.mood) : null, energy: (d?.morning?.showingUp || d?.morning?.energy) > 0 ? (d.morning.showingUp || d.morning.energy) : null };
     });
     const SC = ({ lbl, val, sub, c = "var(--color-primary)" }) => React.createElement("div", {
       style: { background: "var(--card-bg-3)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10, padding: "11px 12px", flex: "1 1 76px" }

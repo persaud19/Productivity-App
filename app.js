@@ -4,6 +4,46 @@
 // Falls back to localStorage automatically if Firebase is not configured.
 // ─────────────────────────────────────────────────────────────────────────────
 
+const AI_MODEL = "claude-sonnet-4-5";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOAST — lightweight sync-error notification system
+// ─────────────────────────────────────────────────────────────────────────────
+let __toastQueue = [];
+let __toastSetFn = null;
+function showToast(msg, type = "error") {
+  const id = Date.now() + Math.random();
+  const item = { id, msg, type };
+  if (__toastSetFn) {
+    __toastSetFn(prev => [...prev, item]);
+    setTimeout(() => __toastSetFn(prev => prev.filter(t => t.id !== id)), 4000);
+  } else {
+    __toastQueue.push(item);
+  }
+}
+function ToastContainer() {
+  const [toasts, setToasts] = useState(() => {
+    const q = __toastQueue.splice(0);
+    return q;
+  });
+  useEffect(() => {
+    __toastSetFn = setToasts;
+    toasts.forEach(item => setTimeout(() => setToasts(prev => prev.filter(t => t.id !== item.id)), 4000));
+  }, []);
+  if (!toasts.length) return null;
+  return React.createElement("div", {
+    style: { position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", zIndex: 9999, display: "flex", flexDirection: "column", gap: 8, alignItems: "center", pointerEvents: "none" }
+  }, toasts.map(t => React.createElement("div", {
+    key: t.id,
+    style: {
+      background: t.type === "error" ? "rgba(239,68,68,.95)" : "rgba(74,222,128,.95)",
+      color: "#fff", padding: "10px 18px", borderRadius: 10, fontSize: 13,
+      fontFamily: "'DM Sans',sans-serif", fontWeight: 500,
+      boxShadow: "0 4px 20px rgba(0,0,0,.4)", pointerEvents: "none"
+    }
+  }, t.msg)));
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // AUTH — Google Sign-In via Firebase Auth
 // Each user gets their own data namespace: ml/users/<uid>/...
@@ -1288,7 +1328,7 @@ async function callClaude(messages, system, maxTokens) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: AI_MODEL,
       max_tokens: maxTokens || 2000,
       system: system || "You are a recipe extraction assistant. Return ONLY valid JSON.",
       messages
@@ -1358,7 +1398,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       const updated = { ...localMeta, shareFinance: newVal };
       setLocalMeta(updated);
       if (onHouseholdMetaUpdate) onHouseholdMetaUpdate(updated);
-    } catch(e) {}
+    } catch(e) { showToast("Sync failed — finance share toggle not saved"); }
   };
 
   // ── Regenerate invite code (leader only) ──
@@ -1379,7 +1419,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       if (onHouseholdMetaUpdate) onHouseholdMetaUpdate(updated);
       setRegenMsg("New code generated");
       setTimeout(() => setRegenMsg(""), 3000);
-    } catch(e) {}
+    } catch(e) { setRegenMsg("Error: " + e.message); }
   };
 
   // ── Master admin state ──
@@ -1401,7 +1441,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       } else {
         setAllHouseholds([]);
       }
-    } catch(e) {}
+    } catch(e) { showToast("Failed to load households: " + e.message); }
     setMasterLoading(false);
   };
 
@@ -1513,7 +1553,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
         setLocalMeta(updated);
         if (onHouseholdMetaUpdate) onHouseholdMetaUpdate(updated);
       }
-    } catch(e) {}
+    } catch(e) { showToast("Sync failed — invite may not have been revoked"); }
   };
 
   const handleRemoveMember = async (uid, memberName) => {
@@ -1530,7 +1570,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
         setLocalMeta(updated);
         if (onHouseholdMetaUpdate) onHouseholdMetaUpdate(updated);
       }
-    } catch(e) {}
+    } catch(e) { showToast("Sync failed — member may not have been removed"); }
   };
 
   const save = async () => {
@@ -1550,7 +1590,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
     if (householdId && updated.name && updated.name !== settings.name) {
       try {
         await window.__firebase_db.ref(`households/${householdId}/meta/members/${window.__current_uid}/name`).set(updated.name);
-      } catch(e) {}
+      } catch(e) { showToast("Name saved locally but household sync failed"); }
     }
     onSave(updated);
     setMsg("Saved.");
@@ -2531,7 +2571,7 @@ function App() {
             const otherUids = Object.keys(meta.members || {}).filter(id => id !== uid);
             window.__current_partner_uid = otherUids[0] || null;
           }
-        } catch(e) {}
+        } catch(e) { console.warn("Household meta load failed:", e); }
       } else {
         window.__current_household_id = null;
         setHouseholdId(null);
@@ -2573,9 +2613,9 @@ function App() {
               }
             }
           }
-        } catch(e) {}
+        } catch(e) { console.warn("Auto-join check failed:", e); }
       }
-    } catch(e) {}
+    } catch(e) { showToast("Sync failed — some data may not have loaded. Refresh to retry."); }
 
     // ── Step 2: Parallel Fetching ──
     const hid = resolvedHid;
@@ -2634,7 +2674,7 @@ function App() {
               migrated = true;
             }
           }
-        } catch(e) {}
+        } catch(e) { console.warn("Pantry migration failed:", e); }
       }
       if (!migrated) setPantryItems([]);
     } else {
@@ -2914,36 +2954,7 @@ function App() {
       alignItems: "center",
       gap: 10
     }
-  }, false && /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      borderRadius: 7,
-      overflow: "hidden",
-      border: "1px solid rgba(255,255,255,.09)"
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setActiveUser("self"),
-    style: {
-      padding: "4px 9px",
-      border: "none",
-      background: activeUser === "self" ? "rgba(96,165,250,.2)" : "transparent",
-      color: activeUser === "self" ? "var(--color-accent-blue)" : "var(--text-secondary)",
-      fontSize: 10,
-      fontWeight: activeUser === "self" ? 700 : 400,
-      cursor: "pointer"
-    }
-  }, settings.name), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setActiveUser("partner"),
-    style: {
-      padding: "4px 9px",
-      border: "none",
-      background: activeUser === "partner" ? "rgba(167,139,250,.2)" : "transparent",
-      color: activeUser === "partner" ? "var(--color-accent-purple)" : "var(--text-secondary)",
-      fontSize: 10,
-      fontWeight: activeUser === "partner" ? 700 : 400,
-      cursor: "pointer"
-    }
-  }, window.__ml.getPartnerName(settings))), streak > 0 && /*#__PURE__*/React.createElement("div", {
+  }, streak > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "right"
     }
@@ -3166,7 +3177,18 @@ function App() {
       ? /*#__PURE__*/React.createElement(window.PantryTab, {
           pantryItems: pantryItems,
           setPantryItems: setPantryItems,
-          onAddToGrocery: () => {}
+          onAddToGrocery: async (items) => {
+            const sun = getSundayKey();
+            const key = householdId ? KEYS.hhGroceryCheck(sun) : KEYS.groceryCheck(sun);
+            const existing = (await DB.get(key)) || {};
+            const updates = { ...existing };
+            (items || pantryItems.filter(p => p.qty <= p.minQty)).forEach(item => {
+              const k = item.id || item.name;
+              if (!updates[k]) updates[k] = { name: item.name, unit: item.unit || "", qty: item.reorderQty || 1, checked: false };
+            });
+            await DB.set(key, updates);
+            showToast("Added to this week's grocery list", "success");
+          }
         })
       : /*#__PURE__*/React.createElement(HouseholdJoinPrompt, { onSetup: handleShowHouseholdSetup })
   ), tab === "reminders" && (
