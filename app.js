@@ -23,12 +23,13 @@ function showToast(msg, type = "error") {
 }
 function ToastContainer() {
   const [toasts, setToasts] = useState(() => {
-    __toastSetFn = setToasts;
     const q = __toastQueue.splice(0);
-    q.forEach(item => setTimeout(() => setToasts(prev => prev.filter(t => t.id !== item.id)), 4000));
     return q;
   });
-  useEffect(() => { __toastSetFn = setToasts; }, []);
+  useEffect(() => {
+    __toastSetFn = setToasts;
+    toasts.forEach(item => setTimeout(() => setToasts(prev => prev.filter(t => t.id !== item.id)), 4000));
+  }, []);
   if (!toasts.length) return null;
   return React.createElement("div", {
     style: { position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", zIndex: 9999, display: "flex", flexDirection: "column", gap: 8, alignItems: "center", pointerEvents: "none" }
