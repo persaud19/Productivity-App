@@ -485,7 +485,7 @@ function buildLogSnapshot(allLogs, trainHistory, todayLog, type) {
   for (var i = 0; i < 7; i++) {
     if (!trainDates.has(addDays(getToday(), -i))) daysNoTrain++; else break;
   }
-  if (daysNoTrain >= 2) lines.push("NOTE: " + daysNoTrain + " consecutive days without training");
+  if (daysNoTrain >= 2 && new Date().getDay() !== 0) lines.push("NOTE: " + daysNoTrain + " consecutive days without training");
   // Add today's morning context for evening prompts
   if (type === "evening" && todayLog?.morning) {
     var tm = todayLog.morning;
@@ -501,6 +501,11 @@ function buildLogSnapshot(allLogs, trainHistory, todayLog, type) {
 
 // Cache key for localStorage — one prompt per type per day
 function promptCacheKey(type) { return "corevado_prompt_" + type + "_" + getToday(); }
+// Refresh-count key — tracks how many times the user has asked for a new question today
+function promptRefreshKey(type) { return "corevado_prompt_refreshes_" + type + "_" + getToday(); }
+var MAX_PROMPT_REFRESHES = 2;
+function getRefreshCount(type) { try { return parseInt(localStorage.getItem(promptRefreshKey(type))) || 0; } catch(e) { return 0; } }
+function incrementRefreshCount(type) { var n = getRefreshCount(type) + 1; try { localStorage.setItem(promptRefreshKey(type), String(n)); } catch(e) {} return n; }
 
 // Instant fallback while AI loads (or if API fails)
 function getFallbackPrompt(type, allLogs, todayLog, trainHistory, settings) {
@@ -534,11 +539,14 @@ function getFallbackPrompt(type, allLogs, todayLog, trainHistory, settings) {
 }
 
 // AI prompt generator — calls Claude to analyze recent data and create a personalized question
-async function generateAIPrompt(type, allLogs, trainHistory, todayLog, settings) {
+// force=true skips cache (used for user-triggered refreshes)
+async function generateAIPrompt(type, allLogs, trainHistory, todayLog, settings, force) {
   var cacheKey = promptCacheKey(type);
-  var cached = null;
-  try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch(e) {}
-  if (cached && cached.prompt) return cached;
+  if (!force) {
+    var cached = null;
+    try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch(e) {}
+    if (cached && cached.prompt) return cached;
+  }
 
   var snapshot = buildLogSnapshot(allLogs, trainHistory, todayLog, type);
   if (!snapshot) return null;
@@ -584,6 +592,8 @@ function useSmartPrompt(type, allLogs, trainHistory, todayLog, settings) {
   var prompt = _s[0], setPrompt = _s[1];
   var _l = useState(false);
   var loading = _l[0], setLoading = _l[1];
+  var _r = useState(function() { return MAX_PROMPT_REFRESHES - getRefreshCount(type); });
+  var refreshesLeft = _r[0], setRefreshesLeft = _r[1];
 
   useEffect(function() {
     if (!allLogs || allLogs.length < 3) return;
@@ -601,7 +611,18 @@ function useSmartPrompt(type, allLogs, trainHistory, todayLog, settings) {
     return function() { cancelled = true; };
   }, [allLogs?.length >= 3 ? 1 : 0]);
 
-  return { prompt: prompt, loading: loading };
+  var refresh = function() {
+    if (refreshesLeft <= 0 || loading || !allLogs || allLogs.length < 3) return;
+    var newCount = incrementRefreshCount(type);
+    setRefreshesLeft(MAX_PROMPT_REFRESHES - newCount);
+    setLoading(true);
+    generateAIPrompt(type, allLogs, trainHistory, todayLog, settings, true).then(function(result) {
+      if (result && result.prompt) setPrompt(result);
+      setLoading(false);
+    }).catch(function() { setLoading(false); });
+  };
+
+  return { prompt: prompt, loading: loading, refresh: refresh, refreshesLeft: refreshesLeft };
 }
 
 function Morning({
@@ -795,7 +816,12 @@ function Morning({
 
         // 6. Contextual rotating prompt
         React.createElement(Card, { s: { borderColor: promptInfo.color + "33", background: promptInfo.color + "0a" }, ch: React.createElement(React.Fragment, null,
-          React.createElement("p", { style: { color: promptInfo.color, fontSize: 11, fontWeight: 800, letterSpacing: ".05em", margin: "0 0 4px", fontFamily: "'Syne',sans-serif" } }, smartPrompt.loading ? "GENERATING YOUR CHECK-IN…" : "TODAY'S CHECK-IN"),
+          React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 } },
+            React.createElement("p", { style: { color: promptInfo.color, fontSize: 11, fontWeight: 800, letterSpacing: ".05em", margin: 0, fontFamily: "'Syne',sans-serif" } }, smartPrompt.loading ? "GENERATING YOUR CHECK-IN…" : "TODAY'S CHECK-IN"),
+            !isHistory && (smartPrompt.refreshesLeft > 0
+              ? React.createElement("button", { onClick: smartPrompt.refresh, disabled: smartPrompt.loading, style: { background: "none", border: "none", color: smartPrompt.loading ? "var(--text-muted)" : promptInfo.color, cursor: smartPrompt.loading ? "wait" : "pointer", fontSize: 11, padding: 0, opacity: smartPrompt.loading ? 0.5 : 1 } }, "↻ new question")
+              : React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, "limit reached"))
+          ),
           React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 14, margin: "0 0 10px", lineHeight: 1.5, fontWeight: 500 } }, promptInfo.prompt),
           React.createElement("textarea", { value: reflection, onChange: function(e) { setReflection(e.target.value); }, placeholder: "Take a moment…", style: { ...inp, resize: "none", minHeight: 80, lineHeight: 1.6, fontSize: 13 }, maxLength: 500 })
         ) }),
@@ -1074,13 +1100,15 @@ function Evening({
   const todaySessions = useMemo(function() {
     return trainHistory.filter(function(s) { return s.date === getToday(); });
   }, [trainHistory]);
-  const didCardio = todaySessions.some(function(s) { return s.type === "cardio" || s.type === "walk"; });
-  const didStrength = todaySessions.some(function(s) { return s.type === "strength"; });
+  // Fallback to todayLog for stale trainHistory prop (e.g. walk logged same session before Evening opened)
+  const didCardio = todaySessions.some(function(s) { return s.type === "cardio" || s.type === "walk"; }) || !!(todayLog?.evening?.cardio);
+  const didStrength = todaySessions.some(function(s) { return s.type === "strength"; }) || !!(todayLog?.evening?.strength);
 
   // No-meals-logged nudge
   const mealsLogged = mealLog ? ["breakfast", "lunch", "dinner"].filter(function(s) { return mealLog[s]; }).length : 0;
 
-  const data = {
+  // Form-controlled fields only — cardio/strength are written by train-tab and deep-merged below
+  const formData = {
     steps: parseInt(steps) || 0,
     glasses: glasses,
     dayRating: dr,
@@ -1090,17 +1118,17 @@ function Evening({
     reflectionPrompt: promptInfo.id,
     exceptionalDay: exceptional,
     exceptionalReason: exceptReason,
-    // Preserve auto-detected workout flags for backward compat with history/Sunday
-    cardio: didCardio,
-    strength: didStrength
   };
+  const data = { ...formData, cardio: didCardio, strength: didStrength };
+  // Deep-merge evening so cardio/strength set by logSession in train-tab are never overwritten
   useAutoSave(isHistory ? null : KEYS.log(getToday()), { evening: data }, !busy && !isHistory);
 
   const go = async function() {
     setBusy(true);
     var saveDate = isHistory ? histDate : getToday();
     var existing = (await DB.get(KEYS.log(saveDate))) || {};
-    await DB.set(KEYS.log(saveDate), { ...existing, evening: data });
+    // Deep-merge evening to preserve cardio/strength flags written by train-tab
+    await DB.set(KEYS.log(saveDate), { ...existing, evening: { ...(existing.evening || {}), ...data, cardio: didCardio || !!(existing.evening?.cardio), strength: didStrength || !!(existing.evening?.strength) } });
     // Archive wins (only for today's log)
     if (!isHistory && wi.trim()) {
       var arch = (await DB.get(KEYS.winsArchive())) || [];
@@ -1116,13 +1144,17 @@ function Evening({
   // Accountability banners
   var accountabilityBanners = [];
 
-  // No training for 2+ days
-  if (!isHistory) {
+  // No training for 2+ days (exempt on Sundays — rest day)
+  var isSunday = new Date().getDay() === 0;
+  if (!isHistory && !isSunday) {
     var trainDates = new Set(trainHistory.map(function(s) { return s.date; }));
+    // Also check today's log flags — they may be set by train-tab before trainHistory prop refreshed
+    var todayHasTraining = trainDates.has(getToday()) || !!(todayLog?.evening?.cardio) || !!(todayLog?.evening?.strength);
     var daysNoTrain = 0;
     for (var i = 0; i < 4; i++) {
       var d = addDays(getToday(), -i);
-      if (!trainDates.has(d)) daysNoTrain++; else break;
+      var dayHasTrain = trainDates.has(d) || (i === 0 && todayHasTraining);
+      if (!dayHasTrain) daysNoTrain++; else break;
     }
     if (daysNoTrain >= 2) {
       accountabilityBanners.push({ color: "var(--color-accent-orange)", bg: "rgba(251,146,60,.07)", border: "rgba(251,146,60,.15)", text: daysNoTrain + " days without training — what's been the blocker?" });
@@ -1224,7 +1256,12 @@ function Evening({
 
       // 4. Contextual rotating reflection
       React.createElement(Card, { s: { borderColor: promptInfo.color + "33", background: promptInfo.color + "0a" }, ch: React.createElement(React.Fragment, null,
-        React.createElement("p", { style: { color: promptInfo.color, fontSize: 11, fontWeight: 800, letterSpacing: ".05em", margin: "0 0 4px", fontFamily: "'Syne',sans-serif" } }, smartPrompt.loading ? "READING YOUR WEEK…" : "EVENING REFLECTION"),
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 } },
+          React.createElement("p", { style: { color: promptInfo.color, fontSize: 11, fontWeight: 800, letterSpacing: ".05em", margin: 0, fontFamily: "'Syne',sans-serif" } }, smartPrompt.loading ? "READING YOUR WEEK…" : "EVENING REFLECTION"),
+          !isHistory && (smartPrompt.refreshesLeft > 0
+            ? React.createElement("button", { onClick: smartPrompt.refresh, disabled: smartPrompt.loading, style: { background: "none", border: "none", color: smartPrompt.loading ? "var(--text-muted)" : promptInfo.color, cursor: smartPrompt.loading ? "wait" : "pointer", fontSize: 11, padding: 0, opacity: smartPrompt.loading ? 0.5 : 1 } }, "↻ new question")
+            : React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10 } }, "limit reached"))
+        ),
         React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 14, margin: "0 0 10px", lineHeight: 1.5, fontWeight: 500 } }, promptInfo.prompt),
         React.createElement("textarea", { value: reflection, onChange: function(e) { setReflection(e.target.value); }, placeholder: "Be honest with yourself…", style: { ...inp, resize: "none", minHeight: 80, lineHeight: 1.6, fontSize: 13 }, maxLength: 500 })
       ) }),
@@ -1232,7 +1269,7 @@ function Evening({
       // 5. Win of the Day
       React.createElement(Card, { ch: React.createElement(React.Fragment, null,
         React.createElement(Lbl, { c: "Win of the Day" }),
-        React.createElement("input", { type: "text", value: wi, onChange: function(e) { setWi(e.target.value); }, placeholder: "One real win — no matter how small", style: inp })
+        React.createElement("textarea", { value: wi, onChange: function(e) { setWi(e.target.value); }, placeholder: "One real win — no matter how small", style: { ...inp, resize: "none", minHeight: 80, lineHeight: 1.6, fontSize: 13 }, rows: 3 })
       ) }),
 
       // Reminders completed today
