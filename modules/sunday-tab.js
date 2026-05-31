@@ -70,24 +70,20 @@
       const mob = ml.filter(d => (d.morning?.mobilityCount || 0) > 0).length;
       const ca = el.filter(d => d.evening?.cardio).length;
       const st = el.filter(d => d.evening?.strength).length;
-      const snFree = el.filter(d => d.evening?.snack === 0).length;
-      const snHeavy = el.filter(d => d.evening?.snack === 3).length;
-      const fwCount = el.filter(d => d.evening?.financeWin).length;
-      const hy = ml.filter(d => d.morning?.hydration).length;
       const drV = el.filter(d => d.evening?.dayRating > 0);
       const avgDr = drV.length ? (drV.reduce((a, d) => a + d.evening.dayRating, 0) / drV.length).toFixed(1) : null;
       const enV = ml.filter(d => (d.morning?.showingUp || d.morning?.energy) > 0);
       const avgEn = enV.length ? (enV.reduce((a, d) => a + (d.morning.showingUp || d.morning.energy), 0) / enV.length).toFixed(1) : null;
       const moodV = ml.filter(d => (d.morning?.showingUp || d.morning?.mood) > 0);
       const avgMood = moodV.length ? (moodV.reduce((a, d) => a + (d.morning.showingUp || d.morning.mood), 0) / moodV.length).toFixed(1) : null;
-      const steps = ml.reduce((a, d) => a + (d.evening?.steps || d.morning?.steps || 0), 0);
+      const steps = el.reduce((a, d) => a + (d.evening?.steps || 0), 0);
+      const glassesV = el.filter(d => (d.evening?.glasses || 0) > 0);
+      const avgWater = glassesV.length ? (glassesV.reduce((a, d) => a + d.evening.glasses, 0) / glassesV.length).toFixed(1) : null;
       const wins = el.reduce((acc, d) => { if (d.evening?.win) acc.push(d.evening.win); return acc; }, []).join(" | ");
-      const choresDone = el.filter(d => d.evening?.choresDone).length;
-      const familyMoments = el.filter(d => d.evening?.familyMoment).length;
       const exceptional = wk.filter(d => d.morning?.exceptionalDay || d.evening?.exceptionalDay).length;
       const pillars = Object.entries(pillarScores || {}).map(([k, v]) => `${k}:${v}/5`).join(",");
-      const prevWeeks = allSundays.slice(0, 4).map(s => `[Week of ${s.date}: mood=${s.avgMood || "?"},energy=${s.avgEnergy || "?"},snackFree=${s.snackFree || 0}/7,cardio=${s.cardio || 0}/7]`).join(" ");
-      return `THIS WEEK|${wk.length}days|Weight:${avgWt || "?"}lbs|Mob:${mob}/7|Cardio:${ca}/7|Strength:${st}/7|SnackFree:${snFree}/7|SnackHeavy:${snHeavy}|Hy:${hy}/${ml.length}|Steps:${steps}|AvgDr:${avgDr || "?"}/5|AvgEnergy:${avgEn || "?"}/5|AvgMood:${avgMood || "?"}/5|FinanceWins:${fwCount}|ChoresDone:${choresDone}|FamilyMoments:${familyMoments}|Exceptional:${exceptional}|Pillars:${pillars}|Wins:${wins}|WeekWin:${weekWin || "none"}|Gap:${weekNote || "none"}||PREVIOUS_WEEKS(most recent first):${prevWeeks || "none"}`;
+      const prevWeeks = allSundays.slice(0, 4).map(s => `[Week of ${s.date}: mood=${s.avgMood || "?"},energy=${s.avgEnergy || "?"},cardio=${s.cardio || 0}/7,strength=${s.strength || 0}/7]`).join(" ");
+      return `THIS WEEK|${wk.length}days|Weight:${avgWt || "?"}lbs|Mob:${mob}/7|Cardio:${ca}/7|Strength:${st}/7|Steps:${steps}|AvgWater:${avgWater || "?"}glasses/day|AvgDr:${avgDr || "?"}/5|AvgEnergy:${avgEn || "?"}/5|AvgMood:${avgMood || "?"}/5|Exceptional:${exceptional}|Pillars:${pillars}|Wins:${wins}|WeekWin:${weekWin || "none"}|Gap:${weekNote || "none"}||PREVIOUS_WEEKS(most recent first):${prevWeeks || "none"}`;
     };
     const generate = async () => {
       setLoading(true);
@@ -1110,7 +1106,7 @@
               })
             ),
             FieldLabel({ t: "One work win (optional)" }),
-            React.createElement("input", { type: "text", value: workWin, onChange: e => setWorkWin(e.target.value), placeholder: "e.g. Shipped the feature, landed the client, finished the proposal...", style: { ...inp, fontSize: 13 } })
+            React.createElement("textarea", { value: workWin, onChange: e => setWorkWin(e.target.value), placeholder: "e.g. Shipped the feature, landed the client, finished the proposal...", style: { ...inp, resize: "none", minHeight: 80, lineHeight: 1.6, fontSize: 13 }, rows: 3 })
           ),
           s: { marginBottom: 12 }
         }),
@@ -1236,7 +1232,7 @@
         React.createElement(Card, {
           ch: React.createElement(React.Fragment, null,
             React.createElement(Lbl, { c: "Biggest Win This Week" }),
-            React.createElement("input", { type: "text", value: ww, onChange: e => setWw(e.target.value), placeholder: "One thing you're actually proud of", style: inp })
+            React.createElement("textarea", { value: ww, onChange: e => setWw(e.target.value), placeholder: "One thing you're actually proud of", style: { ...inp, resize: "none", minHeight: 80, lineHeight: 1.6, fontSize: 13 }, rows: 3 })
           ),
           s: { marginBottom: 12 }
         }),

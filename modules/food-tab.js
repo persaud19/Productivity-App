@@ -1,4 +1,4 @@
-// Corevado — Food Tab Module
+﻿// Corevado — Food Tab Module
 // Standalone module: meal library, week planner, grocery route, macro tracking
 // Depends on window.__ml (set by app.js) and React globals
 (function () {
@@ -2741,8 +2741,86 @@
     const [libSearch, setLibSearch] = useState("");
     const voiceRef = useRef(null);
     const chatEndRef = useRef(null);
+    const photoRef = useRef(null);
     const libFiltered = allMealsLib.filter(m => !libSearch || m.name.toLowerCase().includes(libSearch.toLowerCase()));
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
+
+    // Resize + compress image to max 1200px wide, JPEG quality 0.82
+    const compressImage = file => new Promise((res, rej) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAX = 1200;
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        res(canvas.toDataURL("image/jpeg", 0.82).split(",")[1]);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Could not load image")); };
+      img.src = url;
+    });
+
+    const handlePhoto = async file => {
+      if (!file || loading) return;
+      setLoading(true);
+      setMsgs(prev => [...prev, { role: "user", content: "📷 [meal photo]", _imageB64: null, _imgFile: file }]);
+      try {
+        const b64 = await compressImage(file);
+        const imageBlock = { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } };
+        const textBlock = { type: "text", text: `What meal is this? I need to log it for ${slot}. Identify what you see and estimate the macros, or ask me one clarifying question if it's a mixed dish.` };
+        const libContext = mealLibrary.length
+          ? "KNOWN MEALS:\n" + mealLibrary.slice(0, 30).map(m => `${m.name}: ${m.calories}cal, ${m.protein}g protein, ${m.carbs}g carbs, ${m.fat}g fat`).join("\n")
+          : "";
+        const systemPrompt = `You are a friendly nutritionist helping ${userName || "the user"} log what they ate for ${slot} on ${date} using a photo.
+${libContext}
+
+Rules:
+- Identify the meal from the photo first
+- For simple recognisable meals: estimate macros immediately and confirm
+- For mixed dishes (curry, stew, pasta, casserole): ask ONE question about a key unknown ingredient or portion (e.g. "Looks like a chicken curry — did it have coconut milk or tomato base?")
+- Once you have enough info, provide your estimate — don't over-ask
+- When ready to save, respond with ONLY valid JSON:
+{"action":"save","name":"Chicken Curry & Roti","calories":620,"protein":38,"carbs":72,"fat":14,"portionDesc":"medium bowl + 2 roti","isNew":true}
+- Keep clarifying responses SHORT (1–2 sentences)`;
+
+        const res = await fetch("/api/claude", {
+          method: "POST",
+          body: JSON.stringify({
+            model: "claude-sonnet-4-6",
+            max_tokens: 400,
+            system: systemPrompt,
+            messages: [{ role: "user", content: [imageBlock, textBlock] }]
+          })
+        });
+        const data = await res.json();
+        const reply = data.content?.[0]?.text || "";
+        let parsed = null;
+        try {
+          let s = reply.trim();
+          const wrapped = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+          if (wrapped) s = wrapped[1].trim();
+          if (s.startsWith("{")) parsed = JSON.parse(s);
+        } catch {}
+        if (parsed?.action === "save") {
+          setConfirmed(parsed);
+          setMsgs(prev => [...prev, { role: "assistant", content: `Got it — **${parsed.name}** · ${parsed.calories}cal · ${parsed.protein}g protein · ${parsed.carbs}g carbs · ${parsed.fat}g fat${parsed.portionDesc ? "\n_" + parsed.portionDesc + "_" : ""}` }]);
+        } else {
+          // Store b64 so subsequent text replies can reference the image context
+          setMsgs(prev => {
+            const updated = [...prev];
+            const imgIdx = updated.findLastIndex(m => m._imgFile);
+            if (imgIdx !== -1) updated[imgIdx] = { ...updated[imgIdx], _imageB64: b64 };
+            return [...updated, { role: "assistant", content: reply }];
+          });
+        }
+      } catch(e) {
+        setMsgs(prev => [...prev, { role: "assistant", content: "Couldn't read the photo. Try again or describe what you ate." }]);
+      }
+      setLoading(false);
+    };
   
     const startVoice = () => {
       if (!window.SpeechRecognition && !window.webkitSpeechRecognition) { alert("Voice not supported. Try Chrome."); return; }
@@ -2786,7 +2864,13 @@
   - action "clarify": still gathering info — respond normally in plain text
   - Keep responses SHORT (1–2 sentences max when clarifying)`;
   
-        const apiMsgs = newMsgs.map(m => ({ role: m.role, content: m.content }));
+        // Build API messages — photo messages get their image block injected back
+        const apiMsgs = newMsgs.map(m => {
+          if (m._imageB64) {
+            return { role: "user", content: [{ type: "image", source: { type: "base64", media_type: "image/jpeg", data: m._imageB64 } }, { type: "text", text: "Here is my meal photo." }] };
+          }
+          return { role: m.role, content: m.content };
+        });
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         const res = await fetch("/api/claude", {
@@ -2932,6 +3016,16 @@
         /*#__PURE__*/React.createElement("div", {
           style: { display: "flex", gap: 8, padding: "10px 16px 14px", borderTop: "1px solid rgba(255,255,255,.06)" }
         },
+          /*#__PURE__*/React.createElement("input", {
+            ref: photoRef, type: "file", accept: "image/*", capture: "environment",
+            style: { display: "none" },
+            onChange: e => { const f = e.target.files?.[0]; if (f) handlePhoto(f); e.target.value = ""; }
+          }),
+          /*#__PURE__*/React.createElement("button", {
+            onClick: () => photoRef.current?.click(), disabled: loading,
+            title: "Take or upload a meal photo",
+            style: { width: 38, height: 38, borderRadius: "50%", flexShrink: 0, background: "rgba(74,222,128,.12)", border: "1px solid rgba(74,222,128,.28)", color: "var(--color-success)", fontSize: 16, cursor: loading ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: loading ? .5 : 1 }
+          }, "\uD83D\uDCF7"),
           /*#__PURE__*/React.createElement("button", {
             onClick: listening ? () => { voiceRef.current?.stop(); setListening(false); } : startVoice,
             style: { width: 38, height: 38, borderRadius: "50%", flexShrink: 0, background: listening ? "rgba(239,68,68,.2)" : "rgba(167,139,250,.15)", border: `1px solid ${listening ? "rgba(239,68,68,.4)" : "rgba(167,139,250,.3)"}`, color: listening ? "var(--color-danger)" : "var(--color-accent-purple)", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }
@@ -2990,18 +3084,28 @@
   // candidates and adjusting qty. User must confirm; never auto-deducts.
   // ─────────────────────────────────────────────────────────────────────────────
   function PantryDeductionConfirm({ mealName, candidates, onConfirm, onSkip }) {
-    // If only one candidate, pre-select it. If multiple, let user pick.
-    const [selectedId, setSelectedId] = useState(candidates.length === 1 ? candidates[0].id : null);
-    const [qty, setQty] = useState(candidates[0]?.qty || 1);
+    // selections: { [id]: qty } — multi-select, each entry has its own qty
+    const [selections, setSelections] = useState(() => {
+      const init = {};
+      candidates.forEach(c => { init[c.id] = c.qty || 1; });
+      return init;
+    });
 
-    useEffect(() => {
-      if (selectedId) {
-        const c = candidates.find(x => x.id === selectedId);
-        if (c) setQty(c.qty || 1);
-      }
-    }, [selectedId]);
+    const toggle = id => {
+      setSelections(prev => {
+        if (prev[id] !== undefined) { const next = { ...prev }; delete next[id]; return next; }
+        const c = candidates.find(x => x.id === id);
+        return { ...prev, [id]: c?.qty || 1 };
+      });
+    };
 
-    const selected = candidates.find(c => c.id === selectedId);
+    const setItemQty = (id, val) => setSelections(prev => ({ ...prev, [id]: val }));
+
+    const selectedItems = Object.entries(selections)
+      .map(([id, qty]) => ({ id, qty, c: candidates.find(x => x.id === id) }))
+      .filter(x => x.c && x.qty > 0);
+
+    const canConfirm = selectedItems.length > 0;
 
     return /*#__PURE__*/React.createElement("div", {
       style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 210, display: "flex", alignItems: "flex-end", justifyContent: "center" }
@@ -3014,84 +3118,70 @@
         }, "Deduct from pantry?"),
         /*#__PURE__*/React.createElement("p", {
           style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 14px", lineHeight: 1.5 }
-        }, "Based on \u201C", mealName, "\u201D, these pantry items may have been used. Confirm to deduct."),
+        }, "Based on “", mealName, "” — tap to unselect anything that wasn’t used."),
 
-        candidates.length > 1 && /*#__PURE__*/React.createElement("p", {
-          style: { fontSize: 11, color: "var(--text-secondary)", fontWeight: 700, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: ".05em" }
-        }, "Pick one:"),
+        candidates.map(c => {
+          const isOn = selections[c.id] !== undefined;
+          const itemQty = selections[c.id] !== undefined ? selections[c.id] : (c.qty || 1);
+          return /*#__PURE__*/React.createElement("div", {
+            key: c.id,
+            style: { padding: "12px 14px", marginBottom: 8, background: isOn ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: "1px solid " + (isOn ? "rgba(244,168,35,.35)" : "rgba(255,255,255,.08)"), borderRadius: 10 }
+          },
+            /*#__PURE__*/React.createElement("div", {
+              onClick: () => toggle(c.id),
+              style: { display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }
+            },
+              /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+                /*#__PURE__*/React.createElement("div", {
+                  style: { width: 20, height: 20, borderRadius: "50%", border: "2px solid " + (isOn ? "var(--color-primary)" : "rgba(255,255,255,.2)"), background: isOn ? "var(--color-primary)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, color: "var(--bg)", fontWeight: 800 }
+                }, isOn ? "✓" : ""),
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: isOn ? "var(--text-primary)" : "var(--text-secondary)" } }, c.name)
+              ),
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, c.currentQty + " " + c.unit + " on hand")
+            ),
+            c.reason && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0 30px", fontStyle: "italic" } }, c.reason),
+            isOn && /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 10, marginLeft: 30 } },
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--text-secondary)", fontWeight: 600 } }, "Deduct:"),
+              /*#__PURE__*/React.createElement("button", {
+                onClick: e => { e.stopPropagation(); setItemQty(c.id, Math.max(0.25, parseFloat((itemQty - 1).toFixed(2)))); },
+                style: { width: 28, height: 28, borderRadius: 7, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.04)", color: "var(--text-primary)", fontSize: 14, cursor: "pointer" }
+              }, "−"),
+              /*#__PURE__*/React.createElement("input", {
+                type: "number", value: itemQty,
+                onChange: e => setItemQty(c.id, parseFloat(e.target.value) || 0),
+                onClick: e => e.stopPropagation(),
+                step: "0.5", min: "0",
+                style: { width: 56, padding: "5px 6px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 7, color: "var(--text-primary)", fontSize: 13, textAlign: "center", outline: "none" }
+              }),
+              /*#__PURE__*/React.createElement("button", {
+                onClick: e => { e.stopPropagation(); setItemQty(c.id, parseFloat((itemQty + 1).toFixed(2))); },
+                style: { width: 28, height: 28, borderRadius: 7, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.04)", color: "var(--text-primary)", fontSize: 14, cursor: "pointer" }
+              }, "+"),
+              /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, c.unit)
+            )
+          );
+        }),
 
-        candidates.map(c => /*#__PURE__*/React.createElement("div", {
-          key: c.id,
-          onClick: () => setSelectedId(c.id),
-          style: {
-            padding: "12px 14px",
-            marginBottom: 8,
-            background: selectedId === c.id ? "rgba(244,168,35,.12)" : "rgba(255,255,255,.03)",
-            border: "1px solid " + (selectedId === c.id ? "rgba(244,168,35,.4)" : "rgba(255,255,255,.08)"),
-            borderRadius: 10,
-            cursor: "pointer"
-          }
-        },
-          /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
-            /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-primary)" } }, c.name),
-            /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, c.currentQty + " " + c.unit + " on hand")
-          ),
-          c.reason && /*#__PURE__*/React.createElement("p", {
-            style: { fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0", fontStyle: "italic" }
-          }, c.reason)
-        )),
-
-        selected && /*#__PURE__*/React.createElement("div", {
-          style: { marginTop: 14, display: "flex", alignItems: "center", gap: 10 }
-        },
-          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 } }, "Deduct:"),
-          /*#__PURE__*/React.createElement("button", {
-            onClick: () => setQty(Math.max(0.25, parseFloat((qty - 1).toFixed(2)))),
-            style: { width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.04)", color: "var(--text-primary)", fontSize: 16, cursor: "pointer" }
-          }, "−"),
-          /*#__PURE__*/React.createElement("input", {
-            type: "number",
-            value: qty,
-            onChange: e => setQty(parseFloat(e.target.value) || 0),
-            step: "0.5",
-            min: "0",
-            style: { width: 64, padding: "6px 8px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, textAlign: "center", outline: "none" }
-          }),
-          /*#__PURE__*/React.createElement("button", {
-            onClick: () => setQty(parseFloat((qty + 1).toFixed(2))),
-            style: { width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.04)", color: "var(--text-primary)", fontSize: 16, cursor: "pointer" }
-          }, "+"),
-          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, selected.unit)
-        ),
-
-        /*#__PURE__*/React.createElement("div", {
-          style: { display: "flex", gap: 10, marginTop: 18 }
-        },
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 10, marginTop: 18 } },
           /*#__PURE__*/React.createElement("button", {
             onClick: onSkip,
             style: { flex: 1, padding: "12px 0", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
           }, "Skip"),
           /*#__PURE__*/React.createElement("button", {
-            onClick: () => selected && qty > 0 ? onConfirm([{ id: selected.id, qty }]) : onSkip(),
-            disabled: !selected || qty <= 0,
+            onClick: () => canConfirm ? onConfirm(selectedItems.map(x => ({ id: x.id, qty: x.qty }))) : onSkip(),
+            disabled: !canConfirm,
             style: {
-              flex: 1.3,
-              padding: "12px 0",
-              background: !selected || qty <= 0 ? "rgba(255,255,255,.04)" : "rgba(244,168,35,.15)",
-              border: "1px solid " + (!selected || qty <= 0 ? "rgba(255,255,255,.08)" : "rgba(244,168,35,.4)"),
-              borderRadius: 10,
-              color: !selected || qty <= 0 ? "var(--text-muted)" : "var(--color-primary)",
-              fontSize: 13,
-              fontWeight: 800,
-              cursor: !selected || qty <= 0 ? "not-allowed" : "pointer",
-              fontFamily: "'Syne',sans-serif"
+              flex: 1.3, padding: "12px 0",
+              background: canConfirm ? "rgba(244,168,35,.15)" : "rgba(255,255,255,.04)",
+              border: "1px solid " + (canConfirm ? "rgba(244,168,35,.4)" : "rgba(255,255,255,.08)"),
+              borderRadius: 10, color: canConfirm ? "var(--color-primary)" : "var(--text-muted)",
+              fontSize: 13, fontWeight: 800, cursor: canConfirm ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif"
             }
-          }, selected ? "Deduct −" + qty + " " + selected.unit : "Select one")
+          }, canConfirm ? "Deduct " + selectedItems.length + " item" + (selectedItems.length !== 1 ? "s" : "") : "Nothing selected")
         )
       )
     );
   }
-
   // ─────────────────────────────────────────────────────────────────────────────
   // APP ROOT
   // ─────────────────────────────────────────────────────────────────────────────
