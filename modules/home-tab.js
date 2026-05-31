@@ -11,7 +11,7 @@ const PRI_COLOR = {
   Low: "var(--color-success)"
 };
 function choreStatus(task) {
-  const nextDue = addDays(task.last, task.freq);
+  const nextDue = addDays(task.last, task.freq + (task.extended || 0));
   const daysUntil = daysBetween(getToday(), nextDue);
   return {
     nextDue,
@@ -33,6 +33,8 @@ function TasksTab({
   const [editTask, setEditTask] = useState(null);
   const [doneDateState, setDoneDateState] = useState(getToday());
   const [doneByState, setDoneByState] = useState("self");
+  const [extendTask, setExtendTask] = useState(null);
+  const [extendDays, setExtendDays] = useState(7);
   const myName = settings?.name || "Me";
   const partnerName = window.__ml.getPartnerName(settings);
   const saveTasks = async updated => {
@@ -45,7 +47,8 @@ function TasksTab({
     await saveTasks(tasks.map(t => t.id === doneTask.id ? {
       ...t,
       last: doneDateState,
-      completedBy: completedByName
+      completedBy: completedByName,
+      extended: 0
     } : t));
     setDoneTask(null);
   };
@@ -57,6 +60,14 @@ function TasksTab({
   const handleDelete = async id => {
     await saveTasks(tasks.filter(t => t.id !== id));
     setEditTask(null);
+  };
+  const handleExtend = async () => {
+    if (!extendTask) return;
+    const days = parseInt(extendDays) || 0;
+    if (days <= 0) return;
+    await saveTasks(tasks.map(t => t.id === extendTask.id ? { ...t, extended: (t.extended || 0) + days } : t));
+    setExtendTask(null);
+    setExtendDays(7);
   };
   // Compute choreStatus once per task per render — reused by sort, filter, counts, and card render
   const statusMap = useMemo(() => {
@@ -399,7 +410,9 @@ function TasksTab({
         color: "var(--text-disabled)",
         fontSize: 10
       }
-    }, "Every ", task.freq, "d"), task.completedBy && /*#__PURE__*/React.createElement("span", {
+    }, "Every ", task.freq, "d"), task.extended > 0 && /*#__PURE__*/React.createElement("span", {
+      style: { color: "var(--color-accent-purple)", fontSize: 10, fontWeight: 700 }
+    }, "+", task.extended, "d ext"), task.completedBy && /*#__PURE__*/React.createElement("span", {
       style: {
         color: "var(--color-success)",
         fontSize: 10,
@@ -423,6 +436,18 @@ function TasksTab({
         cursor: "pointer"
       }
     }, "\u270E"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => { setExtendTask(task); setExtendDays(7); },
+      title: "Extend deadline",
+      style: {
+        padding: "5px 9px",
+        background: task.extended ? "rgba(167,139,250,.12)" : "rgba(255,255,255,.05)",
+        border: task.extended ? "1px solid rgba(167,139,250,.3)" : "1px solid rgba(255,255,255,.09)",
+        color: task.extended ? "var(--color-accent-purple)" : "var(--text-secondary)",
+        borderRadius: 7,
+        fontSize: 10,
+        cursor: "pointer"
+      }
+    }, "\u23F1"), /*#__PURE__*/React.createElement("button", {
       onClick: () => {
         setDoneTask(task);
         setDoneDateState(getToday());
@@ -640,7 +665,7 @@ function TasksTab({
     c: "Every (days)"
   }), /*#__PURE__*/React.createElement("input", {
     type: "number",
-    value: editTask.freq || 7,
+    value: editTask.freq !== undefined && editTask.freq !== null ? editTask.freq : 7,
     onChange: e => setEditTask(p => ({ ...p, freq: e.target.value })),
     onBlur: e => setEditTask(p => ({ ...p, freq: parseInt(e.target.value) || 1 })),
     style: {
@@ -758,7 +783,40 @@ function TasksTab({
       fontSize: 12,
       cursor: "pointer"
     }
-  }, "Cancel"))));
+  }, "Cancel"))), extendTask && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,.7)", zIndex: 200 },
+    onClick: () => setExtendTask(null)
+  }), /*#__PURE__*/React.createElement("div", {
+    style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 40px)", maxWidth: 360, background: "var(--bg-modal)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 14, padding: "20px", zIndex: 201 }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: { color: "var(--color-accent-purple)", fontWeight: 800, fontSize: 13, margin: "0 0 4px", fontFamily: "'Syne',sans-serif", letterSpacing: 1 }
+  }, "EXTEND DEADLINE"), /*#__PURE__*/React.createElement("p", {
+    style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 16px" }
+  }, extendTask.name), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", gap: 6, marginBottom: 14 }
+  }, [3, 7, 14, 30].map(d => /*#__PURE__*/React.createElement("button", {
+    key: d,
+    onClick: () => setExtendDays(d),
+    style: { flex: 1, padding: "8px 0", background: extendDays === d ? "rgba(167,139,250,.2)" : "rgba(255,255,255,.04)", border: extendDays === d ? "1px solid rgba(167,139,250,.5)" : "1px solid rgba(255,255,255,.08)", color: extendDays === d ? "var(--color-accent-purple)" : "var(--text-secondary)", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }
+  }, "+" + d + "d"))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, { c: "Or enter days" }), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: 1,
+    value: extendDays,
+    onChange: e => setExtendDays(parseInt(e.target.value) || 1),
+    style: { ...inp, fontSize: 13 }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: { marginTop: 10, padding: "8px 12px", background: "rgba(167,139,250,.08)", borderRadius: 8 }
+  }, /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 2px" } }, "New due date:"), /*#__PURE__*/React.createElement("p", {
+    style: { color: "var(--color-accent-purple)", fontSize: 14, fontWeight: 700, margin: 0 }
+  }, fmtDate(addDays(extendTask.last, extendTask.freq + (extendTask.extended || 0) + (parseInt(extendDays) || 0))))), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", gap: 8, marginTop: 14 }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: handleExtend,
+    style: { flex: 1, padding: "12px 0", background: "var(--color-accent-purple)", color: "var(--bg)", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+  }, "EXTEND ⏱"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setExtendTask(null),
+    style: { padding: "12px 13px", background: "transparent", border: "1px solid rgba(255,255,255,.1)", color: "var(--text-secondary)", borderRadius: 9, fontSize: 13, cursor: "pointer" }
+  }, "Cancel")))));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
