@@ -2044,7 +2044,18 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
         disabled: saving,
         style: { width: "100%", background: "var(--color-primary)", border: "none", borderRadius: 10, color: "var(--bg)", fontSize: 13, fontWeight: 800, padding: "14px", cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
       }, saving ? "SAVING..." : "SAVE SETTINGS"),
-      msg && React.createElement("p", { style: { color: "var(--color-success)", textAlign: "center", fontSize: 12, margin: "10px 0 0" } }, msg)
+      msg && React.createElement("p", { style: { color: "var(--color-success)", textAlign: "center", fontSize: 12, margin: "10px 0 0" } }, msg),
+
+      React.createElement("a", {
+        href: "/guide.html",
+        target: "_blank",
+        rel: "noopener noreferrer",
+        style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 20, padding: "12px", background: "var(--card-bg-2)", border: "1px solid var(--card-border)", borderRadius: 10, textDecoration: "none", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500 }
+      },
+        React.createElement("span", { style: { fontSize: 16 } }, "📚"),
+        React.createElement("span", null, "How to use Corevado"),
+        React.createElement("span", { style: { marginLeft: "auto", color: "var(--text-muted)", fontSize: 11 } }, "User Guide →")
+      )
     )
   );
 }

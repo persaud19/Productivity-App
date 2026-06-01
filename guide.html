@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Corevado — How to Use</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080b11;
+      --bg-nav: #0a0f1a;
+      --card-bg: rgba(255,255,255,.03);
+      --card-bg-2: rgba(255,255,255,.06);
+      --card-border: rgba(255,255,255,.07);
+      --card-border-2: rgba(255,255,255,.1);
+      --text-primary: #d1d5db;
+      --text-secondary: #c4cdd9;
+      --text-muted: #7a8699;
+      --text-heading: #e2e5ed;
+      --color-primary: #f4a823;
+      --color-primary-bg: rgba(244,168,35,.12);
+      --color-primary-border: rgba(244,168,35,.25);
+      --color-blue: #60a5fa;
+      --color-blue-bg: rgba(96,165,250,.12);
+      --color-blue-border: rgba(96,165,250,.25);
+      --color-orange: #fb923c;
+      --color-orange-bg: rgba(251,146,60,.12);
+      --color-orange-border: rgba(251,146,60,.25);
+      --color-purple: #a78bfa;
+      --color-purple-bg: rgba(167,139,250,.12);
+      --color-purple-border: rgba(167,139,250,.25);
+      --color-teal: #34d399;
+      --color-teal-bg: rgba(52,211,153,.1);
+      --color-teal-border: rgba(52,211,153,.22);
+      --color-success: #4ade80;
+      --color-success-bg: rgba(74,222,128,.12);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.4);
+      --shadow-md: 0 4px 16px rgba(0,0,0,.5);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      padding-bottom: 80px;
+    }
+
+    /* ── Sticky nav ── */
+    .top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8,11,17,.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .top-nav .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      color: var(--color-primary);
+      text-decoration: none;
+    }
+    .top-nav .subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+    .launch-btn {
+      background: var(--color-primary);
+      color: #000;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: opacity .15s;
+    }
+    .launch-btn:hover { opacity: .85; }
+
+    /* ── Section anchors ── */
+    .toc-bar {
+      background: var(--bg-nav);
+      border-bottom: 1px solid var(--card-border);
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .toc-bar::-webkit-scrollbar { display: none; }
+    .toc-inner {
+      display: flex;
+      gap: 0;
+      padding: 0 16px;
+      white-space: nowrap;
+      min-width: max-content;
+    }
+    .toc-link {
+      display: inline-block;
+      padding: 12px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .toc-link:hover { color: var(--text-primary); }
+    .toc-link.amber { border-bottom-color: var(--color-primary); color: var(--color-primary); }
+    .toc-link.blue  { border-bottom-color: var(--color-blue);   color: var(--color-blue); }
+    .toc-link.orange{ border-bottom-color: var(--color-orange); color: var(--color-orange); }
+    .toc-link.purple{ border-bottom-color: var(--color-purple); color: var(--color-purple); }
+    .toc-link.teal  { border-bottom-color: var(--color-teal);   color: var(--color-teal); }
+
+    /* ── Layout ── */
+    .page { max-width: 680px; margin: 0 auto; padding: 0 20px; }
+    @media (max-width: 480px) { .page { padding: 0 16px; } }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 48px 20px 40px;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: var(--color-primary-bg);
+      border: 1px solid var(--color-primary-border);
+      color: var(--color-primary);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(26px, 6vw, 36px);
+      color: var(--text-heading);
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+    .hero h1 span { color: var(--color-primary); }
+    .hero p {
+      font-size: 16px;
+      color: var(--text-secondary);
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.65;
+    }
+
+    /* ── Section headers ── */
+    .section { padding: 40px 0 0; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .section-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      color: var(--text-heading);
+    }
+    .section-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .card-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text-heading);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+    .card p + p { margin-top: 8px; }
+
+    /* ── Sub-tab chips ── */
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0 4px;
+    }
+    .chip {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+    .chip.amber { background: var(--color-primary-bg); border-color: var(--color-primary-border); color: var(--color-primary); }
+    .chip.blue   { background: var(--color-blue-bg);   border-color: var(--color-blue-border);   color: var(--color-blue); }
+    .chip.orange { background: var(--color-orange-bg); border-color: var(--color-orange-border); color: var(--color-orange); }
+    .chip.purple { background: var(--color-purple-bg); border-color: var(--color-purple-border); color: var(--color-purple); }
+    .chip.teal   { background: var(--color-teal-bg);   border-color: var(--color-teal-border);   color: var(--color-teal); }
+    .chip.green  { background: var(--color-success-bg); border-color: rgba(74,222,128,.25); color: var(--color-success); }
+
+    /* ── Step list ── */
+    .steps { list-style: none; counter-reset: steps; margin: 12px 0 4px; }
+    .steps li {
+      counter-increment: steps;
+      display: flex;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(steps);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      border-radius: 50%;
+      background: var(--color-primary-bg);
+      border: 1px solid var(--color-primary-border);
+      color: var(--color-primary);
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+
+    /* ── Feature grid ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    @media (max-width: 400px) { .feature-grid { grid-template-columns: 1fr; } }
+    .feature-item {
+      background: var(--card-bg-2, rgba(255,255,255,.04));
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .feature-icon { font-size: 18px; margin-bottom: 6px; }
+    .feature-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-heading);
+      margin-bottom: 3px;
+    }
+    .feature-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* ── Highlight callout ── */
+    .callout {
+      border-left: 3px solid;
+      padding: 12px 16px;
+      border-radius: 0 10px 10px 0;
+      margin: 12px 0;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .callout.amber { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--text-secondary); }
+    .callout.blue   { background: var(--color-blue-bg);   border-color: var(--color-blue);   color: var(--text-secondary); }
+    .callout.purple { background: var(--color-purple-bg); border-color: var(--color-purple); color: var(--text-secondary); }
+    .callout.teal   { background: var(--color-teal-bg);   border-color: var(--color-teal);   color: var(--text-secondary); }
+    .callout strong { color: var(--text-heading); }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: var(--card-border);
+      margin: 32px 0;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      padding: 40px 20px 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .footer a { color: var(--color-primary); text-decoration: none; }
+    .footer .footer-logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 22px;
+      color: var(--color-primary);
+      margin-bottom: 8px;
+    }
+
+    /* ── Rhythm timeline ── */
+    .timeline {
+      position: relative;
+      padding-left: 28px;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 10px;
+      top: 8px;
+      bottom: 8px;
+      width: 2px;
+      background: var(--card-border-2);
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 18px;
+    }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -22px;
+      top: 6px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid;
+    }
+    .timeline-item.amber::before { border-color: var(--color-primary); background: var(--color-primary-bg); }
+    .timeline-item.blue::before  { border-color: var(--color-blue);    background: var(--color-blue-bg); }
+    .timeline-item.purple::before{ border-color: var(--color-purple);  background: var(--color-purple-bg); }
+    .timeline-item.teal::before  { border-color: var(--color-teal);    background: var(--color-teal-bg); }
+    .timeline-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+    .timeline-label.amber { color: var(--color-primary); }
+    .timeline-label.blue  { color: var(--color-blue); }
+    .timeline-label.purple{ color: var(--color-purple); }
+    .timeline-label.teal  { color: var(--color-teal); }
+    .timeline-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top nav -->
+  <nav class="top-nav">
+    <div>
+      <div class="logo">Corevado</div>
+      <div class="subtitle">User Guide</div>
+    </div>
+    <a href="https://corevado.netlify.app" class="launch-btn">Open App &rarr;</a>
+  </nav>
+
+  <!-- Section tabs -->
+  <div class="toc-bar">
+    <div class="toc-inner">
+      <a class="toc-link" href="#getting-started">Get Started</a>
+      <a class="toc-link" href="#daily-rhythm">Daily Rhythm</a>
+      <a class="toc-link amber" href="#personal">Personal</a>
+      <a class="toc-link orange" href="#health">Health</a>
+      <a class="toc-link blue" href="#home">Home</a>
+      <a class="toc-link purple" href="#history">History</a>
+      <a class="toc-link teal" href="#finance">Finance</a>
+      <a class="toc-link" href="#tips">Tips</a>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="page">
+    <div class="hero">
+      <div class="hero-badge">Welcome to Corevado</div>
+      <h1>Your household's<br><span>life operating system</span></h1>
+      <p>Corevado brings together daily check-ins, fitness, meals, household tasks, inventory, finances, and weekly reviews — all in one place, built for two.</p>
+    </div>
+  </div>
+
+  <!-- Getting Started -->
+  <div class="page">
+    <div class="section" id="getting-started">
+      <div class="section-header">
+        <div class="section-dot" style="background:#e2e5ed"></div>
+        <div>
+          <div class="section-title">Getting Started</div>
+          <div class="section-desc">First-time setup in under 2 minutes</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">1 &nbsp; Sign in with Google</div>
+        <p>Open <strong style="color:var(--color-primary)">corevado.netlify.app</strong> and tap <em>Sign in with Google</em>. Use your personal Google account — each person in your household has their own separate data.</p>
+        <div class="callout blue" style="margin-top:14px">
+          <strong>Two people, one household.</strong> Each person signs in with their own Google account. Personal data (logs, fitness, goals) stays private. Shared data (tasks, inventory) is visible to both.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">2 &nbsp; Complete the Setup Wizard</div>
+        <p>On first launch you'll see a short setup wizard. Enter your name, your partner's name, and your household ID. This takes about 60 seconds and unlocks the full app.</p>
+        <ol class="steps">
+          <li>Enter your first name (used in AI check-ins)</li>
+          <li>Enter your partner's name (used in task assignments)</li>
+          <li>Set your household ID (a shared code both of you use)</li>
+          <li>Optionally add your Claude API key for AI features</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <div class="card-title">3 &nbsp; Install as an app (recommended)</div>
+        <p>Corevado works as a PWA — you can install it on your phone's home screen for a native app experience with no browser chrome.</p>
+        <div class="feature-grid">
+          <div class="feature-item">
+            <div class="feature-icon">🤖</div>
+            <div class="feature-label">Android / Chrome</div>
+            <div class="feature-sub">Tap the menu (⋮) then "Add to Home Screen"</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🍎</div>
+            <div class="feature-label">iPhone / Safari</div>
+            <div class="feature-sub">Tap the Share icon then "Add to Home Screen"</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Daily Rhythm -->
+    <div class="section" id="daily-rhythm">
+      <div class="section-header">
+        <div class="section-dot" style="background:#e2e5ed"></div>
+        <div>
+          <div class="section-title">Your Daily Rhythm</div>
+          <div class="section-desc">The core loop that keeps everything on track</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <p>Corevado is built around a simple loop: <strong style="color:var(--text-heading)">log in the morning, log in the evening, review on Sunday.</strong> Each check-in takes about 90 seconds. The app does the rest.</p>
+
+        <div class="timeline" style="margin-top:20px">
+          <div class="timeline-item amber">
+            <div class="timeline-label amber">Morning &mdash; 90 seconds</div>
+            <div class="timeline-text">Log your weight, sleep, energy, steps, and set your intention for the day. Opens the Personal tab &rarr; Morning.</div>
+          </div>
+          <div class="timeline-item blue">
+            <div class="timeline-label blue">Evening &mdash; 90 seconds</div>
+            <div class="timeline-text">Rate your day, track water, log workouts, note your daily win. Opens the Personal tab &rarr; Evening.</div>
+          </div>
+          <div class="timeline-item orange">
+            <div class="timeline-label orange">During the day &mdash; as needed</div>
+            <div class="timeline-text">Log workouts in Health &rarr; Train. Track meals in Health &rarr; Food. Check off tasks in Home. Update your inventory as you use or restock things.</div>
+          </div>
+          <div class="timeline-item purple">
+            <div class="timeline-label purple">Sunday &mdash; 5 minutes</div>
+            <div class="timeline-text">Fill in the weekly review. Tap "Generate AI Brief" to get your 5-line accountability summary. Set intentions for the week ahead.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout amber">
+        <strong>Consistency beats perfection.</strong> Even a partial log is better than none. The AI insights only get smarter the more you fill in — after 4 weeks you'll see real patterns.
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Personal -->
+    <div class="section" id="personal">
+      <div class="section-header">
+        <div class="section-dot" style="background:var(--color-primary)"></div>
+        <div>
+          <div class="section-title" style="color:var(--color-primary)">Personal</div>
+          <div class="section-desc">Daily logs, goals, and weekly reviews</div>
+        </div>
+      </div>
+
+      <div class="chip-row">
+        <span class="chip amber">Morning</span>
+        <span class="chip amber">Evening</span>
+        <span class="chip amber">Goals</span>
+        <span class="chip amber">Sunday</span>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Morning check-in</div>
+        <p>Capture the state you woke up in. Every field is optional but the more you fill in, the richer your weekly review becomes.</p>
+        <div class="feature-grid" style="margin-top:12px">
+          <div class="feature-item">
+            <div class="feature-label">Weight</div>
+            <div class="feature-sub">Daily weigh-in tracked against your goal weight</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-label">Sleep &amp; energy</div>
+            <div class="feature-sub">Hours slept + 1–5 energy and readiness ratings</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-label">Steps</div>
+            <div class="feature-sub">Copy from your phone's health app each morning</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-label">Gratitude &amp; intention</div>
+            <div class="feature-sub">One thing you're grateful for + today's focus</div>
+          </div>
+        </div>
+        <div class="callout amber" style="margin-top:14px">
+          <strong>Exceptional day?</strong> Toggle the flag on days that stand out — good or bad. These get highlighted in your history and feed into AI pattern analysis.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Evening check-in</div>
+        <p>Wind down by capturing how the day actually went. This is also where you log workouts if you haven't already.</p>
+        <div class="feature-grid" style="margin-top:12px">
+          <div class="feature-item">
+            <div class="feature-label">Day rating</div>
+            <div class="feature-sub">1–10 score — the most important single number</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-label">Water tracker</div>
+            <div class="feature-sub">8 tappable glasses — tap to fill as you drink</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-label">Daily win</div>
+            <div class="feature-sub">One thing you accomplished — builds your wins archive</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-label">Family moment</div>
+            <div class="feature-sub">A small moment worth remembering from today</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Goals</div>
+        <p>Track any goal with a progress chart. Corevado includes templates for weight loss, debt payoff, savings, and custom habits. Each goal shows a progress bar and trend line pulled from your daily logs.</p>
+        <p>To add a goal: tap the <strong style="color:var(--text-heading)">+ Add Goal</strong> button, pick a category, set your target and deadline. Weight goals automatically pull data from your morning check-ins.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Sunday review</div>
+        <p>Every Sunday, fill in a short weekly reflection across the 7 life pillars: Family, Faith, Fitness, Finance, Learning, Fun, and Marriage.</p>
+        <p>Once filled, tap <strong style="color:var(--color-purple)">Generate AI Brief</strong> to get a 5-line accountability summary written in your voice. It calls out wins, flags concerns, and sets a focus for next week.</p>
+        <div class="callout purple" style="margin-top:12px">
+          After several weeks, use <strong>History &rarr; Pattern Insights</strong> to run a deep AI analysis across all your Sunday reviews — it surfaces recurring cycles and blind spots you'd never spot manually.
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Health -->
+    <div class="section" id="health">
+      <div class="section-header">
+        <div class="section-dot" style="background:var(--color-orange)"></div>
+        <div>
+          <div class="section-title" style="color:var(--color-orange)">Health</div>
+          <div class="section-desc">Workouts, meals, and fitness tracking</div>
+        </div>
+      </div>
+
+      <div class="chip-row">
+        <span class="chip orange">Mobility</span>
+        <span class="chip orange">Train</span>
+        <span class="chip orange">Food</span>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Mobility</div>
+        <p>A dynamic 10-exercise weekly plan built for mat work. Each session shows the exercise, sets, hold time, and a visual timer. Exercises rotate week to week so you're not doing the same routine forever.</p>
+        <p>Tap <strong style="color:var(--text-heading)">Start</strong> on any exercise to begin the hold timer. Check it off when done. Your mobility completion feeds into the morning check-in.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Train</div>
+        <p>Log any workout type from a single decision tree.</p>
+        <div class="feature-grid" style="margin-top:12px">
+          <div class="feature-item">
+            <div class="feature-icon">💪</div>
+            <div class="feature-label">Strength</div>
+            <div class="feature-sub">Choose from the exercise pool, log sets/reps/weight</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🚣</div>
+            <div class="feature-label">Cardio</div>
+            <div class="feature-sub">Pick type (row, bike, etc.), duration, calories burned</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🗺️</div>
+            <div class="feature-label">Outdoor Walk</div>
+            <div class="feature-sub">GPS map tracks your route in real time</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🚶</div>
+            <div class="feature-label">Indoor Walk</div>
+            <div class="feature-sub">Step counter for treadmill or walking pad sessions</div>
+          </div>
+        </div>
+        <div class="callout orange" style="margin-top:14px">
+          The <strong>Health Scorecard</strong> banner at the top of the Health section shows today's calories in vs. burned, your TDEE, and your net deficit or surplus at a glance.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Food</div>
+        <p>Plan the week's meals, track macros, and generate a grocery list — all from one tab.</p>
+        <ol class="steps">
+          <li><strong>Week Planner</strong> — assign meals to each day of the week by dragging from the meal library. Each day shows an inventory match % so you know what you already have.</li>
+          <li><strong>Meal Library</strong> — 300+ built-in meals with macros. Add your own custom meals at any time.</li>
+          <li><strong>Macro Tracker</strong> — calories, protein, carbs, and fat totals update automatically as you plan.</li>
+          <li><strong>Grocery Route</strong> — tap "Build Grocery List" to generate a store-by-store shopping plan. Corevado even suggests which credit card to use at each store for maximum rewards.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Home -->
+    <div class="section" id="home">
+      <div class="section-header">
+        <div class="section-dot" style="background:var(--color-blue)"></div>
+        <div>
+          <div class="section-title" style="color:var(--color-blue)">Home</div>
+          <div class="section-desc">Tasks and inventory management</div>
+        </div>
+      </div>
+
+      <div class="chip-row">
+        <span class="chip blue">Tasks</span>
+        <span class="chip blue">Inventory</span>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Tasks</div>
+        <p>Add household tasks for yourself or your partner, each with a due date, owner, and status. Tasks are color-coded:</p>
+        <div class="feature-grid" style="margin-top:12px">
+          <div class="feature-item">
+            <div class="feature-label" style="color:#ef4444">Overdue</div>
+            <div class="feature-sub">Past the due date — needs attention now</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-label" style="color:var(--color-primary)">Due soon</div>
+            <div class="feature-sub">Due within the next few days</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-label" style="color:var(--text-muted)">Upcoming</div>
+            <div class="feature-sub">On schedule, nothing to do yet</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-label" style="color:var(--color-success)">Done</div>
+            <div class="feature-sub">Completed — resets on next due cycle</div>
+          </div>
+        </div>
+        <p style="margin-top:12px">Tap any task to mark it complete. The due date automatically rolls forward to the next cycle.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Inventory</div>
+        <p>Start with a blank slate and build your household inventory as you go. The Inventory powers the meal planner's "what do I already have?" matching — the more complete it is, the smarter your grocery lists become.</p>
+        <div class="feature-grid" style="margin-top:12px">
+          <div class="feature-item">
+            <div class="feature-icon">🎙️</div>
+            <div class="feature-label">Voice / Text Add</div>
+            <div class="feature-sub">Type "2 cans of coconut milk" — AI extracts name, qty, unit, category automatically</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">📷</div>
+            <div class="feature-label">Barcode Scanner</div>
+            <div class="feature-sub">Scan any product barcode — looks up name and nutrition via Open Food Facts</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🔍</div>
+            <div class="feature-label">Scan Shelf</div>
+            <div class="feature-sub">Point your camera at a shelf — AI reads multiple items at once and adds them all</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">⚠️</div>
+            <div class="feature-label">Low Stock Alerts</div>
+            <div class="feature-sub">Red banner when qty drops below your set minimum</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">📅</div>
+            <div class="feature-label">Expiry Alerts</div>
+            <div class="feature-sub">Orange warning 30 days before anything expires</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🧾</div>
+            <div class="feature-label">Receipt Scanner</div>
+            <div class="feature-sub">Photograph a grocery receipt — AI extracts items and adds them automatically</div>
+          </div>
+        </div>
+        <div class="callout blue" style="margin-top:14px">
+          <strong>Quick adjust:</strong> use the <strong>+</strong> and <strong>−</strong> buttons on any item to update quantity as you use or restock things. No need to open an edit screen.
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- History -->
+    <div class="section" id="history">
+      <div class="section-header">
+        <div class="section-dot" style="background:var(--color-purple)"></div>
+        <div>
+          <div class="section-title" style="color:var(--color-purple)">History</div>
+          <div class="section-desc">Browse your logs and discover patterns</div>
+        </div>
+      </div>
+
+      <div class="chip-row">
+        <span class="chip purple">Calendar</span>
+        <span class="chip purple">Sunday Reports</span>
+        <span class="chip purple">Pattern Insights</span>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Calendar</div>
+        <p>Monthly calendar view. Days with a morning or evening log show a colored dot. Tap any day to see a read-only summary of what you logged — weight, energy, day rating, workout, daily win, family moment.</p>
+        <p>To edit a past log, tap the day and use the <strong style="color:var(--text-heading)">Edit</strong> button — it loads that day's data back into the Morning/Evening form so you can update it.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Sunday Reports Archive</div>
+        <p>Every Sunday review you've ever submitted lives here. Browse past weeks to see how your 7-pillar scores and AI briefs have evolved over time. A useful reset before you fill in the current week's review.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Pattern Insights</div>
+        <p>The most powerful feature in the whole app. Tap <strong style="color:var(--color-purple)">Analyse Patterns</strong> and the AI reads every Sunday review you've ever written — looking for recurring cycles, blind spots, and genuine improvements.</p>
+        <div class="callout purple" style="margin-top:12px">
+          <strong>Best used after 4+ weeks of Sunday reviews.</strong> The more history you have, the deeper the insights. Common findings: energy-sleep correlations, the weeks finance stress spills into mood, seasonal fitness drop-offs.
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Finance -->
+    <div class="section" id="finance">
+      <div class="section-header">
+        <div class="section-dot" style="background:var(--color-teal)"></div>
+        <div>
+          <div class="section-title" style="color:var(--color-teal)">Finance</div>
+          <div class="section-desc">Envelope budgeting, statement import, AI coach</div>
+        </div>
+      </div>
+
+      <div class="chip-row">
+        <span class="chip teal">Budget</span>
+        <span class="chip teal">Insights</span>
+        <span class="chip teal">Import</span>
+        <span class="chip teal">Coach</span>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Budget</div>
+        <p>Corevado uses <strong style="color:var(--text-heading)">envelope budgeting</strong> — you allocate a fixed amount to each spending category at the start of the month, then track how much you've used.</p>
+        <p>15+ envelopes are pre-configured (Groceries, Dining, Gas, Entertainment, Kids, etc.). Each shows a health bar: green when under, orange when near, red when over budget. Tap any envelope to see every transaction inside it.</p>
+        <div class="callout teal" style="margin-top:12px">
+          Unspent money at month-end can be rolled over to the next month or reallocated. This is how you build buffer over time toward goals like debt payoff or savings.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Import Transactions</div>
+        <p>The fastest way to get your spending in. Corevado supports four import methods:</p>
+        <ol class="steps">
+          <li><strong>Amex Cobalt</strong> — download your statement as XLSX from the Amex app, then import it directly. Corevado reads it natively.</li>
+          <li><strong>TD Visa / CIBC</strong> — download the CSV statement from your bank's website and drag it into the Import tab.</li>
+          <li><strong>Screenshot scan</strong> — take a screenshot of any bank statement and let the AI extract the transactions via OCR. Useful for banks without CSV export.</li>
+          <li><strong>Manual entry</strong> — add a single transaction by hand at any time.</li>
+        </ol>
+        <p>After import, Corevado uses 47+ merchant rules to auto-categorize transactions into the right envelopes. Review and correct any that land in the wrong place — the app learns your corrections.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Insights</div>
+        <p>Sort and filter all your transactions 6 ways: by date, amount, merchant, envelope, card, or category. Use this to find recurring charges, spot unusual spending, or verify that a specific transaction was captured correctly.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">AI Finance Coach</div>
+        <p>The coach reads up to 3 months of your spending data and writes a plain-English monthly brief: where your money actually went, how it compared to your budget, and one concrete suggestion for next month.</p>
+        <p>You can also ask it questions in the chat — "how much did we spend on dining last month?" or "are we on track for the debt payoff goal?" It has full access to your envelope and transaction data.</p>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Tips -->
+    <div class="section" id="tips">
+      <div class="section-header">
+        <div class="section-dot" style="background:#e2e5ed"></div>
+        <div>
+          <div class="section-title">Tips &amp; Power Features</div>
+          <div class="section-desc">Get the most out of Corevado</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Logging vs. auto-save</div>
+        <p>The <strong style="color:var(--text-heading)">Morning and Evening check-ins</strong> require you to tap the <strong style="color:var(--text-heading)">Log</strong> button to save the day's entry — this is intentional so you consciously commit to the log before it's written.</p>
+        <p>Most other areas (inventory adjustments, task status, goal edits) save automatically 1.5 seconds after you make a change. You'll see a brief sync indicator at the bottom of the screen when data is written.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Offline mode</div>
+        <p>If your internet drops, Corevado keeps working using local storage on your device. All changes are held and synced automatically once you're back online. You'll see an <strong style="color:#ef4444">Offline</strong> indicator at the bottom of the screen when this is active.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Dark &amp; light mode</div>
+        <p>Corevado defaults to dark mode. To switch, go to the <strong style="color:var(--text-heading)">Settings</strong> tab (gear icon) and toggle the theme. The setting is saved per-device.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">The 7 Pillars framework</div>
+        <p>Every Sunday review is structured around seven life areas. These aren't just labels — the AI uses them to identify which pillars are thriving and which are being neglected across weeks.</p>
+        <div class="chip-row">
+          <span class="chip amber">Family</span>
+          <span class="chip amber">Faith</span>
+          <span class="chip orange">Fitness</span>
+          <span class="chip teal">Finance</span>
+          <span class="chip blue">Learning</span>
+          <span class="chip purple">Fun</span>
+          <span class="chip green">Marriage</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Grocery card strategy</div>
+        <p>When you generate a grocery list, Corevado tells you which credit card to use at each store (Costco Mastercard, Amex Cobalt, TD Visa) based on the rewards multiplier for that merchant category. Small detail, real savings over time.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Adding a Claude API key</div>
+        <p>Several features use the Claude AI: Sunday brief generation, Pattern Insights, Finance Coach, inventory voice add, scan shelf, and receipt scanning. These require a Claude API key.</p>
+        <p>To add yours: go to <strong style="color:var(--text-heading)">Settings &rarr; Claude API Key</strong> and paste your key. It's stored only on your device and never sent anywhere except directly to the Claude API.</p>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-logo">Corevado</div>
+    <p>Built for your household &mdash; your life, your data, your rules.</p>
+    <p style="margin-top:8px"><a href="https://corevado.netlify.app">Open the app &rarr;</a></p>
+  </div>
+
+</body>
+</html>
