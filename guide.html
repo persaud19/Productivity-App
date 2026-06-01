@@ -6,6 +6,8 @@
   <title>Corevado — How to Use</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <!-- No-flash theme init — must run before CSS renders -->
+  <script>(function(){var t=localStorage.getItem("cv_guide_theme");if(!t){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme:light)").matches?"light":"dark"}if(t==="light")document.documentElement.setAttribute("data-theme","light")})();</script>
   <style>
     :root {
       --bg: #080b11;
@@ -39,6 +41,48 @@
       --shadow-md: 0 4px 16px rgba(0,0,0,.5);
     }
 
+    /* ── Light mode ── */
+    [data-theme="light"] {
+      --bg: #f5f6fa;
+      --bg-nav: #ffffff;
+      --card-bg: rgba(0,0,0,.025);
+      --card-bg-2: rgba(0,0,0,.045);
+      --card-border: rgba(0,0,0,.08);
+      --card-border-2: rgba(0,0,0,.12);
+      --text-primary: #1a1a2e;
+      --text-secondary: #3a3a4a;
+      --text-muted: #8a8a9a;
+      --text-heading: #111122;
+      --color-primary-bg: rgba(244,168,35,.1);
+      --color-primary-border: rgba(244,168,35,.3);
+      --color-blue-bg: rgba(96,165,250,.1);
+      --color-blue-border: rgba(96,165,250,.3);
+      --color-orange-bg: rgba(251,146,60,.1);
+      --color-orange-border: rgba(251,146,60,.3);
+      --color-purple-bg: rgba(167,139,250,.1);
+      --color-purple-border: rgba(167,139,250,.3);
+      --color-teal-bg: rgba(52,211,153,.08);
+      --color-teal-border: rgba(52,211,153,.25);
+      --color-success-bg: rgba(74,222,128,.1);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,.12);
+    }
+
+    /* ── Theme toggle button ── */
+    .theme-toggle {
+      background: var(--card-bg-2);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 7px 9px;
+      transition: background .15s, border-color .15s;
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { background: var(--card-border); }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { scroll-behavior: smooth; }
 
@@ -56,7 +100,7 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      background: rgba(8,11,17,.92);
+      background: var(--bg-nav);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--card-border);
       padding: 14px 20px;
@@ -387,7 +431,10 @@
       <div class="logo">Corevado</div>
       <div class="subtitle">User Guide</div>
     </div>
-    <a href="https://corevado.netlify.app" class="launch-btn">Open App &rarr;</a>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle light/dark mode">🌙</button>
+      <a href="https://corevado.netlify.app" class="launch-btn">Open App &rarr;</a>
+    </div>
   </nav>
 
   <!-- Section tabs -->
@@ -432,31 +479,98 @@
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">2 &nbsp; Complete the Setup Wizard</div>
-        <p>On first launch you'll see a short setup wizard. Enter your name, your partner's name, and your household ID. This takes about 60 seconds and unlocks the full app.</p>
-        <ol class="steps">
-          <li>Enter your first name (used in AI check-ins)</li>
-          <li>Enter your partner's name (used in task assignments)</li>
-          <li>Set your household ID (a shared code both of you use)</li>
-          <li>Optionally add your Claude API key for AI features</li>
-        </ol>
+      <div class="card" style="border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.04)">
+        <div class="card-title" style="color:var(--color-success)">🔒 &nbsp; Your data is private and secure</div>
+        <p>Everything you enter in Corevado — your daily logs, fitness, banking, inventory, and finances — is stored in a private space tied to your household only. No one outside your household can see it, and it is never shared, sold, or made publicly visible in any way.</p>
+        <div class="feature-grid" style="margin-top:14px">
+          <div class="feature-item">
+            <div class="feature-icon">🏠</div>
+            <div class="feature-label">Household only</div>
+            <div class="feature-sub">Only people in your household with the Household ID can access shared data</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🔐</div>
+            <div class="feature-label">Personal stays personal</div>
+            <div class="feature-sub">Your logs, health data, and goals are visible to you alone — not even your partner sees them</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🏦</div>
+            <div class="feature-label">Banking is yours</div>
+            <div class="feature-sub">Financial data lives in your private database — no third party has access to it</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🚫</div>
+            <div class="feature-label">Closed system</div>
+            <div class="feature-sub">Corevado does not share, sell, or expose your data outside your household</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="border-color:rgba(74,222,128,.2);background:rgba(74,222,128,.04)">
+        <div class="card-title" style="color:var(--color-success)">🛡️ &nbsp; Is my info safe?</div>
+        <p>Totally. Corevado stores all your data through <strong style="color:var(--text-heading)">Firebase</strong> — that's Google's secure cloud platform. Think of it like your data living in Google's vault.</p>
+        <div class="callout" style="background:rgba(74,222,128,.08);border-color:var(--color-success);margin-top:14px;color:var(--text-secondary)">
+          It's encrypted, it's private to your account, and nobody else — including us — can see it. We don't sell your info or share it with anyone. Ever.
+        </div>
       </div>
 
       <div class="card">
-        <div class="card-title">3 &nbsp; Install as an app (recommended)</div>
-        <p>Corevado works as a PWA — you can install it on your phone's home screen for a native app experience with no browser chrome.</p>
-        <div class="feature-grid">
+        <div class="card-title">2 &nbsp; Complete the Setup Wizard</div>
+        <p>On first launch you'll see a short setup wizard. This takes about 60 seconds and unlocks the full app.</p>
+        <ol class="steps">
+          <li>Enter your first name (used in AI check-ins and daily summaries)</li>
+          <li>Enter your partner's name (used in task assignments)</li>
+          <li>Your <strong style="color:var(--text-heading)">Household ID</strong> is generated automatically when you complete setup — no action needed</li>
+        </ol>
+        <div class="callout blue" style="margin-top:14px">
+          <strong>What is the Household ID?</strong> It's a unique code that links two accounts together so you and your partner share the same tasks, inventory, and finances. Once your setup is complete, go to <strong>Settings</strong> and you'll see your Household ID. Share that code with your partner — when they sign in and enter it during their setup, both accounts are connected automatically. Each person still has their own private data (logs, fitness, goals) but everything household-related stays in sync.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">3 &nbsp; Your top bar — always one tap away</div>
+        <p>The icons in the top right corner of the app are always visible no matter which section you're in. Here's what each one does:</p>
+        <div class="feature-grid" style="margin-top:12px">
+          <div class="feature-item">
+            <div class="feature-icon">🌙 / ☀️</div>
+            <div class="feature-label">Theme toggle</div>
+            <div class="feature-sub">Switch between dark and light mode instantly</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">⚙️</div>
+            <div class="feature-label">Settings</div>
+            <div class="feature-sub">Update your profile, partner name, household ID, and access this user guide</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">👤</div>
+            <div class="feature-label">Your account</div>
+            <div class="feature-sub">Shows your Google profile photo — tap to sign out</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">⬇️</div>
+            <div class="feature-label">Export your data</div>
+            <div class="feature-sub">Download everything in your account as a JSON file — your data, your copy, any time</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">4 &nbsp; Add it to your home screen (recommended)</div>
+        <p>Corevado is a web app, but you can save it directly to your phone's home screen so it opens like a regular app — full screen, no browser bar, one tap to launch. Nothing to download from an app store.</p>
+        <div class="feature-grid" style="margin-top:12px">
           <div class="feature-item">
             <div class="feature-icon">🤖</div>
             <div class="feature-label">Android / Chrome</div>
-            <div class="feature-sub">Tap the menu (⋮) then "Add to Home Screen"</div>
+            <div class="feature-sub">Tap the menu (⋮) at the top right, then "Add to Home Screen"</div>
           </div>
           <div class="feature-item">
             <div class="feature-icon">🍎</div>
             <div class="feature-label">iPhone / Safari</div>
-            <div class="feature-sub">Tap the Share icon then "Add to Home Screen"</div>
+            <div class="feature-sub">Tap the Share icon at the bottom, then "Add to Home Screen"</div>
           </div>
+        </div>
+        <div class="callout blue" style="margin-top:14px">
+          Once added, the Corevado icon sits on your home screen just like any other app. Tap it and it opens instantly — no browser, no address bar, no distractions.
         </div>
       </div>
     </div>
@@ -577,8 +691,8 @@
 
       <div class="card">
         <div class="card-title">Sunday review</div>
-        <p>Every Sunday, fill in a short weekly reflection across the 7 life pillars: Family, Faith, Fitness, Finance, Learning, Fun, and Marriage.</p>
-        <p>Once filled, tap <strong style="color:var(--color-purple)">Generate AI Brief</strong> to get a 5-line accountability summary written in your voice. It calls out wins, flags concerns, and sets a focus for next week.</p>
+        <p>Every Sunday, take 5 minutes to fill in a short reflection. You'll rate each of the 7 life pillars (Family, Faith, Fitness, Finance, Learning, Fun, and Marriage) and add any notes about the week.</p>
+        <p>When you're done, tap <strong style="color:var(--color-purple)">Generate AI Brief</strong>. The AI reads everything you filled in and writes a short, plain-English summary — what went well, what to watch, and one thing to focus on next week. Think of it as a weekly debrief written for you, not by you.</p>
         <div class="callout purple" style="margin-top:12px">
           After several weeks, use <strong>History &rarr; Pattern Insights</strong> to run a deep AI analysis across all your Sunday reviews — it surfaces recurring cycles and blind spots you'd never spot manually.
         </div>
@@ -635,7 +749,7 @@
           </div>
         </div>
         <div class="callout orange" style="margin-top:14px">
-          The <strong>Health Scorecard</strong> banner at the top of the Health section shows today's calories in vs. burned, your TDEE, and your net deficit or surplus at a glance.
+          The <strong>Health Scorecard</strong> banner at the top of the Health section shows today's calories in vs. burned, your Total Daily Energy Expenditure (TDEE), and your net deficit or surplus at a glance.
         </div>
       </div>
 
@@ -787,6 +901,7 @@
         <span class="chip teal">Budget</span>
         <span class="chip teal">Insights</span>
         <span class="chip teal">Import</span>
+        <span class="chip teal">Card Intelligence</span>
         <span class="chip teal">Coach</span>
       </div>
 
@@ -803,17 +918,49 @@
         <div class="card-title">Import Transactions</div>
         <p>The fastest way to get your spending in. Corevado supports four import methods:</p>
         <ol class="steps">
-          <li><strong>Amex Cobalt</strong> — download your statement as XLSX from the Amex app, then import it directly. Corevado reads it natively.</li>
-          <li><strong>TD Visa / CIBC</strong> — download the CSV statement from your bank's website and drag it into the Import tab.</li>
-          <li><strong>Screenshot scan</strong> — take a screenshot of any bank statement and let the AI extract the transactions via OCR. Useful for banks without CSV export.</li>
+          <li><strong>Bank / credit card CSV</strong> — log in to your bank or credit card provider's website, download a statement as a CSV or XLSX file, and drag it into the Import tab. Most major banks offer this under Statements or Transaction History.</li>
+          <li><strong>Screenshot scan</strong> — take a screenshot of any bank statement and let the AI extract the transactions via OCR. Useful for banks without a CSV export option.</li>
           <li><strong>Manual entry</strong> — add a single transaction by hand at any time.</li>
         </ol>
-        <p>After import, Corevado uses 47+ merchant rules to auto-categorize transactions into the right envelopes. Review and correct any that land in the wrong place — the app learns your corrections.</p>
+        <p>After import, Corevado uses 47+ merchant rules to auto-categorize transactions into the right envelopes. Review and correct any that land in the wrong place — the app learns your corrections over time.</p>
+        <div class="callout teal" style="margin-top:14px">
+          <strong>Your file is never stored.</strong> When you upload a CSV or screenshot, it is used once to read your transactions and then discarded immediately. Your raw bank file never lives inside Corevado — only the individual transaction records you choose to import are saved. Your sensitive banking information is always just a one-time touchpoint, never a permanent part of the app.
+        </div>
       </div>
 
       <div class="card">
         <div class="card-title">Insights</div>
         <p>Sort and filter all your transactions 6 ways: by date, amount, merchant, envelope, card, or category. Use this to find recurring charges, spot unusual spending, or verify that a specific transaction was captured correctly.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">💳 &nbsp;Card Intelligence</div>
+        <p>Most people swipe whichever card is on top. Corevado shows you whether your spending habits are actually earning you the rewards you think they are.</p>
+        <div class="feature-grid" style="margin-top:14px">
+          <div class="feature-item">
+            <div class="feature-icon">📊</div>
+            <div class="feature-label">Spend by card</div>
+            <div class="feature-sub">Bar chart showing how much went on each card per month — answers "am I using my rewards card in the right places?"</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🎯</div>
+            <div class="feature-label">Category-card overlap</div>
+            <div class="feature-sub">Flags mismatches like groceries charged to the wrong card when a better option exists</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">💰</div>
+            <div class="feature-label">Annual fee ROI</div>
+            <div class="feature-sub">Enter your card's annual fee — see estimated points earned vs. the fee to know if it's paying off</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">⚠️</div>
+            <div class="feature-label">Utilization warning</div>
+            <div class="feature-sub">Flags if the majority of your spending is concentrated on a single card</div>
+          </div>
+        </div>
+        <div class="callout teal" style="margin-top:14px">
+          <strong>Example:</strong> "You spent $340 on groceries but only $80 was on your PC Optimum card — you're leaving points on the table." Small optimizations like this add up to hundreds of dollars in rewards annually.
+        </div>
       </div>
 
       <div class="card">
@@ -867,14 +1014,9 @@
 
       <div class="card">
         <div class="card-title">Grocery card strategy</div>
-        <p>When you generate a grocery list, Corevado tells you which credit card to use at each store (Costco Mastercard, Amex Cobalt, TD Visa) based on the rewards multiplier for that merchant category. Small detail, real savings over time.</p>
+        <p>When you generate a grocery list, Corevado tells you which credit card to use at each store based on the rewards multiplier for that merchant category. Pairs with the Card Intelligence tab in Finance to close the loop between planning and actual spending.</p>
       </div>
 
-      <div class="card">
-        <div class="card-title">Adding a Claude API key</div>
-        <p>Several features use the Claude AI: Sunday brief generation, Pattern Insights, Finance Coach, inventory voice add, scan shelf, and receipt scanning. These require a Claude API key.</p>
-        <p>To add yours: go to <strong style="color:var(--text-heading)">Settings &rarr; Claude API Key</strong> and paste your key. It's stored only on your device and never sent anywhere except directly to the Claude API.</p>
-      </div>
     </div>
 
     <div class="divider"></div>
@@ -887,5 +1029,27 @@
     <p style="margin-top:8px"><a href="https://corevado.netlify.app">Open the app &rarr;</a></p>
   </div>
 
+  <script>
+    (function() {
+      var btn = document.getElementById('themeToggle');
+      function applyTheme(t) {
+        if (t === 'light') {
+          document.documentElement.setAttribute('data-theme', 'light');
+          btn.textContent = '☀️';
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          btn.textContent = '🌙';
+        }
+        localStorage.setItem('cv_guide_theme', t);
+      }
+      // Set correct icon on load
+      var saved = localStorage.getItem('cv_guide_theme') || (window.matchMedia('(prefers-color-scheme:light)').matches ? 'light' : 'dark');
+      applyTheme(saved);
+      btn.addEventListener('click', function() {
+        var current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+        applyTheme(current === 'light' ? 'dark' : 'light');
+      });
+    })();
+  </script>
 </body>
 </html>
