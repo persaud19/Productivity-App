@@ -3311,51 +3311,9 @@ function App() {
     style: {
       display: "flex",
       alignItems: "center",
-      gap: 10
+      gap: 6
     }
-  }, streak > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "right"
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--color-primary)",
-      fontFamily: "'Syne',sans-serif",
-      fontSize: 18,
-      fontWeight: 800,
-      margin: 0,
-      lineHeight: 1
-    }
-  }, streak), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-muted)",
-      fontSize: 8,
-      margin: 0,
-      letterSpacing: ".04em"
-    }
-  }, "DAY STREAK")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 4
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 8,
-      height: 8,
-      borderRadius: "50%",
-      background: todayLog?.morning ? "var(--color-primary)" : "var(--text-disabled)"
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 8,
-      height: 8,
-      borderRadius: "50%",
-      background: todayLog?.evening ? "var(--color-accent-blue)" : "var(--text-disabled)"
-    }
-  }))),
-  // Theme toggle
-  React.createElement("button", {
+  }, /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       const next = appTheme === "dark" ? "light" : "dark";
       setAppTheme(next);
@@ -3363,7 +3321,24 @@ function App() {
     },
     style: { background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: 4, lineHeight: 1, opacity: .7 },
     title: "Toggle light/dark mode"
-  }, appTheme === "light" ? "\u2600\uFE0F" : "\uD83C\uDF19")
+  }, appTheme === "light" ? "\u2600\uFE0F" : "\uD83C\uDF19"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowSettings(true),
+    style: { background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: 4, lineHeight: 1, opacity: .7, color: settings.claudeApiKey ? "var(--color-accent-purple)" : "var(--text-muted)" },
+    title: "Settings"
+  }, "\u2699\uFE0F"), userCtx && /*#__PURE__*/React.createElement("button", {
+    onClick: () => userCtx.signOut(),
+    style: { background: "none", border: "none", cursor: "pointer", padding: 2, lineHeight: 1, display: "flex", alignItems: "center" },
+    title: `Sign out (${userCtx.email?.split("@")[0] || "user"})`
+  }, userCtx.photoURL ? /*#__PURE__*/React.createElement("img", {
+    src: userCtx.photoURL,
+    alt: "",
+    style: { width: 22, height: 22, borderRadius: "50%", objectFit: "cover" },
+    referrerPolicy: "no-referrer"
+  }) : /*#__PURE__*/React.createElement("span", { style: { fontSize: 14, opacity: .7 } }, "\u23FB")), /*#__PURE__*/React.createElement("button", {
+    onClick: handleExport,
+    style: { background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: 4, lineHeight: 1, opacity: .7, color: "var(--text-muted)" },
+    title: "Export all data"
+  }, "\u2B07"))
   ), /*#__PURE__*/React.createElement(TodayStrip, {
     todayLog: todayLog,
     streak: streak,
@@ -3574,75 +3549,4 @@ function App() {
   }), tab === "finance" && /*#__PURE__*/React.createElement(window.FinanceTab, {
     settings: settings,
     householdId: householdId
-  })), /*#__PURE__*/React.createElement("button", {
-    onClick: handleExport,
-    style: {
-      position: "fixed",
-      bottom: 20,
-      right: 20,
-      width: 36,
-      height: 36,
-      borderRadius: "50%",
-      background: "var(--card-bg-2)",
-      border: "1px solid rgba(255,255,255,.1)",
-      color: "var(--text-muted)",
-      fontSize: 14,
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 40
-    },
-    title: "Export all data"
-  }, "\u2B07"), userCtx && /*#__PURE__*/React.createElement("button", {
-    onClick: () => userCtx.signOut(),
-    style: {
-      position: "fixed",
-      bottom: 64,
-      right: 20,
-      width: 36,
-      height: 36,
-      borderRadius: "50%",
-      background: "var(--card-bg-2)",
-      border: "1px solid rgba(255,255,255,.1)",
-      color: "var(--text-muted)",
-      fontSize: 14,
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 40
-    },
-    title: `Sign out (${userCtx.email?.split("@")[0] || "user"})`
-  }, userCtx.photoURL ? /*#__PURE__*/React.createElement("img", {
-    src: userCtx.photoURL,
-    alt: "",
-    style: {
-      width: 26,
-      height: 26,
-      borderRadius: "50%",
-      objectFit: "cover"
-    },
-    referrerPolicy: "no-referrer"
-  }) : "⏻"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowSettings(true),
-    style: {
-      position: "fixed",
-      bottom: 108,
-      right: 20,
-      width: 36,
-      height: 36,
-      borderRadius: "50%",
-      background: settings.claudeApiKey ? "rgba(167,139,250,.15)" : "var(--card-bg-2)",
-      border: settings.claudeApiKey ? "1px solid rgba(167,139,250,.35)" : "1px solid rgba(255,255,255,.1)",
-      color: settings.claudeApiKey ? "var(--color-accent-purple)" : "var(--text-secondary)",
-      fontSize: 16,
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 40
-    },
-    title: "Settings"
-  }, "⚙"));
-}
+  })));}
