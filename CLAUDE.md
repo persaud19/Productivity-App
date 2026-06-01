@@ -3,7 +3,7 @@
 ## What This App Is
 Corevado is a mobile-first personal life OS for Ryan Persaud and Sabrina (his wife).
 It tracks daily logs, workouts, meals, household chores, pantry inventory, goals, and weekly reviews.
-Live at: https://corevado.netlify.app
+Live at: https://corevado.com
 GitHub: https://github.com/persaud19/Productivity-App (user: persaud19)
 
 ## Tech Stack
@@ -61,7 +61,7 @@ These are available globally — no imports needed in app.js.
   appId: "1:1085357597387:web:d46f54d04627cea258f14e"
 }
 ```
-Firebase Auth: Google Sign-In enabled. Authorised domain: `corevado.netlify.app`
+Firebase Auth: Google Sign-In enabled. Authorised domains: `corevado.netlify.app`, `corevado.com`
 
 ## App Structure (Navigation)
 
@@ -280,7 +280,7 @@ users/<uid>/
 - [x] History browser — calendar, Sunday reports archive
 - [x] Goals tracker with weight/progress charts
 - [x] Milestone celebrations
-- [x] Firebase authorised domain added: corevado.netlify.app
+- [x] Firebase authorised domain added: corevado.netlify.app, corevado.com
 - [x] Prep time color on meal cards changed to #60a5fa (readable)
 
 ## Design System

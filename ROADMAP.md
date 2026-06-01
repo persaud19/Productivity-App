@@ -1,7 +1,7 @@
 # Corevado — Roadmap
 
 ## Status: Live
-URL: https://corevado.netlify.app
+URL: https://corevado.com
 Both Ryan and Sabrina can sign in with their own Google accounts.
 
 Last updated: 2026-05-17 (full audit + planning session)
