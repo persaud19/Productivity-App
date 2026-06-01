@@ -103,7 +103,32 @@
             system: (() => {
               const kids = getChildren(settings);
               const kidsStr = kids.length > 0 ? " and " + kids.map(c => c.name).join(", ") : (settings?.sonName ? " and " + settings.sonName : "");
-              return `You are ${settings?.name || "the user"}'s accountability partner. ${settings?.name || "User"} lives with ${window.__ml.getPartnerName(settings)}${kidsStr}, follows a 7 Pillars life framework.\n\nWrite a 5-line Sunday accountability brief:\n- Line 1 (Result): Biggest result with specific numbers.\n- Line 2 (Gap): The real gap — identify the data pattern, be direct, no softening.\n- Line 3 (Win): Something specific that went well this week.\n- Line 4 (Focus): The gap reframed as one concrete action for next week.\n- Line 5 (Close): One short sentence that lands. No fluff.\n\nIf previous weeks data is provided, reference trends across weeks — not just this week.\nTone: Direct, warm, no lectures, no guilt trips. Be honest and reference specific wins.`;
+              const s = settings || {};
+              const activityLabels = { sedentary: "sedentary", lightly_active: "lightly active", moderately_active: "moderately active", very_active: "very active" };
+              const bodyGoalLabels = { lose_fat: "losing fat", maintain: "maintaining weight", build_muscle: "building muscle" };
+              const trainingLabels = { strength: "strength training", cardio: "cardio", both: "strength and cardio", starting: "just starting out" };
+              const finGoalLabels = { debt: "paying off debt", emergency_fund: "building an emergency fund", purchase: "saving for a purchase", invest: "investing and growing wealth" };
+              const profileLines = [
+                s.age ? `Age: ${s.age}` : null,
+                s.sex && s.sex !== "prefer_not_to_say" ? `Sex: ${s.sex}` : null,
+                (s.heightFt || s.heightIn) ? `Height: ${s.heightFt || "?"}ft ${s.heightIn || "?"}in` : null,
+                s.currentWeight ? `Current weight: ${s.currentWeight} lbs` : null,
+                s.weightGoal ? `Weight goal: ${s.weightGoal} lbs` : null,
+                s.bodyGoal ? `Body goal: ${bodyGoalLabels[s.bodyGoal] || s.bodyGoal}` : null,
+                s.activityLevel ? `Activity level: ${activityLabels[s.activityLevel] || s.activityLevel}` : null,
+                s.trainingStyle ? `Training style: ${trainingLabels[s.trainingStyle] || s.trainingStyle}` : null,
+                s.trainingDays && s.trainingDays.length ? `Planned training days: ${s.trainingDays.join(", ")}` : null,
+                s.stepGoal ? `Daily step goal: ${s.stepGoal.toLocaleString()}` : null,
+                s.sleepGoal ? `Sleep goal: ${s.sleepGoal} hrs` : null,
+                s.financialGoal ? `Financial goal: ${finGoalLabels[s.financialGoal] || s.financialGoal}` : null,
+                s.emergencyFund ? `Emergency fund: ${s.emergencyFund === "yes" ? "covered" : s.emergencyFund === "working" ? "working on it" : "not yet"}` : null,
+                s.focusAreas && s.focusAreas.length ? `Top focus areas: ${s.focusAreas.join(", ")}` : null,
+                s.dietary && s.dietary.length && !s.dietary.includes("none") ? `Dietary: ${s.dietary.join(", ")}` : null,
+                s.householdSize ? `Household size: ${s.householdSize} people` : null,
+                s.hasKids ? `Has kids: yes${s.numKids ? " (" + s.numKids + ")" : ""}` : null,
+                s.ownOrRent ? `${s.ownOrRent === "own" ? "Homeowner" : "Renter"}` : null,
+              ].filter(Boolean).join("\n");
+              return `You are ${s.name || "the user"}'s accountability partner. ${s.name || "User"} lives with ${window.__ml.getPartnerName(s)}${kidsStr}.\n\nUser profile:\n${profileLines}\n\nWrite a 5-line Sunday accountability brief:\n- Line 1 (Result): Biggest result with specific numbers.\n- Line 2 (Gap): The real gap — identify the data pattern, be direct, no softening.\n- Line 3 (Win): Something specific that went well this week.\n- Line 4 (Focus): The gap reframed as one concrete action for next week.\n- Line 5 (Close): One short sentence that lands. No fluff.\n\nUse the profile to make the brief specific — reference their actual goals, training style, and focus areas where relevant. If previous weeks data is provided, reference trends across weeks — not just this week.\nTone: Direct, warm, no lectures, no guilt trips. Be honest and reference specific wins.`;
             })(),
             messages: [{
               role: "user",

@@ -519,11 +519,28 @@ const DEFAULT_SETTINGS = {
   sonName: "",         // legacy — kept for backward compat
   children: [],        // [{ id, name, dob }] — new multi-child array
   age: "",
+  sex: "",             // male | female | prefer_not_to_say
+  heightFt: "",
+  heightIn: "",
   weightGoal: "",
   weightStart: "",
   weightDeadline: "",
   stepGoal: 10000,
   sleepGoal: 7.5,
+  activityLevel: "",   // sedentary | lightly_active | moderately_active | very_active
+  bodyGoal: "",        // lose_fat | maintain | build_muscle
+  trainingStyle: "",   // strength | cardio | both | starting
+  trainingDays: [],    // ["mon","tue",...]
+  householdSize: "",   // number as string
+  hasKids: null,       // true | false
+  numKids: "",
+  ownOrRent: "",       // own | rent
+  weekStart: "mon",    // mon | sun
+  focusAreas: [],      // ["fitness","finances","family","career","mental_health","home"]
+  financialGoal: "",   // debt | emergency_fund | purchase | invest
+  emergencyFund: "",   // yes | working | no
+  dietary: [],         // ["vegetarian","vegan","gluten_free","dairy_free","halal","kosher","pescatarian"]
+  groceryStores: [],   // array of store ids
   loanBalance: "",
   loanStart: "",
   loanDeadline: "",
@@ -534,7 +551,7 @@ const DEFAULT_SETTINGS = {
   claudeApiKey: "",
   householdId: "",
   theme: "dark",
-  cards: ["cobalt", "costco", "td"],
+  cards: [],
   morningReminder: "",
   eveningReminder: ""
 };
@@ -1359,7 +1376,7 @@ const CHORE_SEED = window.CHORE_SEED;
 // ─────────────────────────────────────────────────────────────────────────────
 // SETTINGS MODAL — API key + household setup
 // ─────────────────────────────────────────────────────────────────────────────
-function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, onHouseholdMetaUpdate }) {
+function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, onHouseholdMetaUpdate, onCompleteProfile }) {
   const [apiKey, setApiKey] = useState(settings.claudeApiKey || "");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -1614,6 +1631,15 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
         React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", color: "var(--text-secondary)", fontSize: 20, cursor: "pointer", padding: 0 } }, "✕")
       ),
 
+      // ── Complete Profile ──
+      onCompleteProfile && React.createElement("div", { style: { ...card, border: "1px solid rgba(244,168,35,.3)", background: "rgba(244,168,35,.06)", marginBottom: 14 } },
+        React.createElement("p", { style: { ...label, color: "var(--color-primary)", margin: "0 0 6px" } }, "✨ COMPLETE YOUR PROFILE"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 12px", lineHeight: 1.5 } }, "Go through the full setup to personalise your health targets, training, finances, food preferences and more."),
+        React.createElement("button", {
+          onClick: onCompleteProfile,
+          style: { padding: "10px 18px", background: "var(--color-primary)", border: "none", borderRadius: 8, color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }
+        }, "Complete Profile Setup →")
+      ),
       // ── Profile ──
       React.createElement("div", { style: card },
         React.createElement("p", { style: { ...label, color: "var(--color-primary)" } }, "YOUR PROFILE"),
@@ -1889,6 +1915,14 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                 onClick: handleOpenMaster,
                 style: { background: "rgba(167,139,250,.15)", border: "1px solid rgba(167,139,250,.3)", borderRadius: 8, color: "var(--color-accent-purple)", fontSize: 11, fontWeight: 700, padding: "7px 14px", cursor: "pointer" }
               }, masterLoading ? "Loading..." : "View All Households"),
+              React.createElement("button", {
+                onClick: async () => {
+                  if (!confirm("Re-run the setup wizard? This will clear your setupDone flag and reload.")) return;
+                  await DB.set(KEYS.setupDone(), false);
+                  window.location.reload();
+                },
+                style: { background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, color: "#ef4444", fontSize: 11, fontWeight: 700, padding: "7px 14px", cursor: "pointer" }
+              }, "\uD83D\uDD04 Re-run Setup Wizard"),
               React.createElement("button", {
                 onClick: handlePublishLibrary,
                 disabled: libraryToggling,
@@ -2296,56 +2330,82 @@ window.__ml = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SETUP WIZARD — runs once on first sign-in, collects name/partner/weight/cards/reminders
+// SETUP WIZARD — 10-step onboarding. Used on first sign-in and for profile completion from Settings.
+// Pass existingSettings to pre-fill all fields (profile completion mode — no data is lost).
 // ─────────────────────────────────────────────────────────────────────────────
-function SetupWizard({ googleDisplayName, onComplete }) {
+function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
+  const ex = existingSettings || {};
+  const STEPS = 10;
   const [step, setStep] = useState(1);
-  const [name, setName] = useState(googleDisplayName ? googleDisplayName.split(" ")[0] : "");
-  const [partnerName, setPartnerName] = useState("");
-  const [currentWeight, setCurrentWeight] = useState("");
-  const [weightGoal, setWeightGoal] = useState("");
-  const [cards, setCards] = useState(["cobalt", "costco", "td"]);
-  const [morningReminder, setMorningReminder] = useState("07:00");
-  const [eveningReminder, setEveningReminder] = useState("21:00");
   const [saving, setSaving] = useState(false);
+  // Step 1
+  const [name, setName] = useState(ex.name || (googleDisplayName ? googleDisplayName.split(" ")[0] : ""));
+  const [partnerName, setPartnerName] = useState(ex.partnerName || "");
+  // Step 2
+  const [sex, setSex] = useState(ex.sex || "");
+  const [age, setAge] = useState(ex.age ? String(ex.age) : "");
+  const [heightFt, setHeightFt] = useState(ex.heightFt ? String(ex.heightFt) : "");
+  const [heightIn, setHeightIn] = useState(ex.heightIn ? String(ex.heightIn) : "");
+  const [currentWeight, setCurrentWeight] = useState(ex.currentWeight ? String(ex.currentWeight) : "");
+  const [weightGoal, setWeightGoal] = useState(ex.weightGoal ? String(ex.weightGoal) : "");
+  // Step 3
+  const [activityLevel, setActivityLevel] = useState(ex.activityLevel || "");
+  const [bodyGoal, setBodyGoal] = useState(ex.bodyGoal || "");
+  // Step 4
+  const [trainingStyle, setTrainingStyle] = useState(ex.trainingStyle || "");
+  const [trainingDays, setTrainingDays] = useState(ex.trainingDays || []);
+  const [stepGoal, setStepGoal] = useState(ex.stepGoal ? String(ex.stepGoal) : "10000");
+  const [sleepGoal, setSleepGoal] = useState(ex.sleepGoal ? String(ex.sleepGoal) : "7.5");
+  // Step 5
+  const [householdSize, setHouseholdSize] = useState(ex.householdSize || "");
+  const [hasKids, setHasKids] = useState(ex.hasKids !== undefined ? ex.hasKids : null);
+  const [numKids, setNumKids] = useState(ex.numKids ? String(ex.numKids) : "");
+  const [ownOrRent, setOwnOrRent] = useState(ex.ownOrRent || "");
+  // Step 6
+  const [weekStart, setWeekStart] = useState(ex.weekStart || "mon");
+  const [focusAreas, setFocusAreas] = useState(ex.focusAreas || []);
+  // Step 7
+  const [financialGoal, setFinancialGoal] = useState(ex.financialGoal || "");
+  const [emergencyFund, setEmergencyFund] = useState(ex.emergencyFund || "");
+  // Step 8
+  const [dietary, setDietary] = useState(ex.dietary || []);
+  // Step 9
+  const [groceryStores, setGroceryStores] = useState(ex.groceryStores || []);
+  // Step 10
+  const [morningReminder, setMorningReminder] = useState(ex.morningReminder || "07:00");
+  const [eveningReminder, setEveningReminder] = useState(ex.eveningReminder || "21:00");
 
-  const CARD_OPTIONS = [
-    { id: "cobalt", emoji: "🟩", name: "Amex Cobalt", detail: "5x MR at Metro / Farm Boy" },
-    { id: "costco", emoji: "🟦", name: "Costco Mastercard", detail: "2% cash back at Costco" },
-    { id: "td",     emoji: "🟥", name: "TD Visa Infinite Aeroplan", detail: "1.5x Aeroplan at Walmart + everywhere else" }
-  ];
-
-  const toggleCard = id => setCards(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  const toggleArr = (setFn, val) => setFn(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
 
   const handleFinish = async () => {
     setSaving(true);
-    const trimmedName = name.trim() || "User";
+    // Merge into existing settings so nothing already saved is lost
     const settings = {
       ...DEFAULT_SETTINGS,
-      name: trimmedName,
+      ...ex,
+      name: name.trim() || ex.name || "User",
       partnerName: partnerName.trim(),
+      sex, age: age ? parseInt(age) : "",
+      heightFt: heightFt ? parseInt(heightFt) : "",
+      heightIn: heightIn ? parseInt(heightIn) : "",
       currentWeight: currentWeight ? parseFloat(currentWeight) : "",
       weightGoal: weightGoal ? parseFloat(weightGoal) : "",
       weightStart: currentWeight ? parseFloat(currentWeight) : "",
-      cards,
-      morningReminder,
-      eveningReminder
+      activityLevel, bodyGoal, trainingStyle, trainingDays,
+      stepGoal: stepGoal ? parseInt(stepGoal) : 10000,
+      sleepGoal: sleepGoal ? parseFloat(sleepGoal) : 7.5,
+      householdSize, hasKids,
+      numKids: numKids ? parseInt(numKids) : "",
+      ownOrRent, weekStart, focusAreas, financialGoal, emergencyFund,
+      dietary, groceryStores, morningReminder, eveningReminder
     };
     await DB.set(KEYS.settings(), settings);
-    // Seed a weight goal if both values provided
     if (currentWeight && weightGoal) {
-      const today = getToday();
-      const goalObj = [{
-        id: "wg_" + Date.now(),
-        type: "weight",
-        label: "Weight Goal",
-        start: parseFloat(currentWeight),
-        target: parseFloat(weightGoal),
-        startDate: today,
-        deadline: "",
-        unit: "lbs"
-      }];
-      await DB.set(KEYS.goals(), goalObj);
+      await DB.set(KEYS.goals(), [{
+        id: "wg_" + Date.now(), type: "weight", label: "Weight Goal",
+        start: parseFloat(currentWeight), target: parseFloat(weightGoal),
+        startDate: getToday(), deadline: "", unit: "lbs"
+      }]);
     }
     await DB.set(KEYS.setupDone(), true);
     setSaving(false);
@@ -2362,105 +2422,258 @@ function SetupWizard({ googleDisplayName, onComplete }) {
     borderRadius: 12, color: "#000", fontSize: 15, fontWeight: 700, cursor: "pointer",
     fontFamily: "'DM Sans',sans-serif", letterSpacing: ".02em"
   };
-  const btnSecondary = {
+  const btnSkip = {
     width: "100%", padding: "14px", background: "transparent",
     border: "1px solid rgba(255,255,255,.15)", borderRadius: 12, color: "var(--text-secondary)",
     fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginTop: 10
   };
-  const label = { color: "var(--text-muted)", fontSize: 11, fontWeight: 600, letterSpacing: ".07em", textTransform: "uppercase", display: "block", marginBottom: 6 };
+  const lbl = {
+    color: "var(--text-muted)", fontSize: 11, fontWeight: 600, letterSpacing: ".07em",
+    textTransform: "uppercase", display: "block", marginBottom: 8
+  };
 
-  const STEPS = 4;
+  // Tap card — single-select row with icon, label, detail text, checkmark
+  const selCard = (selected, onClick, icon, labelText, detail) =>
+    React.createElement("div", { onClick, style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: selected ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: selected ? "1px solid rgba(244,168,35,.4)" : "1px solid rgba(255,255,255,.08)", borderRadius: 10, cursor: "pointer", transition: "all .15s", marginBottom: 8 } },
+      React.createElement("span", { style: { fontSize: 20, flexShrink: 0, width: 28, textAlign: "center" } }, icon),
+      React.createElement("div", { style: { flex: 1 } },
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 14, fontWeight: 600, margin: 0 } }, labelText),
+        detail && React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "2px 0 0" } }, detail)
+      ),
+      React.createElement("div", { style: { width: 18, height: 18, borderRadius: "50%", flexShrink: 0, background: selected ? "var(--color-primary)" : "transparent", border: selected ? "none" : "2px solid rgba(255,255,255,.2)", display: "flex", alignItems: "center", justifyContent: "center" } },
+        selected && React.createElement("span", { style: { color: "#000", fontSize: 10, fontWeight: 700 } }, "✓")
+      )
+    );
+
+  // Chip — compact pill for multi-select
+  const chip = (selected, onClick, labelText) =>
+    React.createElement("button", { onClick, style: { padding: "8px 14px", borderRadius: 20, border: selected ? "1px solid rgba(244,168,35,.5)" : "1px solid rgba(255,255,255,.1)", background: selected ? "rgba(244,168,35,.12)" : "rgba(255,255,255,.04)", color: selected ? "var(--color-primary)" : "var(--text-secondary)", fontSize: 13, fontWeight: selected ? 600 : 400, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all .15s" } }, labelText);
+
+  // Icon tile — square tap target (emoji + label), used for yes/no, own/rent, etc.
+  const iconTile = (val, current, setter, icon, labelText) =>
+    React.createElement("div", { onClick: () => setter(val), style: { flex: 1, padding: "12px 6px", textAlign: "center", borderRadius: 10, cursor: "pointer", background: current === val ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: current === val ? "1px solid rgba(244,168,35,.4)" : "1px solid rgba(255,255,255,.08)", transition: "all .15s" } },
+      React.createElement("div", { style: { fontSize: 20 } }, icon),
+      React.createElement("div", { style: { color: current === val ? "var(--color-primary)" : "var(--text-muted)", fontSize: 11, fontWeight: 600, marginTop: 4 } }, labelText)
+    );
+
+  // Number row — horizontal tap buttons for small integer choices
+  const numRow = (options, current, setter) =>
+    React.createElement("div", { style: { display: "flex", gap: 8 } },
+      options.map(n => React.createElement("button", { key: n, onClick: () => setter(n), style: { flex: 1, padding: "12px 0", borderRadius: 10, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 600, background: current === n ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: current === n ? "1px solid rgba(244,168,35,.4)" : "1px solid rgba(255,255,255,.08)", color: current === n ? "var(--color-primary)" : "var(--text-secondary)", transition: "all .15s" } }, n))
+    );
+
   const pct = (step / STEPS) * 100;
 
-  return React.createElement("div", {
-    style: { minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 28px", fontFamily: "'DM Sans',sans-serif" }
-  },
-    React.createElement("div", { style: { width: "100%", maxWidth: 400 } },
-      // Header
+  return React.createElement("div", { style: { minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 28px", fontFamily: "'DM Sans',sans-serif" } },
+    React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
       React.createElement("p", { style: { color: "var(--color-primary)", fontFamily: "'Syne',sans-serif", fontSize: 24, fontWeight: 800, margin: "0 0 4px", letterSpacing: ".05em" } }, "COREVADO"),
-      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 28px", letterSpacing: ".08em", textTransform: "uppercase" } }, "Quick Setup"),
-      // Progress bar
-      React.createElement("div", { style: { height: 3, background: "rgba(255,255,255,.08)", borderRadius: 99, marginBottom: 32, overflow: "hidden" } },
+      React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 20px", letterSpacing: ".08em", textTransform: "uppercase" } }, "Setup — " + step + " of " + STEPS),
+      React.createElement("div", { style: { height: 3, background: "rgba(255,255,255,.08)", borderRadius: 99, marginBottom: 28, overflow: "hidden" } },
         React.createElement("div", { style: { height: "100%", width: pct + "%", background: "var(--color-primary)", borderRadius: 99, transition: "width .35s ease" } })
       ),
-      // Step 1: Names
+
+      // Step 1 — Names
       step === 1 && React.createElement("div", null,
         React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Who's using the app?"),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px" } }, "Your name will appear throughout the app."),
         React.createElement("div", { style: { marginBottom: 16 } },
-          React.createElement("span", { style: label }, "Your first name"),
-          React.createElement("input", { style: inp, value: name, onChange: e => setName(e.target.value), placeholder: "e.g. Ryan", autoFocus: true })
+          React.createElement("span", { style: lbl }, "Your first name"),
+          React.createElement("input", { style: inp, value: name, onChange: e => setName(e.target.value), autoFocus: true })
         ),
         React.createElement("div", { style: { marginBottom: 28 } },
-          React.createElement("span", { style: label }, "Partner's first name"),
-          React.createElement("input", { style: inp, value: partnerName, onChange: e => setPartnerName(e.target.value), placeholder: "e.g. Sabrina (optional)" })
+          React.createElement("span", { style: lbl }, "Partner's first name"),
+          React.createElement("input", { style: inp, value: partnerName, onChange: e => setPartnerName(e.target.value), placeholder: "Optional" })
         ),
-        React.createElement("button", { style: { ...btnPrimary, opacity: name.trim() ? 1 : .5 }, disabled: !name.trim(), onClick: () => setStep(2) }, "Continue →")
+        React.createElement("button", { style: { ...btnPrimary, opacity: name.trim() ? 1 : .4 }, disabled: !name.trim(), onClick: () => setStep(2) }, "Continue →")
       ),
-      // Step 2: Health baseline
+
+      // Step 2 — Health Baseline
       step === 2 && React.createElement("div", null,
         React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Health baseline"),
-        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px" } }, "Used to seed your weight tracking graph. You can skip this."),
-        React.createElement("div", { style: { marginBottom: 16 } },
-          React.createElement("span", { style: label }, "Current weight (lbs)"),
-          React.createElement("input", { type: "number", style: inp, value: currentWeight, onChange: e => setCurrentWeight(e.target.value), placeholder: "e.g. 185" })
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "Personalises calorie targets and your weight tracking graph."),
+        React.createElement("span", { style: lbl }, "Biological sex"),
+        React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16 } },
+          [["male","🧑","Male"],["female","👩","Female"],["prefer_not_to_say","⚫","Prefer not to say"]].map(([val, icon, labelText]) => iconTile(val, sex, setSex, icon, labelText))
         ),
-        React.createElement("div", { style: { marginBottom: 28 } },
-          React.createElement("span", { style: label }, "Goal weight (lbs)"),
-          React.createElement("input", { type: "number", style: inp, value: weightGoal, onChange: e => setWeightGoal(e.target.value), placeholder: "e.g. 170" })
+        React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 16 } },
+          React.createElement("div", { style: { flex: 1 } },
+            React.createElement("span", { style: lbl }, "Age"),
+            React.createElement("input", { type: "number", style: inp, value: age, onChange: e => setAge(e.target.value), placeholder: "yrs" })
+          ),
+          React.createElement("div", { style: { flex: 1 } },
+            React.createElement("span", { style: lbl }, "Height"),
+            React.createElement("div", { style: { display: "flex", gap: 6 } },
+              React.createElement("input", { type: "number", style: { ...inp, width: "50%" }, value: heightFt, onChange: e => setHeightFt(e.target.value), placeholder: "ft" }),
+              React.createElement("input", { type: "number", style: { ...inp, width: "50%" }, value: heightIn, onChange: e => setHeightIn(e.target.value), placeholder: "in" })
+            )
+          )
+        ),
+        React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 28 } },
+          React.createElement("div", { style: { flex: 1 } },
+            React.createElement("span", { style: lbl }, "Current weight (lbs)"),
+            React.createElement("input", { type: "number", style: inp, value: currentWeight, onChange: e => setCurrentWeight(e.target.value), placeholder: "lbs" })
+          ),
+          React.createElement("div", { style: { flex: 1 } },
+            React.createElement("span", { style: lbl }, "Goal weight (lbs)"),
+            React.createElement("input", { type: "number", style: inp, value: weightGoal, onChange: e => setWeightGoal(e.target.value), placeholder: "lbs" })
+          )
         ),
         React.createElement("button", { style: btnPrimary, onClick: () => setStep(3) }, "Continue →"),
-        React.createElement("button", { style: btnSecondary, onClick: () => setStep(3) }, "Skip for now")
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(3) }, "Skip for now")
       ),
-      // Step 3: Credit cards
+
+      // Step 3 — Activity & Body Goal
       step === 3 && React.createElement("div", null,
-        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Your credit cards"),
-        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "The grocery route planner uses this to recommend where to shop for the best rewards."),
-        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 } },
-          CARD_OPTIONS.map(card => {
-            const selected = cards.includes(card.id);
-            return React.createElement("div", {
-              key: card.id,
-              onClick: () => toggleCard(card.id),
-              style: {
-                display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
-                background: selected ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)",
-                border: selected ? "1px solid rgba(244,168,35,.4)" : "1px solid rgba(255,255,255,.08)",
-                borderRadius: 10, cursor: "pointer", transition: "all .15s"
-              }
-            },
-              React.createElement("span", { style: { fontSize: 18, flexShrink: 0 } }, card.emoji),
-              React.createElement("div", { style: { flex: 1 } },
-                React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 600, margin: "0 0 2px" } }, card.name),
-                React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: 0 } }, card.detail)
-              ),
-              React.createElement("div", {
-                style: {
-                  width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                  background: selected ? "var(--color-primary)" : "transparent",
-                  border: selected ? "none" : "2px solid rgba(255,255,255,.2)",
-                  display: "flex", alignItems: "center", justifyContent: "center"
-                }
-              }, selected && React.createElement("span", { style: { color: "#000", fontSize: 11, fontWeight: 700 } }, "✓"))
-            );
-          })
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Activity & body goal"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "Used to calculate your daily calorie and macro targets."),
+        React.createElement("span", { style: lbl }, "How active are you day-to-day?"),
+        [["sedentary","🛋","Sedentary","Desk job, little movement outside work"],["lightly_active","🚶","Lightly Active","Light exercise 1–3×/week"],["moderately_active","🏃","Moderately Active","Exercise 3–5×/week"],["very_active","⚡","Very Active","Hard training 6–7×/week or physical job"]].map(([val, icon, labelText, detail]) =>
+          selCard(activityLevel === val, () => setActivityLevel(val), icon, labelText, detail)
         ),
-        React.createElement("button", { style: btnPrimary, onClick: () => setStep(4) }, "Continue →")
+        React.createElement("span", { style: { ...lbl, marginTop: 20 } }, "Body composition goal"),
+        [["lose_fat","📉","Lose fat","Calorie deficit, higher protein"],["maintain","⚖️","Maintain","Maintenance calories, balanced macros"],["build_muscle","💪","Build muscle","Calorie surplus, strength focus"]].map(([val, icon, labelText, detail]) =>
+          selCard(bodyGoal === val, () => setBodyGoal(val), icon, labelText, detail)
+        ),
+        React.createElement("div", { style: { marginTop: 8 } },
+          React.createElement("button", { style: btnPrimary, onClick: () => setStep(4) }, "Continue →"),
+          React.createElement("button", { style: btnSkip, onClick: () => setStep(4) }, "Skip for now")
+        )
       ),
-      // Step 4: Reminders
+
+      // Step 4 — Training
       step === 4 && React.createElement("div", null,
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Training"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "Personalises workout tracking and your weekly review."),
+        React.createElement("span", { style: lbl }, "Primary training style"),
+        [["strength","🏋","Strength","Weights and resistance training"],["cardio","🏃","Cardio","Running, cycling, HIIT"],["both","🔀","Both","Mix of strength and cardio"],["starting","🌱","Just starting out","Building the habit from scratch"]].map(([val, icon, labelText, detail]) =>
+          selCard(trainingStyle === val, () => setTrainingStyle(val), icon, labelText, detail)
+        ),
+        React.createElement("span", { style: { ...lbl, marginTop: 20 } }, "Which days do you plan to train?"),
+        React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 } },
+          [["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"],["sat","Sat"],["sun","Sun"]].map(([val, labelText]) =>
+            chip(trainingDays.includes(val), () => toggleArr(setTrainingDays, val), labelText)
+          )
+        ),
+        React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 28 } },
+          React.createElement("div", { style: { flex: 1 } },
+            React.createElement("span", { style: lbl }, "Daily step goal"),
+            React.createElement("input", { type: "number", style: inp, value: stepGoal, onChange: e => setStepGoal(e.target.value) })
+          ),
+          React.createElement("div", { style: { flex: 1 } },
+            React.createElement("span", { style: lbl }, "Sleep goal (hrs)"),
+            React.createElement("input", { type: "number", step: "0.5", style: inp, value: sleepGoal, onChange: e => setSleepGoal(e.target.value) })
+          )
+        ),
+        React.createElement("button", { style: btnPrimary, onClick: () => setStep(5) }, "Continue →"),
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(5) }, "Skip for now")
+      ),
+
+      // Step 5 — Household
+      step === 5 && React.createElement("div", null,
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Your household"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "Personalises chore tracking and household planning."),
+        React.createElement("span", { style: lbl }, "How many people live with you?"),
+        React.createElement("div", { style: { marginBottom: 20 } }, numRow(["1","2","3","4","5+"], householdSize, setHouseholdSize)),
+        React.createElement("span", { style: lbl }, "Do you have kids?"),
+        React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: hasKids === true ? 16 : 20 } },
+          iconTile(true, hasKids, v => setHasKids(v), "👶", "Yes"),
+          iconTile(false, hasKids, v => { setHasKids(v); setNumKids(""); }, "🚫", "No")
+        ),
+        hasKids === true && React.createElement("div", { style: { marginBottom: 20 } },
+          React.createElement("span", { style: lbl }, "How many kids?"),
+          numRow(["1","2","3","4+"], numKids, setNumKids)
+        ),
+        React.createElement("span", { style: lbl }, "Do you own or rent?"),
+        React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 28 } },
+          iconTile("own", ownOrRent, setOwnOrRent, "🏠", "Own"),
+          iconTile("rent", ownOrRent, setOwnOrRent, "🔑", "Rent")
+        ),
+        React.createElement("button", { style: btnPrimary, onClick: () => setStep(6) }, "Continue →"),
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(6) }, "Skip for now")
+      ),
+
+      // Step 6 — Weekly Rhythm
+      step === 6 && React.createElement("div", null,
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Weekly rhythm"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "Shapes your weekly review and what the app highlights."),
+        React.createElement("span", { style: lbl }, "What day starts your week?"),
+        React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 24 } },
+          [["mon","Monday"],["sun","Sunday"]].map(([val, labelText]) =>
+            React.createElement("div", { key: val, onClick: () => setWeekStart(val), style: { flex: 1, padding: "14px", textAlign: "center", borderRadius: 10, cursor: "pointer", background: weekStart === val ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: weekStart === val ? "1px solid rgba(244,168,35,.4)" : "1px solid rgba(255,255,255,.08)", color: weekStart === val ? "var(--color-primary)" : "var(--text-muted)", fontSize: 14, fontWeight: 600, transition: "all .15s" } }, labelText)
+          )
+        ),
+        React.createElement("span", { style: lbl }, "Top focus areas  (pick up to 3)"),
+        React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 28 } },
+          [["💪 Fitness","fitness"],["💰 Finances","finances"],["👨‍👩‍👧 Family","family"],["📈 Career","career"],["🧠 Mental health","mental_health"],["🏡 Home","home"]].map(([labelText, val]) =>
+            chip(focusAreas.includes(val), () => { if (focusAreas.includes(val)) setFocusAreas(p => p.filter(v => v !== val)); else if (focusAreas.length < 3) setFocusAreas(p => [...p, val]); }, labelText)
+          )
+        ),
+        React.createElement("button", { style: btnPrimary, onClick: () => setStep(7) }, "Continue →"),
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(7) }, "Skip for now")
+      ),
+
+      // Step 7 — Finances
+      step === 7 && React.createElement("div", null,
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Finances"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "Helps the app frame your financial wins and weekly targets."),
+        React.createElement("span", { style: lbl }, "Primary financial goal"),
+        [["debt","💳","Pay off debt","Focus on reducing what you owe"],["emergency_fund","🛡","Build emergency fund","3–6 months of expenses covered"],["purchase","🏠","Save for a purchase","Home, car, or a big goal"],["invest","📈","Invest & grow","Building long-term wealth"]].map(([val, icon, labelText, detail]) =>
+          selCard(financialGoal === val, () => setFinancialGoal(val), icon, labelText, detail)
+        ),
+        React.createElement("span", { style: { ...lbl, marginTop: 20 } }, "Do you have an emergency fund?"),
+        React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 28 } },
+          [["yes","✅","Covered"],["working","🚧","Working on it"],["no","❌","Not yet"]].map(([val, icon, labelText]) =>
+            iconTile(val, emergencyFund, setEmergencyFund, icon, labelText)
+          )
+        ),
+        React.createElement("button", { style: btnPrimary, onClick: () => setStep(8) }, "Continue →"),
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(8) }, "Skip for now")
+      ),
+
+      // Step 8 — Food & Lifestyle
+      step === 8 && React.createElement("div", null,
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Food & lifestyle"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "Meal suggestions and the food log will reflect your preferences."),
+        React.createElement("span", { style: lbl }, "Dietary preferences  (select all that apply)"),
+        React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 28 } },
+          [["🥩 No restrictions","none"],["🌱 Vegetarian","vegetarian"],["🌿 Vegan","vegan"],["🚫 Gluten-free","gluten_free"],["🥛 Dairy-free","dairy_free"],["🕌 Halal","halal"],["✡ Kosher","kosher"],["🐟 Pescatarian","pescatarian"]].map(([labelText, val]) =>
+            chip(dietary.includes(val), () => {
+              if (val === "none") { setDietary(dietary.includes("none") ? [] : ["none"]); }
+              else { setDietary(prev => { const w = prev.filter(d => d !== "none"); return w.includes(val) ? w.filter(v => v !== val) : [...w, val]; }); }
+            }, labelText)
+          )
+        ),
+        React.createElement("button", { style: btnPrimary, onClick: () => setStep(9) }, "Continue →"),
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(9) }, "Skip for now")
+      ),
+
+      // Step 9 — Grocery Stores
+      step === 9 && React.createElement("div", null,
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Grocery stores"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "Select the stores you shop at for smarter grocery planning."),
+        React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 28 } },
+          [["loblaws","🔴 Loblaws"],["superstore","🔴 Real Canadian Superstore"],["nofrills","🟡 No Frills"],["zehrs","🟡 Zehrs"],["fortinos","🔴 Fortinos"],["independent","🔴 Independent"],["metro","🔵 Metro"],["foodbasics","🔵 Food Basics"],["sobeys","🟢 Sobeys"],["freshco","🟢 FreshCo"],["farmboy","🟢 Farm Boy"],["longos","🟠 Longos"],["costco","🟥 Costco"],["walmart","🔵 Walmart"],["tandt","🌸 T&T Supermarket"],["highland","🏔 Highland Farms"],["nations","🌍 Nations Fresh Foods"],["wholefoods","🍃 Whole Foods"],["gianttiger","🐯 Giant Tiger"],["bulkbarn","🟫 Bulk Barn"]].map(([val, labelText]) =>
+            chip(groceryStores.includes(val), () => toggleArr(setGroceryStores, val), labelText)
+          )
+        ),
+        React.createElement("button", { style: btnPrimary, onClick: () => setStep(10) }, "Continue →"),
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(10) }, "Skip for now")
+      ),
+
+      // Step 10 — Reminders
+      step === 10 && React.createElement("div", null,
         React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Check-in reminders"),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px" } }, "Set the times you want to be reminded to log your morning and evening check-ins."),
         React.createElement("div", { style: { marginBottom: 16 } },
-          React.createElement("span", { style: label }, "Morning check-in"),
+          React.createElement("span", { style: lbl }, "Morning check-in"),
           React.createElement("input", { type: "time", style: inp, value: morningReminder, onChange: e => setMorningReminder(e.target.value) })
         ),
         React.createElement("div", { style: { marginBottom: 28 } },
-          React.createElement("span", { style: label }, "Evening check-in"),
+          React.createElement("span", { style: lbl }, "Evening check-in"),
           React.createElement("input", { type: "time", style: inp, value: eveningReminder, onChange: e => setEveningReminder(e.target.value) })
         ),
         React.createElement("button", { style: { ...btnPrimary, opacity: saving ? .6 : 1 }, disabled: saving, onClick: handleFinish }, saving ? "Setting up..." : "Get Started"),
-        React.createElement("button", { style: btnSecondary, onClick: () => setStep(3) }, "← Back")
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(9) }, "← Back")
       )
     )
   );
@@ -2510,6 +2723,7 @@ function App() {
   const [householdMeta, setHouseholdMeta] = useState(null);
   const [showHouseholdSetup, setShowHouseholdSetup] = useState(false);
   const [personalDataForMigration, setPersonalDataForMigration] = useState(null);
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [appTheme, setAppTheme] = useState(() => localStorage.getItem("ml_theme") || "dark");
 
   // API calls go through the Netlify proxy (/api/claude) — key is server-side.
@@ -2885,6 +3099,16 @@ function App() {
       }
     });
   }
+  // Full-screen profile completion (launched from Settings — pre-fills existing values)
+  if (showProfileSetup) return /*#__PURE__*/React.createElement(SetupWizard, {
+    googleDisplayName: "",
+    existingSettings: settings,
+    onComplete: (saved) => {
+      setSettings(saved);
+      setShowProfileSetup(false);
+      setShowSettings(false);
+    }
+  });
   // Full-screen household setup flow
   if (showHouseholdSetup) return /*#__PURE__*/React.createElement(HouseholdSetup, {
     currentUser: window.__firebase_auth && window.__firebase_auth.currentUser,
@@ -2912,7 +3136,8 @@ function App() {
     householdMeta: householdMeta,
     onSave: s => { setSettings(s); window.__claude_api_key = s.claudeApiKey || ""; window.__household_id = s.householdId || ""; },
     onClose: () => setShowSettings(false),
-    onHouseholdMetaUpdate: meta => { window.__current_household_meta = meta; setHouseholdMeta(meta); }
+    onHouseholdMetaUpdate: meta => { window.__current_household_meta = meta; setHouseholdMeta(meta); },
+    onCompleteProfile: () => setShowProfileSetup(true)
   }), celebration && /*#__PURE__*/React.createElement(CelebrationOverlay, {
     msg: celebration,
     onDismiss: () => setCelebration(null)
