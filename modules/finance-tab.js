@@ -215,6 +215,14 @@ const ENV_COLORS = [
 
 // FinanceTab component
 function FinanceTab({ settings, householdId }) {
+  // Build card list from user's configured cards (setup step 8) + fixed utility options.
+  // Falls back to a sensible Canadian default set if no cards have been configured yet.
+  const CARD_OPTIONS = useMemo(() => {
+    const configured = (settings?.myCards || []).map(c => c.nickname);
+    const base = configured.length > 0 ? configured : ["Amex", "TD Visa", "CIBC", "Costco MC"];
+    return [...new Set([...base, "Banking", "Other"])];
+  }, [settings?.myCards]);
+
   const [view, setView] = useState("envelopes"); // envelopes | transactions | summary | import
   const [currentMonth, setCurrentMonth] = useState(() => getToday().slice(0, 7));
   const [envelopes, setEnvelopes] = useState([]); // [{ ...default, allocated: 0 }]
@@ -229,13 +237,13 @@ function FinanceTab({ settings, householdId }) {
   const [scanning, setScanning] = useState(false);
   const [scanResults, setScanResults] = useState(null);
   const [showAddTxn, setShowAddTxn] = useState(false);
-  const [addTxnForm, setAddTxnForm] = useState({ date: getToday(), amount: "", desc: "", card: "Amex", envelopeId: "food_drink", subCat: "" });
+  const [addTxnForm, setAddTxnForm] = useState({ date: getToday(), amount: "", desc: "", card: "", envelopeId: "food_drink", subCat: "" });
   const [editingTxn, setEditingTxn] = useState(null);
   const [income, setIncome] = useState([]);
   const [showAddIncome, setShowAddIncome] = useState(false);
   const [addIncomeForm, setAddIncomeForm] = useState({ date: getToday(), amount: "", source: "Salary", type: "salary" });
   const [importMode, setImportMode] = useState("credit_card"); // "credit_card" | "bank_statement"
-  const [selectedCard, setSelectedCard] = useState("Amex");
+  const [selectedCard, setSelectedCard] = useState("");
   const [cardParsing, setCardParsing] = useState(false);
   const [cardResults, setCardResults] = useState(null);
   const [flaggedScanIds, setFlaggedScanIds] = useState(new Set());
@@ -306,6 +314,9 @@ function FinanceTab({ settings, householdId }) {
   // Re-load when month changes OR when household is connected (resolves race condition
   // where Finance loads before loadAll() has set window.__current_household_id)
   useEffect(() => { loadMonth(currentMonth); }, [currentMonth, householdId, loadMonth]);
+
+  // Auto-select first card when CARD_OPTIONS changes (e.g. settings loaded after mount)
+  useEffect(() => { setSelectedCard(c => c || CARD_OPTIONS[0] || "Other"); }, [CARD_OPTIONS]);
 
   // Load receipt data when a transaction with a linked receipt is opened
   useEffect(() => {
@@ -379,7 +390,7 @@ Return ONLY a JSON array, no markdown:
 [{"date":"YYYY-MM-DD","amount":45.99,"desc":"MERCHANT NAME","card":"Amex","envelopeId":"food_drink","subCat":"Grocery"}]
 - date: use full YYYY-MM-DD format. If the statement only shows month/day without year, use ${currentYear} as the year.
 - amount: positive number
-- card: Amex, TD Visa, CIBC, Costco MC, Banking, or Unknown
+- card: one of [${CARD_OPTIONS.join(", ")}, Unknown] — pick the best match or Unknown
 - envelopeId: best match from — ${envelopeList}
 - subCat: short sub-category (e.g. Grocery, Coffee, Gas) or ""` }
         ]}] })
@@ -884,19 +895,41 @@ Return exactly ${bRows.length} objects. No markdown.`;
       const txns = await DB.get(FK.transactions(m)) || [];
       txns.forEach(t => { if (t.card) seen.add(t.card); });
     }
-    const clean = ["Amex", "TD Visa", "CIBC", "Costco MC", "Banking", "Other"];
+    const clean = CARD_OPTIONS;
     const dirty = [...seen].filter(c => !clean.includes(c)).sort();
     setDirtyCards(dirty);
+    // Map each dirty value to the best matching option in CARD_OPTIONS.
+    // Checks by issuer keyword so custom nicknames (e.g. "TD Aeroplan") still get matched.
+    const ISSUER_KEYWORDS = [
+      { keys: ["amex","cobalt","american express"], issuer: "amex" },
+      { keys: ["td","aeroplan"], issuer: "td" },
+      { keys: ["cibc"], issuer: "cibc" },
+      { keys: ["costco"], issuer: "costco" },
+      { keys: ["rbc","royal bank"], issuer: "rbc" },
+      { keys: ["bmo","bank of montreal"], issuer: "bmo" },
+      { keys: ["scotiabank","scotia","scene"], issuer: "scotiabank" },
+      { keys: ["tangerine"], issuer: "tangerine" },
+      { keys: ["pc financial","optimum"], issuer: "pc" },
+      { keys: ["neo financial","neo"], issuer: "neo" },
+      { keys: ["rogers","fido"], issuer: "rogers" },
+      { keys: ["simplii"], issuer: "simplii" },
+      { keys: ["national bank"], issuer: "national" },
+      { keys: ["desjardins"], issuer: "desjardins" },
+      { keys: ["bank","chequing","savings","banking"], issuer: "banking" },
+    ];
+    const findBestMatch = (dirty) => {
+      const dl = dirty.toLowerCase();
+      for (const { keys, issuer } of ISSUER_KEYWORDS) {
+        if (keys.some(k => dl.includes(k))) {
+          if (issuer === "banking") return clean.find(o => o.toLowerCase() === "banking") || "Other";
+          const match = clean.find(o => o.toLowerCase().includes(issuer));
+          if (match) return match;
+        }
+      }
+      return "Other";
+    };
     const defaults = {};
-    dirty.forEach(d => {
-      const dl = d.toLowerCase();
-      if (dl.includes("amex") || dl.includes("cobalt")) defaults[d] = "Amex";
-      else if (dl.includes("td") || dl.includes("aeroplan")) defaults[d] = "TD Visa";
-      else if (dl.includes("cibc")) defaults[d] = "CIBC";
-      else if (dl.includes("costco")) defaults[d] = "Costco MC";
-      else if (dl.includes("bank") || dl.includes("chequing") || dl.includes("savings")) defaults[d] = "Banking";
-      else defaults[d] = "Other";
-    });
+    dirty.forEach(d => { defaults[d] = findBestMatch(d); });
     setCardRemapSelections(defaults);
     setShowCardRemap(true);
   };
@@ -1385,7 +1418,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
     await DB.set(FK.transactions(month), [...existing, txn]);
     const months = [...new Set([...allMonths, month])].sort();
     await DB.set(FK.allMonths(), months); setAllMonths(months);
-    setShowAddTxn(false); setAddTxnForm({ date: getToday(), amount: "", desc: "", card: "Amex", envelopeId: "food_drink", subCat: "" });
+    setShowAddTxn(false); setAddTxnForm({ date: getToday(), amount: "", desc: "", card: CARD_OPTIONS[0] || "Other", envelopeId: "food_drink", subCat: "" });
     await loadMonth(currentMonth);
   };
 
@@ -1697,7 +1730,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
           style: { flex: 1, padding: "10px 0", background: "rgba(251,191,36,.1)", border: "1px solid rgba(251,191,36,.3)", borderRadius: 10, color: "var(--color-accent-yellow)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
         }, "💵 + CASH"),
         /*#__PURE__*/React.createElement("button", {
-          onClick: () => { setAddTxnForm(f => ({ ...f, card: "Amex", date: getToday(), amount: "", desc: "" })); setShowAddTxn(true); },
+          onClick: () => { setAddTxnForm(f => ({ ...f, card: CARD_OPTIONS[0] || "Other", date: getToday(), amount: "", desc: "" })); setShowAddTxn(true); },
           style: { flex: 1, padding: "10px 0", background: "rgba(52,211,153,.08)", border: "1px solid rgba(52,211,153,.25)", borderRadius: 10, color: "var(--color-accent-teal)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
         }, "+ ADD EXPENSE")
       ),
@@ -2038,7 +2071,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
       !cardResults && importMode === "credit_card" && /*#__PURE__*/React.createElement("div", { style: { marginBottom: 14 } },
         /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", margin: "0 0 8px" } }, "Which card is this statement for?"),
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
-          ["Amex", "TD Visa", "CIBC", "Costco MC", "Banking", "Other"].map(c =>
+          CARD_OPTIONS.map(c =>
             /*#__PURE__*/React.createElement("button", {
               key: c,
               onClick: () => setSelectedCard(c),
@@ -2175,7 +2208,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
                       onChange: e => setCardRemapSelections(prev => ({ ...prev, [d]: e.target.value })),
                       style: { background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 6, padding: "4px 6px", color: "var(--text-primary)", fontSize: 11, outline: "none", colorScheme: "dark", flexShrink: 0 }
                     },
-                      ["Amex", "TD Visa", "CIBC", "Costco MC", "Banking", "Other"].map(c =>
+                      CARD_OPTIONS.map(c =>
                         /*#__PURE__*/React.createElement("option", { key: c, value: c }, c)
                       )
                     )
@@ -2234,7 +2267,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
             /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
               /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 4px" } }, "CARD"),
               /*#__PURE__*/React.createElement("select", { value: addTxnForm.card, onChange: e => setAddTxnForm(f => ({ ...f, card: e.target.value })), style: { width: "100%", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, padding: "9px 8px", color: "var(--text-primary)", fontSize: 12, outline: "none", colorScheme: "dark" } },
-                ["Amex", "TD Visa", "CIBC", "Costco MC", "Banking", "Cash", "Other"].map(c => /*#__PURE__*/React.createElement("option", { key: c, value: c }, c))
+                [...CARD_OPTIONS, "Cash"].map(c => /*#__PURE__*/React.createElement("option", { key: c, value: c }, c))
               )
             ),
             /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },

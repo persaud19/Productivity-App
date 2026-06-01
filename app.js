@@ -1395,6 +1395,12 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
   const [newChildName, setNewChildName] = useState("");
   const [profileAge, setProfileAge] = useState(settings.age || "");
 
+  // ── Credit Cards ──
+  const [myCards, setMyCards] = useState(settings.myCards || []);
+  const [settingsCardIssuer, setSettingsCardIssuer] = useState("");
+  const [settingsCardNick, setSettingsCardNick] = useState("");
+  const [showSettingsCardForm, setShowSettingsCardForm] = useState(false);
+
   // ── Household invite-by-email state (leader only) ──
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMsg, setInviteMsg] = useState("");
@@ -1600,7 +1606,8 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       partnerName: profilePartner.trim(),
       sonName: children.length === 1 ? children[0].name : (profileSon.trim()), // keep legacy in sync
       children: children,
-      age: profileAge ? parseInt(profileAge) : ""
+      age: profileAge ? parseInt(profileAge) : "",
+      myCards
     };
     await DB.set(KEYS.settings(), updated);
     // If name changed, also update household member record so others see the new name
@@ -1626,9 +1633,20 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
     React.createElement("div", {
       style: { background: "var(--bg-tooltip)", borderRadius: "18px 18px 0 0", width: "100%", maxWidth: 490, padding: "24px 20px 36px", maxHeight: "92vh", overflowY: "auto" }
     },
-      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 } },
         React.createElement("p", { style: { color: "var(--text-heading)", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, margin: 0, letterSpacing: ".05em" } }, "SETTINGS"),
         React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", color: "var(--text-secondary)", fontSize: 20, cursor: "pointer", padding: 0 } }, "✕")
+      ),
+
+      React.createElement("a", {
+        href: "/guide.html",
+        target: "_blank",
+        rel: "noopener noreferrer",
+        style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "12px 14px", background: "rgba(167,139,250,.08)", border: "1px solid rgba(167,139,250,.2)", borderRadius: 10, textDecoration: "none", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500 }
+      },
+        React.createElement("span", { style: { fontSize: 18 } }, "📚"),
+        React.createElement("span", null, "How to use Corevado"),
+        React.createElement("span", { style: { marginLeft: "auto", color: "var(--color-purple)", fontSize: 12, fontWeight: 600 } }, "User Guide →")
       ),
 
       // ── Complete Profile ──
@@ -1774,6 +1792,65 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
             )
           )
         )
+      ),
+
+      // ── Credit Cards ──
+      React.createElement("div", { style: card },
+        React.createElement("p", { style: { ...label, color: "var(--color-accent-teal)" } }, "CREDIT CARDS"),
+        React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 12px", lineHeight: 1.5 } },
+          "Your cards appear in Finance when importing statements. Adding them here keeps spend-by-card insights accurate."
+        ),
+
+        // Existing cards
+        myCards.length > 0 && React.createElement("div", { style: { marginBottom: 10 } },
+          myCards.map(c => React.createElement("div", { key: c.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 8, marginBottom: 6 } },
+            React.createElement("span", { style: { fontSize: 16 } }, "💳"),
+            React.createElement("div", { style: { flex: 1 } },
+              React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 600, margin: 0 } }, c.nickname),
+              React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "1px 0 0" } }, c.issuer)
+            ),
+            React.createElement("button", {
+              onClick: () => setMyCards(prev => prev.filter(x => x.id !== c.id)),
+              style: { background: "none", border: "none", color: "var(--text-muted)", fontSize: 15, cursor: "pointer", padding: "2px 4px", lineHeight: 1 }
+            }, "✕")
+          ))
+        ),
+
+        // Add card form
+        showSettingsCardForm
+          ? React.createElement("div", { style: { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "12px", marginBottom: 10 } },
+              React.createElement("p", { style: { ...label, marginBottom: 6 } }, "BANK / ISSUER"),
+              React.createElement("select", {
+                value: settingsCardIssuer,
+                onChange: e => { setSettingsCardIssuer(e.target.value); setSettingsCardNick(e.target.value ? e.target.value + " Card" : ""); },
+                style: { ...inp, marginBottom: 8, colorScheme: "dark" }
+              },
+                React.createElement("option", { value: "" }, "— Select issuer —"),
+                ["Amex","BMO","CIBC","Costco","Desjardins","Home Trust","National Bank","Neo Financial","PC Financial","RBC","Rogers / Fido","Scotiabank","Simplii Financial","Tangerine","TD"].map(i =>
+                  React.createElement("option", { key: i, value: i }, i)
+                )
+              ),
+              React.createElement("p", { style: { ...label, marginBottom: 6 } }, "CARD NICKNAME"),
+              React.createElement("input", { style: { ...inp, marginBottom: 10 }, value: settingsCardNick, onChange: e => setSettingsCardNick(e.target.value), placeholder: "e.g. TD Aeroplan, Amex Cobalt" }),
+              React.createElement("div", { style: { display: "flex", gap: 8 } },
+                React.createElement("button", {
+                  onClick: () => {
+                    if (!settingsCardIssuer || !settingsCardNick.trim()) return;
+                    setMyCards(prev => [...prev, { id: "card_" + Date.now(), issuer: settingsCardIssuer, nickname: settingsCardNick.trim() }]);
+                    setSettingsCardIssuer(""); setSettingsCardNick(""); setShowSettingsCardForm(false);
+                  },
+                  style: { flex: 1, padding: "9px", background: "var(--color-accent-teal)", border: "none", borderRadius: 8, color: "#000", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (settingsCardIssuer && settingsCardNick.trim()) ? 1 : .4 }
+                }, "Add"),
+                React.createElement("button", {
+                  onClick: () => { setShowSettingsCardForm(false); setSettingsCardIssuer(""); setSettingsCardNick(""); },
+                  style: { padding: "9px 14px", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, color: "var(--text-muted)", fontSize: 13, cursor: "pointer" }
+                }, "Cancel")
+              )
+            )
+          : React.createElement("button", {
+              onClick: () => setShowSettingsCardForm(true),
+              style: { width: "100%", padding: "10px", background: "rgba(255,255,255,.03)", border: "1px dashed rgba(52,211,153,.3)", borderRadius: 8, color: "var(--color-accent-teal)", fontSize: 13, fontWeight: 600, cursor: "pointer" }
+            }, "+ Add a card")
       ),
 
       // ── Household ──
@@ -2044,18 +2121,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
         disabled: saving,
         style: { width: "100%", background: "var(--color-primary)", border: "none", borderRadius: 10, color: "var(--bg)", fontSize: 13, fontWeight: 800, padding: "14px", cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
       }, saving ? "SAVING..." : "SAVE SETTINGS"),
-      msg && React.createElement("p", { style: { color: "var(--color-success)", textAlign: "center", fontSize: 12, margin: "10px 0 0" } }, msg),
-
-      React.createElement("a", {
-        href: "/guide.html",
-        target: "_blank",
-        rel: "noopener noreferrer",
-        style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 20, padding: "12px", background: "var(--card-bg-2)", border: "1px solid var(--card-border)", borderRadius: 10, textDecoration: "none", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500 }
-      },
-        React.createElement("span", { style: { fontSize: 16 } }, "📚"),
-        React.createElement("span", null, "How to use Corevado"),
-        React.createElement("span", { style: { marginLeft: "auto", color: "var(--text-muted)", fontSize: 11 } }, "User Guide →")
-      )
+      msg && React.createElement("p", { style: { color: "var(--color-success)", textAlign: "center", fontSize: 12, margin: "10px 0 0" } }, msg)
     )
   );
 }
@@ -2346,7 +2412,7 @@ window.__ml = {
 // ─────────────────────────────────────────────────────────────────────────────
 function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
   const ex = existingSettings || {};
-  const STEPS = 10;
+  const STEPS = 11;
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   // Step 1
@@ -2378,11 +2444,16 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
   // Step 7
   const [financialGoal, setFinancialGoal] = useState(ex.financialGoal || "");
   const [emergencyFund, setEmergencyFund] = useState(ex.emergencyFund || "");
-  // Step 8
-  const [dietary, setDietary] = useState(ex.dietary || []);
+  // Step 8 — Credit Cards
+  const [myCards, setMyCards] = useState(ex.myCards || []);
+  const [cardAddIssuer, setCardAddIssuer] = useState("");
+  const [cardAddNick, setCardAddNick] = useState("");
+  const [showCardForm, setShowCardForm] = useState(false);
   // Step 9
-  const [groceryStores, setGroceryStores] = useState(ex.groceryStores || []);
+  const [dietary, setDietary] = useState(ex.dietary || []);
   // Step 10
+  const [groceryStores, setGroceryStores] = useState(ex.groceryStores || []);
+  // Step 11
   const [morningReminder, setMorningReminder] = useState(ex.morningReminder || "07:00");
   const [eveningReminder, setEveningReminder] = useState(ex.eveningReminder || "21:00");
 
@@ -2408,7 +2479,7 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
       householdSize, hasKids,
       numKids: numKids ? parseInt(numKids) : "",
       ownOrRent, weekStart, focusAreas, financialGoal, emergencyFund,
-      dietary, groceryStores, morningReminder, eveningReminder
+      myCards, dietary, groceryStores, morningReminder, eveningReminder
     };
     await DB.set(KEYS.settings(), settings);
     if (currentWeight && weightGoal) {
@@ -2641,8 +2712,60 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
         React.createElement("button", { style: btnSkip, onClick: () => setStep(8) }, "Skip for now")
       ),
 
-      // Step 8 — Food & Lifestyle
+      // Step 8 — Credit Cards
       step === 8 && React.createElement("div", null,
+        React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Your credit cards"),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 6px", lineHeight: 1.5 } }, "Adding your cards lets Corevado show you spend-by-card breakdowns, flag which card you're using most, and spot whether your rewards are matching your habits."),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 20px", opacity: .7 } }, "You can add, rename, or remove cards anytime in Settings."),
+
+        // Added cards list
+        myCards.length > 0 && React.createElement("div", { style: { marginBottom: 16 } },
+          myCards.map(c => React.createElement("div", { key: c.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 10, marginBottom: 8 } },
+            React.createElement("span", { style: { fontSize: 18 } }, c.issuer === "Amex" ? "💳" : "💳"),
+            React.createElement("div", { style: { flex: 1 } },
+              React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 14, fontWeight: 600, margin: 0 } }, c.nickname),
+              React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "2px 0 0" } }, c.issuer)
+            ),
+            React.createElement("button", { onClick: () => setMyCards(prev => prev.filter(x => x.id !== c.id)), style: { background: "none", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", padding: "2px 6px", lineHeight: 1 } }, "✕")
+          ))
+        ),
+
+        // Add card form
+        showCardForm
+          ? React.createElement("div", { style: { background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: "14px", marginBottom: 16 } },
+              React.createElement("span", { style: lbl }, "Bank / Issuer"),
+              React.createElement("select", {
+                value: cardAddIssuer,
+                onChange: e => { setCardAddIssuer(e.target.value); setCardAddNick(e.target.value ? e.target.value + " Card" : ""); },
+                style: { ...inp, marginBottom: 12, colorScheme: "dark" }
+              },
+                React.createElement("option", { value: "" }, "— Select issuer —"),
+                ["Amex","BMO","CIBC","Costco","Desjardins","Home Trust","National Bank","Neo Financial","PC Financial","RBC","Rogers / Fido","Scotiabank","Simplii Financial","Tangerine","TD"].map(i =>
+                  React.createElement("option", { key: i, value: i }, i)
+                )
+              ),
+              React.createElement("span", { style: lbl }, "Card nickname"),
+              React.createElement("input", { style: { ...inp, marginBottom: 14 }, value: cardAddNick, onChange: e => setCardAddNick(e.target.value), placeholder: "e.g. TD Aeroplan, Amex Cobalt" }),
+              React.createElement("div", { style: { display: "flex", gap: 8 } },
+                React.createElement("button", {
+                  onClick: () => {
+                    if (!cardAddIssuer || !cardAddNick.trim()) return;
+                    setMyCards(prev => [...prev, { id: "card_" + Date.now(), issuer: cardAddIssuer, nickname: cardAddNick.trim() }]);
+                    setCardAddIssuer(""); setCardAddNick(""); setShowCardForm(false);
+                  },
+                  style: { flex: 1, padding: "11px", background: "var(--color-accent-teal)", border: "none", borderRadius: 10, color: "#000", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: (cardAddIssuer && cardAddNick.trim()) ? 1 : .4 }
+                }, "Add card"),
+                React.createElement("button", { onClick: () => { setShowCardForm(false); setCardAddIssuer(""); setCardAddNick(""); }, style: { padding: "11px 16px", background: "transparent", border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, color: "var(--text-muted)", fontSize: 14, cursor: "pointer" } }, "Cancel")
+              )
+            )
+          : React.createElement("button", { onClick: () => setShowCardForm(true), style: { width: "100%", padding: "12px", background: "rgba(255,255,255,.04)", border: "1px dashed rgba(255,255,255,.15)", borderRadius: 10, color: "var(--color-accent-teal)", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 20 } }, "+ Add a card"),
+
+        React.createElement("button", { style: { ...btnPrimary, marginTop: myCards.length === 0 && !showCardForm ? 8 : 0 }, onClick: () => setStep(9) }, myCards.length > 0 ? "Continue →" : "Continue →"),
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(9) }, "Skip for now")
+      ),
+
+      // Step 9 — Food & Lifestyle
+      step === 9 && React.createElement("div", null,
         React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Food & lifestyle"),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "Meal suggestions and the food log will reflect your preferences."),
         React.createElement("span", { style: lbl }, "Dietary preferences  (select all that apply)"),
@@ -2654,12 +2777,12 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
             }, labelText)
           )
         ),
-        React.createElement("button", { style: btnPrimary, onClick: () => setStep(9) }, "Continue →"),
-        React.createElement("button", { style: btnSkip, onClick: () => setStep(9) }, "Skip for now")
+        React.createElement("button", { style: btnPrimary, onClick: () => setStep(10) }, "Continue →"),
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(10) }, "Skip for now")
       ),
 
-      // Step 9 — Grocery Stores
-      step === 9 && React.createElement("div", null,
+      // Step 10 — Grocery Stores
+      step === 10 && React.createElement("div", null,
         React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Grocery stores"),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px" } }, "Select the stores you shop at for smarter grocery planning."),
         React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 28 } },
@@ -2667,12 +2790,12 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
             chip(groceryStores.includes(val), () => toggleArr(setGroceryStores, val), labelText)
           )
         ),
-        React.createElement("button", { style: btnPrimary, onClick: () => setStep(10) }, "Continue →"),
-        React.createElement("button", { style: btnSkip, onClick: () => setStep(10) }, "Skip for now")
+        React.createElement("button", { style: btnPrimary, onClick: () => setStep(11) }, "Continue →"),
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(11) }, "Skip for now")
       ),
 
-      // Step 10 — Reminders
-      step === 10 && React.createElement("div", null,
+      // Step 11 — Reminders
+      step === 11 && React.createElement("div", null,
         React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 20, fontWeight: 700, margin: "0 0 6px" } }, "Check-in reminders"),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px" } }, "Set the times you want to be reminded to log your morning and evening check-ins."),
         React.createElement("div", { style: { marginBottom: 16 } },
@@ -2684,7 +2807,7 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
           React.createElement("input", { type: "time", style: inp, value: eveningReminder, onChange: e => setEveningReminder(e.target.value) })
         ),
         React.createElement("button", { style: { ...btnPrimary, opacity: saving ? .6 : 1 }, disabled: saving, onClick: handleFinish }, saving ? "Setting up..." : "Get Started"),
-        React.createElement("button", { style: btnSkip, onClick: () => setStep(9) }, "← Back")
+        React.createElement("button", { style: btnSkip, onClick: () => setStep(10) }, "← Back")
       )
     )
   );
