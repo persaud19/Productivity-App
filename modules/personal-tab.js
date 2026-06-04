@@ -447,6 +447,18 @@ function EveningReadOnly({
         lineHeight: 1.6
       }
     }, e.reflection))
+  }), e.dailyMemory && /*#__PURE__*/React.createElement(Card, {
+    s: { borderColor: "rgba(167,139,250,.2)", background: "rgba(167,139,250,.04)" },
+    ch: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Lbl, {
+      c: "Daily Memory"
+    }), /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: "var(--text-primary)",
+        fontSize: 13,
+        margin: 0,
+        lineHeight: 1.7
+      }
+    }, e.dailyMemory))
   }));
 }
 // ── AI-powered dynamic prompt engine ──
@@ -473,6 +485,7 @@ function buildLogSnapshot(allLogs, trainHistory, todayLog, type) {
       if (e.steps) parts.push("steps:" + e.steps);
       if (e.glasses) parts.push("water:" + e.glasses + "/8");
       if (e.reflection) parts.push('evReflection:"' + e.reflection.slice(0, 80) + '"');
+      if (e.dailyMemory) parts.push('memory:"' + e.dailyMemory.slice(0, 100) + '"');
       if (e.cardio) parts.push("cardio:yes");
       if (e.strength) parts.push("strength:yes");
       if (e.familyMoment) parts.push('family:"' + e.familyMoment.slice(0, 60) + '"');
@@ -1070,6 +1083,7 @@ function Evening({
   const [wi, setWi] = useState(ex.win || "");
   const [bedtime, setBedtime] = useState(ex.bedtime || "");
   const [reflection, setReflection] = useState(ex.reflection || "");
+  const [dailyMemory, setDailyMemory] = useState(ex.dailyMemory || "");
   const [exceptional, setExceptional] = useState(ex.exceptionalDay || false);
   const [exceptReason, setExceptReason] = useState(ex.exceptionalReason || "");
   const [busy, setBusy] = useState(false);
@@ -1085,6 +1099,7 @@ function Evening({
     setWi(e.win || "");
     setBedtime(e.bedtime || "");
     setReflection(e.reflection || "");
+    setDailyMemory(e.dailyMemory || "");
     setExceptional(e.exceptionalDay || false);
     setExceptReason(e.exceptionalReason || "");
     setOk(false);
@@ -1115,6 +1130,7 @@ function Evening({
     win: wi,
     bedtime: bedtime,
     reflection: reflection,
+    dailyMemory: dailyMemory,
     reflectionPrompt: promptInfo.id,
     exceptionalDay: exceptional,
     exceptionalReason: exceptReason,
@@ -1144,22 +1160,9 @@ function Evening({
   // Accountability banners
   var accountabilityBanners = [];
 
-  // No training for 2+ days (exempt on Sundays — rest day)
+  // No training for 2+ days banner removed per user request
   var isSunday = new Date().getDay() === 0;
   if (!isHistory && !isSunday) {
-    var trainDates = new Set(trainHistory.map(function(s) { return s.date; }));
-    // Also check today's log flags — they may be set by train-tab before trainHistory prop refreshed
-    var todayHasTraining = trainDates.has(getToday()) || !!(todayLog?.evening?.cardio) || !!(todayLog?.evening?.strength);
-    var daysNoTrain = 0;
-    for (var i = 0; i < 4; i++) {
-      var d = addDays(getToday(), -i);
-      var dayHasTrain = trainDates.has(d) || (i === 0 && todayHasTraining);
-      if (!dayHasTrain) daysNoTrain++; else break;
-    }
-    if (daysNoTrain >= 2) {
-      accountabilityBanners.push({ color: "var(--color-accent-orange)", bg: "rgba(251,146,60,.07)", border: "rgba(251,146,60,.15)", text: daysNoTrain + " days without training — what's been the blocker?" });
-    }
-
     // No meals logged today
     if (mealsLogged === 0) {
       accountabilityBanners.push({ color: "var(--color-accent-orange)", bg: "rgba(251,146,60,.05)", border: "rgba(251,146,60,.12)", text: "No meals logged today — head to Food tab to track what you ate." });
@@ -1270,6 +1273,13 @@ function Evening({
       React.createElement(Card, { ch: React.createElement(React.Fragment, null,
         React.createElement(Lbl, { c: "Win of the Day" }),
         React.createElement("textarea", { value: wi, onChange: function(e) { setWi(e.target.value); }, placeholder: "One real win — no matter how small", style: { ...inp, resize: "none", minHeight: 80, lineHeight: 1.6, fontSize: 13 }, rows: 3 })
+      ) }),
+
+      // 5b. Daily Memory
+      React.createElement(Card, { s: { borderColor: "rgba(167,139,250,.2)", background: "rgba(167,139,250,.04)" }, ch: React.createElement(React.Fragment, null,
+        React.createElement(Lbl, { c: "Daily Memory" }),
+        React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "0 0 8px" } }, "Capture something worth remembering from today — a moment, conversation, feeling, or detail you don't want to lose."),
+        React.createElement("textarea", { value: dailyMemory, onChange: function(e) { setDailyMemory(e.target.value); }, placeholder: "What happened today that you want to remember?", style: { ...inp, resize: "none", minHeight: 110, lineHeight: 1.7, fontSize: 13 } })
       ) }),
 
       // Reminders completed today
