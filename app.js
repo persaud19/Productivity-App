@@ -2888,20 +2888,13 @@ function App() {
     window.__household_id = settings.householdId || "";
   }, [settings.householdId]);
 
-  // Apply colour theme once Firebase settings load, and keep the toggle icon in sync.
-  // If Firebase settings don't have a theme field (old data), fall back to localStorage
-  // and backfill the value into Firebase so it persists going forward.
+  // Re-apply theme when the settings panel saves a new choice (settings.theme changes).
+  // loadAll handles the initial apply — this only runs on subsequent in-session changes.
   React.useEffect(() => {
-    if (!settingsLoaded) return;
-    const t = settings.theme || localStorage.getItem("ml_theme") || "dark";
-    applyTheme(t);
-    setAppTheme(t);
-    if (!settings.theme && t !== "dark") {
-      // Backfill theme into Firebase so future reloads don't lose it
-      DB.set(KEYS.settings(), { ...settings, theme: t }).catch(() => {});
-      setSettings(s => ({ ...s, theme: t }));
-    }
-  }, [settings.theme, settingsLoaded]);
+    if (!settingsLoaded || !settings.theme) return;
+    applyTheme(settings.theme);
+    setAppTheme(settings.theme);
+  }, [settings.theme]);
 
   // Persist last-visited tab on every change — read back via lazy useState initializer above
   useEffect(() => {
@@ -3029,6 +3022,16 @@ function App() {
     } else {
       setSetupDone(true);
       if (st) { setSettings(st); setSettingsLoaded(true); }
+    }
+    // Apply theme directly from Firebase data — Firebase is the source of truth.
+    // Falls back to localStorage only if the field was never saved, then backfills it.
+    if (st) {
+      const resolvedTheme = st.theme || localStorage.getItem("ml_theme") || "dark";
+      applyTheme(resolvedTheme);
+      setAppTheme(resolvedTheme);
+      if (!st.theme) {
+        DB.set(KEYS.settings(), { ...st, theme: resolvedTheme }).catch(() => {});
+      }
     }
     if (go) setGoals(go);
     setStreak(sk || 0);
@@ -3351,6 +3354,7 @@ function App() {
       const next = appTheme === "dark" ? "light" : "dark";
       setAppTheme(next);
       applyTheme(next);
+      setSettings(s => { const u = { ...s, theme: next }; DB.set(KEYS.settings(), u).catch(() => {}); return u; });
     },
     style: { background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: 4, lineHeight: 1, opacity: .7 },
     title: "Toggle light/dark mode"
