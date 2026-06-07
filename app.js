@@ -2888,12 +2888,19 @@ function App() {
     window.__household_id = settings.householdId || "";
   }, [settings.householdId]);
 
-  // Apply colour theme once Firebase settings load, and keep the toggle icon in sync
+  // Apply colour theme once Firebase settings load, and keep the toggle icon in sync.
+  // If Firebase settings don't have a theme field (old data), fall back to localStorage
+  // and backfill the value into Firebase so it persists going forward.
   React.useEffect(() => {
     if (!settingsLoaded) return;
-    const t = settings.theme || "dark";
+    const t = settings.theme || localStorage.getItem("ml_theme") || "dark";
     applyTheme(t);
     setAppTheme(t);
+    if (!settings.theme && t !== "dark") {
+      // Backfill theme into Firebase so future reloads don't lose it
+      DB.set(KEYS.settings(), { ...settings, theme: t }).catch(() => {});
+      setSettings(s => ({ ...s, theme: t }));
+    }
   }, [settings.theme, settingsLoaded]);
 
   // Persist last-visited tab on every change — read back via lazy useState initializer above
