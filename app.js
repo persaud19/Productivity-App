@@ -512,6 +512,8 @@ function applyTheme(name) {
   }
   localStorage.setItem("ml_theme", name || "dark");
 }
+// Apply saved theme immediately on load so there's no flash before React mounts.
+applyTheme(localStorage.getItem("ml_theme") || "dark");
 
 const DEFAULT_SETTINGS = {
   name: "",
@@ -2842,6 +2844,7 @@ function App() {
   }, [userCtx?.uid]);
   const [setupDone, setSetupDone] = useState(null); // null=loading
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [goals, setGoals] = useState([]);
   const [tab, setTab] = useState(() => {
     // Restore last tab if session ended < 1 hour ago
@@ -2885,8 +2888,13 @@ function App() {
     window.__household_id = settings.householdId || "";
   }, [settings.householdId]);
 
-  // Apply colour theme whenever it changes
-  React.useEffect(() => { applyTheme(settings.theme || "dark"); }, [settings.theme]);
+  // Apply colour theme once Firebase settings load, and keep the toggle icon in sync
+  React.useEffect(() => {
+    if (!settingsLoaded) return;
+    const t = settings.theme || "dark";
+    applyTheme(t);
+    setAppTheme(t);
+  }, [settings.theme, settingsLoaded]);
 
   // Persist last-visited tab on every change — read back via lazy useState initializer above
   useEffect(() => {
@@ -3009,11 +3017,11 @@ function App() {
 
     if (!sd) {
       // First-time user — show setup wizard (setupDone stays false, wizard will save settings)
-      if (st) setSettings(st);
+      if (st) { setSettings(st); setSettingsLoaded(true); }
       setSetupDone(false);
     } else {
       setSetupDone(true);
-      if (st) setSettings(st);
+      if (st) { setSettings(st); setSettingsLoaded(true); }
     }
     if (go) setGoals(go);
     setStreak(sk || 0);
