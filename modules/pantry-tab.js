@@ -1617,6 +1617,8 @@ function PantryShelfScanner({ pantryItems, onApplyAll, onClose }) {
   const [nlLoading, setNlLoading] = useState(false);
   const [mergeItems, setMergeItems] = useState([]);
   const [mergeDecisions, setMergeDecisions] = useState({});
+  const [mergeIdxMap, setMergeIdxMap] = useState([]); // maps detail-slot index → mergeItems index
+  const [mergeQtys, setMergeQtys] = useState({}); // maps mergeItems index → user-set qty (absolute)
   const [resultSummary, setResultSummary] = useState({ added: 0, updated: 0 });
   const [applying, setApplying] = useState(false);
   const fileRef = useRef(null);
@@ -1802,19 +1804,29 @@ Return JSON only, no markdown:
       setCurrentCard(blankCard(updated[next]));
       setNlInput("");
     } else {
-      runInventoryMatch(updated);
+      // Merge the detailed cards back into mergeItems then apply
+      const updatedMergeItems = mergeItems.map((x, mi) => {
+        const slot = mergeIdxMap.indexOf(mi);
+        return slot >= 0 ? { ...x, card: updated[slot] } : x;
+      });
+      applyFinal(updatedMergeItems, mergeDecisions);
     }
   };
 
   const skipCard = () => {
-    const updated = cards.filter((_, i) => i !== detailIdx);
-    setCards(updated);
-    if (updated.length === 0) { runInventoryMatch([]); return; }
-    const nextIdx = Math.min(detailIdx, updated.length - 1);
+    // Mark skipped in mergeDecisions via its mergeItems index
+    const mi = mergeIdxMap[detailIdx];
+    const updatedDecisions = { ...mergeDecisions, [mi]: "skip" };
+    setMergeDecisions(updatedDecisions);
+    const updatedCards = cards.filter((_, i) => i !== detailIdx);
+    const updatedIdxMap = mergeIdxMap.filter((_, i) => i !== detailIdx);
+    setCards(updatedCards);
+    setMergeIdxMap(updatedIdxMap);
+    if (updatedCards.length === 0) { applyFinal(mergeItems, updatedDecisions); return; }
+    const nextIdx = Math.min(detailIdx, updatedCards.length - 1);
     setDetailIdx(nextIdx);
-    setCurrentCard(blankCard(updated[nextIdx]));
+    setCurrentCard(blankCard(updatedCards[nextIdx]));
     setNlInput("");
-    if (detailIdx >= updated.length) runInventoryMatch(updated);
   };
 
   const runInventoryMatch = (finalCards) => {
@@ -1837,16 +1849,34 @@ Return JSON only, no markdown:
       }
       return { card, existingItem: match || null };
     });
-    const conflicts = withMatches.filter(x => x.existingItem);
-    if (conflicts.length > 0) {
-      setMergeItems(withMatches);
-      const decisions = {};
-      withMatches.forEach((x, i) => { decisions[i] = x.existingItem ? "merge" : "new"; });
-      setMergeDecisions(decisions);
-      setPhase("merge-review");
-    } else {
-      applyFinal(withMatches, {});
+    setMergeItems(withMatches);
+    const decisions = {};
+    const qtys = {};
+    withMatches.forEach((x, i) => {
+      decisions[i] = x.existingItem ? "merge" : "new";
+      if (x.existingItem) qtys[i] = parseFloat(x.existingItem.qty) || 0;
+    });
+    setMergeDecisions(decisions);
+    setMergeQtys(qtys);
+    setPhase("merge-review");
+  };
+
+  // Called from merge-review "Continue" — routes new items to detail, applies directly if none
+  const proceedFromMerge = () => {
+    const newSlots = mergeItems
+      .map((x, i) => ({ x, i }))
+      .filter(({ i }) => mergeDecisions[i] === "new");
+    if (newSlots.length === 0) {
+      applyFinal(mergeItems, mergeDecisions);
+      return;
     }
+    const newCards = newSlots.map(({ x }) => x.card);
+    setMergeIdxMap(newSlots.map(({ i }) => i));
+    setCards(newCards);
+    setDetailIdx(0);
+    setCurrentCard(blankCard(newCards[0]));
+    setNlInput("");
+    setPhase("detail");
   };
 
   const applyFinal = async (withMatches, decisions) => {
@@ -1858,7 +1888,8 @@ Return JSON only, no markdown:
       const dec = decisions[i] !== undefined ? decisions[i] : mergeDecisions[i];
       if (dec === "skip") return; // user chose not to import this item
       if (x.existingItem && dec === "merge") {
-        edits.push({ match: x.existingItem.name, changes: { qtyDelta: parseFloat(card.qty) || 1 } });
+        const finalQty = mergeQtys[i] !== undefined ? mergeQtys[i] : parseFloat(x.existingItem.qty);
+        edits.push({ match: x.existingItem.name, changes: { qty: finalQty } });
       } else {
         newItems.push({
           id: "p" + Date.now() + Math.random(),
@@ -1991,9 +2022,9 @@ Return JSON only, no markdown:
     ),
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 10 } },
       /*#__PURE__*/React.createElement("button", {
-        onClick: startDetail,
+        onClick: () => runInventoryMatch(cards),
         style: { flex: 1, padding: "12px 0", background: "rgba(52,211,153,.15)", border: "1px solid rgba(52,211,153,.4)", color: "#34d399", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
-      }, "Fill in details →"),
+      }, "Check Inventory →"),
       /*#__PURE__*/React.createElement("button", {
         onClick: () => setPhase("confirm-count"),
         style: { padding: "12px 16px", background: "transparent", border: "1px solid rgba(255,255,255,.12)", color: "var(--text-secondary)", borderRadius: 9, fontSize: 13, cursor: "pointer" }
@@ -2012,7 +2043,7 @@ Return JSON only, no markdown:
     return /*#__PURE__*/React.createElement("div", null,
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
         /*#__PURE__*/React.createElement("p", { style: { color: "#34d399", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: 0 } },
-          "📝 Item " + progress + " of " + total
+          "📝 New Item " + progress + " of " + total
         ),
         /*#__PURE__*/React.createElement("button", { onClick: onClose, style: { padding: "5px 12px", background: "transparent", border: "1px solid var(--card-border)", color: "var(--text-secondary)", borderRadius: 7, fontSize: 11, cursor: "pointer" } }, "✕ Cancel")
       ),
@@ -2125,7 +2156,7 @@ Return JSON only, no markdown:
         /*#__PURE__*/React.createElement("button", {
           onClick: saveCard,
           style: { flex: 2, padding: "12px 0", background: "rgba(52,211,153,.15)", border: "1px solid rgba(52,211,153,.4)", color: "#34d399", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
-        }, progress < total ? "Save & Next →" : "Done → Check Inventory"),
+        }, progress < total ? "Save & Next →" : "Done → Save All"),
         /*#__PURE__*/React.createElement("button", {
           onClick: skipCard,
           style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.12)", color: "var(--text-muted)", borderRadius: 9, fontSize: 12, cursor: "pointer" }
@@ -2136,9 +2167,9 @@ Return JSON only, no markdown:
 
   // ── Phase: merge-review ──
   if (phase === "merge-review") return /*#__PURE__*/React.createElement("div", null,
-    sharedHeader("🔄 Inventory Matches"),
+    sharedHeader("🔄 Inventory Check"),
     /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 14px" } },
-      "Some items already exist in your pantry. Choose how to handle each one."
+      "Matched against your inventory. Items already on hand are pre-selected to update — new items will go through a quick details step."
     ),
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 } },
       mergeItems.map((x, i) => {
@@ -2149,10 +2180,23 @@ Return JSON only, no markdown:
         },
           /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 600, margin: "0 0 2px" } }, x.card.name),
           x.existingItem
-            ? /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 10px" } },
-              "Matches “" + x.existingItem.name + "” · currently " + x.existingItem.qty + " " + x.existingItem.unit
+            ? /*#__PURE__*/React.createElement(“p”, { style: { color: “var(--text-secondary)”, fontSize: 11, margin: “0 0 8px” } },
+              “Matches “” + x.existingItem.name + “” in inventory”
             )
-            : /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 10px" } }, "New item"),
+            : /*#__PURE__*/React.createElement(“p”, { style: { color: “var(--text-secondary)”, fontSize: 11, margin: “0 0 10px” } }, “New item”),
+          x.existingItem && dec === “merge”
+            ? /*#__PURE__*/React.createElement(“div”, { style: { display: “flex”, alignItems: “center”, gap: 8, marginBottom: 10, background: “rgba(255,255,255,.04)”, border: “1px solid rgba(255,255,255,.08)”, borderRadius: 7, padding: “7px 10px” } },
+              /*#__PURE__*/React.createElement(“span”, { style: { color: “var(--text-secondary)”, fontSize: 11, flex: 1 } }, “Set actual qty in inventory:”),
+              /*#__PURE__*/React.createElement(“input”, {
+                type: “number”,
+                min: “0”,
+                step: “0.1”,
+                value: mergeQtys[i] !== undefined ? mergeQtys[i] : (parseFloat(x.existingItem.qty) || 0),
+                onChange: e => setMergeQtys(prev => ({ ...prev, [i]: parseFloat(e.target.value) || 0 })),
+                style: { width: 64, background: “var(--card-bg)”, border: “1px solid rgba(96,165,250,.4)”, borderRadius: 6, color: “var(--color-accent-blue)”, fontSize: 13, fontWeight: 700, padding: “5px 8px”, textAlign: “center” }
+              }),
+              /*#__PURE__*/React.createElement(“span”, { style: { color: “var(--text-muted)”, fontSize: 11 } }, x.existingItem.unit)
+            ) : null,
           x.existingItem
             ? /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6 } },
               /*#__PURE__*/React.createElement("button", {
@@ -2182,10 +2226,10 @@ Return JSON only, no markdown:
       })
     ),
     /*#__PURE__*/React.createElement("button", {
-      onClick: () => applyFinal(mergeItems, mergeDecisions),
+      onClick: proceedFromMerge,
       disabled: applying,
       style: { width: "100%", padding: "13px 0", background: applying ? "rgba(52,211,153,.08)" : "rgba(52,211,153,.15)", border: "1px solid rgba(52,211,153,.4)", color: "#34d399", borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: applying ? "not-allowed" : "pointer", fontFamily: "'Syne',sans-serif" }
-    }, applying ? "Saving…" : "Apply All →")
+    }, applying ? "Saving…" : (() => { const newCount = mergeItems.filter((_, i) => mergeDecisions[i] === "new").length; return newCount > 0 ? "Continue — Add Details for " + newCount + " New →" : "Apply All →"; })())
   );
 
   // ── Phase: done ──

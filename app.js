@@ -2456,6 +2456,9 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
   // Step 11
   const [morningReminder, setMorningReminder] = useState(ex.morningReminder || "07:00");
   const [eveningReminder, setEveningReminder] = useState(ex.eveningReminder || "21:00");
+  // Theme — default Sabrina to light
+  const isSabrina = (ex.name || googleDisplayName || "").toLowerCase().includes("sabrina");
+  const [wizTheme, setWizTheme] = useState(ex.theme || (isSabrina ? "light" : "dark"));
 
   const toggleArr = (setFn, val) => setFn(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
 
@@ -2479,8 +2482,10 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
       householdSize, hasKids,
       numKids: numKids ? parseInt(numKids) : "",
       ownOrRent, weekStart, focusAreas, financialGoal, emergencyFund,
-      myCards, dietary, groceryStores, morningReminder, eveningReminder
+      myCards, dietary, groceryStores, morningReminder, eveningReminder,
+      theme: wizTheme
     };
+    applyTheme(wizTheme);
     await DB.set(KEYS.settings(), settings);
     if (currentWeight && weightGoal) {
       await DB.set(KEYS.goals(), [{
@@ -2562,9 +2567,22 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
           React.createElement("span", { style: lbl }, "Your first name"),
           React.createElement("input", { style: inp, value: name, onChange: e => setName(e.target.value), autoFocus: true })
         ),
-        React.createElement("div", { style: { marginBottom: 28 } },
+        React.createElement("div", { style: { marginBottom: 24 } },
           React.createElement("span", { style: lbl }, "Partner's first name"),
           React.createElement("input", { style: inp, value: partnerName, onChange: e => setPartnerName(e.target.value), placeholder: "Optional" })
+        ),
+        React.createElement("div", { style: { marginBottom: 28 } },
+          React.createElement("span", { style: lbl }, "Colour theme"),
+          React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 12px" } }, "Choose your default — you can always switch it later."),
+          React.createElement("div", { style: { display: "flex", gap: 10 } },
+            [["dark", "🌙", "Dark", "The default — easy on the eyes at night."], ["light", "☀️", "Light", "Bright Pinterest-style. Great in daylight."]].map(([t, icon, label, desc]) =>
+              React.createElement("div", { key: t, onClick: () => { setWizTheme(t); applyTheme(t); }, style: { flex: 1, padding: "14px 10px", borderRadius: 12, cursor: "pointer", textAlign: "center", background: wizTheme === t ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: wizTheme === t ? "1px solid rgba(244,168,35,.5)" : "1px solid rgba(255,255,255,.08)", transition: "all .15s" } },
+                React.createElement("div", { style: { fontSize: 24, marginBottom: 6 } }, icon),
+                React.createElement("div", { style: { color: wizTheme === t ? "var(--color-primary)" : "var(--text-primary)", fontSize: 13, fontWeight: 700, marginBottom: 4 } }, label),
+                React.createElement("div", { style: { color: "var(--text-muted)", fontSize: 11, lineHeight: 1.4 } }, desc)
+              )
+            )
+          )
         ),
         React.createElement("button", { style: { ...btnPrimary, opacity: name.trim() ? 1 : .4 }, disabled: !name.trim(), onClick: () => setStep(2) }, "Continue →")
       ),

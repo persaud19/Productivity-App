@@ -463,7 +463,7 @@ function EveningReadOnly({
 }
 // ── AI-powered dynamic prompt engine ──
 // Summarizes recent logs into a compact snapshot for the AI call
-function buildLogSnapshot(allLogs, trainHistory, todayLog, type) {
+function buildLogSnapshot(allLogs, trainHistory, todayLog, type, settings) {
   const recent = (allLogs || []).slice(0, 14);
   if (!recent.length) return null;
   var lines = [];
@@ -486,19 +486,15 @@ function buildLogSnapshot(allLogs, trainHistory, todayLog, type) {
       if (e.glasses) parts.push("water:" + e.glasses + "/8");
       if (e.reflection) parts.push('evReflection:"' + e.reflection.slice(0, 80) + '"');
       if (e.dailyMemory) parts.push('memory:"' + e.dailyMemory.slice(0, 100) + '"');
-      if (e.cardio) parts.push("cardio:yes");
-      if (e.strength) parts.push("strength:yes");
+      var stepGoal = (settings && settings.stepGoal) || 10000;
+      var workoutTypes = [e.cardio && "cardio", e.strength && "strength", e.steps >= stepGoal && "active-steps"].filter(Boolean);
+      if (workoutTypes.length) parts.push("workout:" + workoutTypes.join("+"));
       if (e.familyMoment) parts.push('family:"' + e.familyMoment.slice(0, 60) + '"');
     }
     if (parts.length > 1) lines.push(parts.join(" | "));
   });
-  // Add training context
+  // Add training context — days-since-workout intentionally omitted to avoid workout-gap nudges
   var trainDates = new Set((trainHistory || []).map(function(s) { return s.date; }));
-  var daysNoTrain = 0;
-  for (var i = 0; i < 7; i++) {
-    if (!trainDates.has(addDays(getToday(), -i))) daysNoTrain++; else break;
-  }
-  if (daysNoTrain >= 2 && new Date().getDay() !== 0) lines.push("NOTE: " + daysNoTrain + " consecutive days without training");
   // Add today's morning context for evening prompts
   if (type === "evening" && todayLog?.morning) {
     var tm = todayLog.morning;
@@ -561,7 +557,7 @@ async function generateAIPrompt(type, allLogs, trainHistory, todayLog, settings,
     if (cached && cached.prompt) return cached;
   }
 
-  var snapshot = buildLogSnapshot(allLogs, trainHistory, todayLog, type);
+  var snapshot = buildLogSnapshot(allLogs, trainHistory, todayLog, type, settings);
   if (!snapshot) return null;
 
   var userName = settings?.name || "the user";
@@ -571,7 +567,7 @@ async function generateAIPrompt(type, allLogs, trainHistory, todayLog, settings,
     "The user's name is " + userName + " and their partner is " + partnerName + ". " +
     "You will receive 7-14 days of their daily log data (sleep, energy, mood, wins, reflections, workouts, weight, etc). " +
     "Your job is to generate ONE deeply personal " + type + " check-in question based on patterns you notice. " +
-    "Look for: streaks (good or bad), momentum shifts, recurring themes in reflections, training gaps, " +
+    "Look for: streaks (good or bad), momentum shifts, recurring themes in reflections, workout consistency (celebrate it, don't shame gaps), " +
     "weight trends, sleep patterns, missing data, emotional patterns, consistency wins. " +
     "The question should feel like it comes from someone who's been watching their journey — specific, " +
     "not generic. Reference actual data points when relevant (e.g. '3 good days in a row', 'your sleep dipped Tuesday'). " +
