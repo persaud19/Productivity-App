@@ -2180,22 +2180,22 @@ Return JSON only, no markdown:
         },
           /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 600, margin: "0 0 2px" } }, x.card.name),
           x.existingItem
-            ? /*#__PURE__*/React.createElement(“p”, { style: { color: “var(--text-secondary)”, fontSize: 11, margin: “0 0 8px” } },
-              “Matches “” + x.existingItem.name + “” in inventory”
+            ? /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 8px" } },
+              "Matches “" + x.existingItem.name + "” in inventory"
             )
-            : /*#__PURE__*/React.createElement(“p”, { style: { color: “var(--text-secondary)”, fontSize: 11, margin: “0 0 10px” } }, “New item”),
-          x.existingItem && dec === “merge”
-            ? /*#__PURE__*/React.createElement(“div”, { style: { display: “flex”, alignItems: “center”, gap: 8, marginBottom: 10, background: “rgba(255,255,255,.04)”, border: “1px solid rgba(255,255,255,.08)”, borderRadius: 7, padding: “7px 10px” } },
-              /*#__PURE__*/React.createElement(“span”, { style: { color: “var(--text-secondary)”, fontSize: 11, flex: 1 } }, “Set actual qty in inventory:”),
-              /*#__PURE__*/React.createElement(“input”, {
-                type: “number”,
-                min: “0”,
-                step: “0.1”,
+            : /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 10px" } }, "New item"),
+          x.existingItem && dec === "merge"
+            ? /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 10, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 7, padding: "7px 10px" } },
+              /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-secondary)", fontSize: 11, flex: 1 } }, "Set actual qty in inventory:"),
+              /*#__PURE__*/React.createElement("input", {
+                type: "number",
+                min: "0",
+                step: "0.1",
                 value: mergeQtys[i] !== undefined ? mergeQtys[i] : (parseFloat(x.existingItem.qty) || 0),
                 onChange: e => setMergeQtys(prev => ({ ...prev, [i]: parseFloat(e.target.value) || 0 })),
-                style: { width: 64, background: “var(--card-bg)”, border: “1px solid rgba(96,165,250,.4)”, borderRadius: 6, color: “var(--color-accent-blue)”, fontSize: 13, fontWeight: 700, padding: “5px 8px”, textAlign: “center” }
+                style: { width: 64, background: "var(--card-bg)", border: "1px solid rgba(96,165,250,.4)", borderRadius: 6, color: "var(--color-accent-blue)", fontSize: 13, fontWeight: 700, padding: "5px 8px", textAlign: "center" }
               }),
-              /*#__PURE__*/React.createElement(“span”, { style: { color: “var(--text-muted)”, fontSize: 11 } }, x.existingItem.unit)
+              /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 11 } }, x.existingItem.unit)
             ) : null,
           x.existingItem
             ? /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6 } },
@@ -3027,7 +3027,7 @@ function PantryEditor({
   });
   const cats = ["All", ...PANTRY_CATEGORIES];
   const archivedItems = pantryItems.filter(p => p.essential === false);
-  const filtered = pantryItems.filter(p => p.essential !== false).filter(p => catFilter === "All" || p.cat === catFilter).filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase())).filter(p => {
+  const filtered = pantryItems.filter(p => p && p.essential !== false).filter(p => catFilter === "All" || p.cat === catFilter).filter(p => !search || (p.name || "").toLowerCase().includes(search.toLowerCase())).filter(p => {
     if (statusFilter === "low") {
       const {
         status
@@ -3053,7 +3053,7 @@ function PantryEditor({
     const sa = pantryStatus(a).status,
       sb = pantryStatus(b).status;
     if (order[sa] !== order[sb]) return order[sa] - order[sb];
-    return a.name.localeCompare(b.name);
+    return (a.name || "").localeCompare(b.name || "");
   });
 
   // Summary stats
@@ -3260,7 +3260,7 @@ function PantryEditor({
     ),
     showArchived && /*#__PURE__*/React.createElement("div", { style: { marginTop: 8 } },
       /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "0 0 8px" } }, "These items are hidden from your main pantry. Tap \u2605 to restore."),
-      archivedItems.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase())).map(item =>
+      archivedItems.filter(p => !search || (p.name || "").toLowerCase().includes(search.toLowerCase())).map(item =>
         /*#__PURE__*/React.createElement("div", {
           key: item.id,
           style: { display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 9, marginBottom: 5, opacity: 0.6 }
