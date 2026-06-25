@@ -1,0 +1,12 @@
+# Personal financial data — never commit
+*.pdf
+*.xlsx
+*.xls
+*.csv
+
+# Claude Code local working dir & config
+.claude/
+claude_project.yaml
+
+# Local dev helpers
+serve-guide.py
