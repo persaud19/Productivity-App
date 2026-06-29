@@ -468,44 +468,85 @@ function buildLogSnapshot(allLogs, trainHistory, todayLog, type, settings) {
   if (!recent.length) return null;
   var lines = [];
   recent.forEach(function(l) {
-    var parts = [l.date];
+    var said = []; // what the user actually WROTE — the primary signal
+    var nums = []; // scores/metrics — secondary background only
     if (l.morning) {
       var m = l.morning;
-      if (m.showingUp || m.energy) parts.push("showing-up:" + (m.showingUp || m.energy) + "/5");
-      if (m.sleep) parts.push("sleep:" + m.sleep + "/5");
-      if (m.weight) parts.push("wt:" + m.weight);
-      if (m.intention) parts.push('intention:"' + m.intention + '"');
-      if (m.reflection) parts.push('reflection:"' + m.reflection.slice(0, 80) + '"');
-      if (m.gratitude) parts.push('gratitude:"' + m.gratitude.slice(0, 60) + '"');
+      if (m.intention) said.push('intention:"' + m.intention + '"');
+      if (m.reflection) said.push('morning-reflection:"' + m.reflection.slice(0, 220) + '"');
+      if (m.gratitude) said.push('gratitude:"' + m.gratitude.slice(0, 150) + '"');
+      if (m.showingUp || m.energy) nums.push("showing-up:" + (m.showingUp || m.energy) + "/5");
+      if (m.sleep) nums.push("sleep:" + m.sleep + "/5");
+      if (m.weight) nums.push("wt:" + m.weight);
     }
     if (l.evening) {
       var e = l.evening;
-      if (e.dayRating) parts.push("dayRating:" + e.dayRating + "/5");
-      if (e.win) parts.push('win:"' + e.win.slice(0, 60) + '"');
-      if (e.steps) parts.push("steps:" + e.steps);
-      if (e.glasses) parts.push("water:" + e.glasses + "/8");
-      if (e.reflection) parts.push('evReflection:"' + e.reflection.slice(0, 80) + '"');
-      if (e.dailyMemory) parts.push('memory:"' + e.dailyMemory.slice(0, 100) + '"');
+      if (e.win) said.push('win:"' + e.win.slice(0, 160) + '"');
+      if (e.reflection) said.push('evening-reflection:"' + e.reflection.slice(0, 220) + '"');
+      if (e.familyMoment) said.push('family-moment:"' + e.familyMoment.slice(0, 150) + '"');
+      if (e.dailyMemory) said.push('memory:"' + e.dailyMemory.slice(0, 200) + '"');
+      if (e.dayRating) nums.push("dayRating:" + e.dayRating + "/5");
+      if (e.steps) nums.push("steps:" + e.steps);
+      if (e.glasses) nums.push("water:" + e.glasses + "/8");
       var stepGoal = (settings && settings.stepGoal) || 10000;
       var workoutTypes = [e.cardio && "cardio", e.strength && "strength", e.steps >= stepGoal && "active-steps"].filter(Boolean);
-      if (workoutTypes.length) parts.push("workout:" + workoutTypes.join("+"));
-      if (e.familyMoment) parts.push('family:"' + e.familyMoment.slice(0, 60) + '"');
+      if (workoutTypes.length) nums.push("workout:" + workoutTypes.join("+"));
     }
-    if (parts.length > 1) lines.push(parts.join(" | "));
+    if (said.length || nums.length) {
+      var line = l.date;
+      if (said.length) line += "\n  WORDS: " + said.join(" · ");
+      if (nums.length) line += "\n  metrics: " + nums.join(", ");
+      lines.push(line);
+    }
   });
-  // Add training context — days-since-workout intentionally omitted to avoid workout-gap nudges
-  var trainDates = new Set((trainHistory || []).map(function(s) { return s.date; }));
-  // Add today's morning context for evening prompts
+  // Add today's morning context for evening prompts — lead with what they wrote
   if (type === "evening" && todayLog?.morning) {
     var tm = todayLog.morning;
-    var todayParts = ["TODAY morning:"];
-    if (tm.intention) todayParts.push('intention="' + tm.intention + '"');
-    if (tm.showingUp) todayParts.push("showing-up:" + tm.showingUp + "/5");
-    if (tm.sleep) todayParts.push("sleep:" + tm.sleep + "/5");
-    if (tm.reflection) todayParts.push('reflection="' + tm.reflection.slice(0, 100) + '"');
-    lines.push(todayParts.join(" | "));
+    var todayWords = [];
+    if (tm.intention) todayWords.push('intention="' + tm.intention + '"');
+    if (tm.reflection) todayWords.push('reflection="' + tm.reflection.slice(0, 220) + '"');
+    if (tm.gratitude) todayWords.push('gratitude="' + tm.gratitude.slice(0, 150) + '"');
+    var todayNums = [];
+    if (tm.showingUp) todayNums.push("showing-up:" + tm.showingUp + "/5");
+    if (tm.sleep) todayNums.push("sleep:" + tm.sleep + "/5");
+    var todayLine = "TODAY (this morning)";
+    if (todayWords.length) todayLine += "\n  WORDS: " + todayWords.join(" · ");
+    if (todayNums.length) todayLine += "\n  metrics: " + todayNums.join(", ");
+    lines.push(todayLine);
   }
   return lines.join("\n");
+}
+
+// Pulls the most recent weekly reviews so daily prompts can thread the week's themes
+// and challenge the user on the growth-gap they named on Sunday.
+async function buildWeekRecapSnapshot() {
+  try {
+    var allS = (await DB.get(KEYS.allSundays())) || [];
+    if (!Array.isArray(allS) || !allS.length) return null;
+    var latest = allS[0], prev = allS[1];
+    var parts = ["MOST RECENT WEEKLY REVIEW (week of " + latest.date + "):"];
+    // The full review carries the AI accountability brief
+    var review = null;
+    try { review = await DB.get(KEYS.weekReview(latest.date)); } catch (e) {}
+    if (review && review.aiBrief) parts.push('  accountability-brief: "' + String(review.aiBrief).replace(/\s*\n\s*/g, " / ") + '"');
+    if (latest.weekWin) parts.push('  week-win: "' + latest.weekWin + '"');
+    if (latest.weekNote) parts.push('  growth-gap: "' + latest.weekNote + '"');
+    if (latest.faithNote) parts.push('  faith-note: "' + latest.faithNote + '"');
+    var lm = [];
+    if (latest.avgMood) lm.push("avgMood:" + latest.avgMood + "/5");
+    if (latest.avgEnergy) lm.push("avgEnergy:" + latest.avgEnergy + "/5");
+    if (latest.cardio != null) lm.push("cardio:" + latest.cardio + "/7");
+    if (latest.strength != null) lm.push("strength:" + latest.strength + "/7");
+    if (lm.length) parts.push("  metrics: " + lm.join(", "));
+    if (prev && (prev.weekWin || prev.weekNote)) {
+      parts.push("PRIOR WEEK (week of " + prev.date + ", for trend):");
+      if (prev.weekWin) parts.push('  week-win: "' + prev.weekWin + '"');
+      if (prev.weekNote) parts.push('  growth-gap: "' + prev.weekNote + '"');
+    }
+    return parts.join("\n");
+  } catch (e) {
+    return null;
+  }
 }
 
 // Cache key for localStorage — one prompt per type per day
@@ -559,27 +600,31 @@ async function generateAIPrompt(type, allLogs, trainHistory, todayLog, settings,
 
   var snapshot = buildLogSnapshot(allLogs, trainHistory, todayLog, type, settings);
   if (!snapshot) return null;
+  var weekRecap = await buildWeekRecapSnapshot();
 
   var userName = settings?.name || "the user";
   var partnerName = window.__ml?.getPartnerName ? window.__ml.getPartnerName(settings || {}) : "their partner";
 
-  var systemPrompt = "You are a personal life coach embedded in a daily check-in app. " +
-    "The user's name is " + userName + " and their partner is " + partnerName + ". " +
-    "You will receive 7-14 days of their daily log data (sleep, energy, mood, wins, reflections, workouts, weight, etc). " +
-    "Your job is to generate ONE deeply personal " + type + " check-in question based on patterns you notice. " +
-    "Look for: streaks (good or bad), momentum shifts, recurring themes in reflections, workout consistency (celebrate it, don't shame gaps), " +
-    "weight trends, sleep patterns, missing data, emotional patterns, consistency wins. " +
-    "The question should feel like it comes from someone who's been watching their journey — specific, " +
-    "not generic. Reference actual data points when relevant (e.g. '3 good days in a row', 'your sleep dipped Tuesday'). " +
+  var systemPrompt = "You are a perceptive personal coach embedded in " + userName + "'s daily check-in app. Their partner is " + partnerName + ". " +
+    "You receive two things: (1) recent DAILY LOGS and (2) their most recent WEEKLY REVIEW. " +
+    "Each daily entry has a WORDS line — what " + userName + " actually wrote (intentions, reflections, wins, gratitude, family moments) — and a separate metrics line (sleep/energy/mood/step scores). " +
+    "CRITICAL: build the question primarily from the WORDS — the things they actually said. The metrics are background context only; never center a question on a sleep, energy, or readiness score. " +
+    "An intention they set, a reflection they wrote a few days ago, a win they named — that is the real material. Quote or paraphrase their own language back to them so it's clear you read it. " +
+    "Use the WEEKLY REVIEW as a throughline: take the growth-gap, the week-win, or a theme from the accountability brief and carry it into today's question — as a point of growth to push on, or a thread to reflect on. Challenge them mid-week on what they said on Sunday they'd work on. " +
+    "Your job: generate ONE deeply personal " + type + " check-in question. It must feel like it comes from someone who read every word they wrote this week — specific, never generic, and it should move them forward, not just observe. " +
     "Return JSON: {\"prompt\": \"the question\", \"id\": \"short_slug\", \"color\": \"one of: var(--color-primary), var(--color-accent-blue), var(--color-accent-purple), var(--color-accent-orange), var(--color-success), var(--color-accent-teal), var(--color-accent-pink), var(--color-danger)\"}. " +
-    "Keep the question under 120 characters. Be warm but direct. " +
-    (type === "morning" ? "This is a MORNING prompt — forward-looking, about intention and planning." : "This is an EVENING prompt — reflective, about what happened and what to learn.");
+    "Keep the question under 140 characters. Warm but direct. " +
+    (type === "morning" ? "This is a MORNING prompt — forward-looking: turn what they have been reflecting on, and the week's growth-gap, into intention and momentum for today." : "This is an EVENING prompt — reflective: connect what they wrote this morning and across the week to what actually happened today, and to the growth-gap they named.");
+
+  var userContent = "RECENT DAILY LOGS (newest first):\n\n" + snapshot;
+  if (weekRecap) userContent += "\n\n===\n\n" + weekRecap;
+  userContent += "\n\nGenerate one personalized " + type + " check-in question, built from what " + userName + " actually wrote.";
 
   try {
     var result = await callClaude(
-      [{ role: "user", content: "Here are the recent daily logs:\n\n" + snapshot + "\n\nGenerate one personalized " + type + " check-in question." }],
+      [{ role: "user", content: userContent }],
       systemPrompt,
-      200
+      220
     );
     if (result && result.prompt) {
       localStorage.setItem(cacheKey, JSON.stringify(result));
@@ -640,6 +685,9 @@ function Morning({
   settings,
   onMilestone,
   allLogs,
+  tasks,
+  reminders,
+  jointReminders,
   initialDate,
   onInitialDateConsumed
 }) {
@@ -738,6 +786,28 @@ function Morning({
     return parts.join("  \xB7  ");
   }, [allLogsArr.length, isHistory]);
 
+  // Overdue + next-day tasks/reminders to surface at the top of the morning
+  const dueItems = useMemo(() => {
+    if (isHistory) return [];
+    const today = getToday();
+    const items = [];
+    // Recurring household tasks (chores)
+    (tasks || []).forEach(function(t) {
+      if (!t.last || !t.freq) return;
+      const nextDue = addDays(t.last, t.freq + (t.extended || 0));
+      const daysUntil = daysBetween(today, nextDue);
+      if (daysUntil <= 1) items.push({ id: "task-" + (t.id || t.name), label: t.name || t.title, daysUntil: daysUntil, owner: t.owner });
+    });
+    // One-off reminders (personal + joint)
+    [].concat(reminders || [], jointReminders || []).forEach(function(r) {
+      if (r.done || !r.dueDate) return;
+      const daysUntil = daysBetween(today, r.dueDate);
+      if (daysUntil <= 1) items.push({ id: "rem-" + r.id, label: r.title, daysUntil: daysUntil, joint: r.type === "joint" });
+    });
+    items.sort(function(a, b) { return a.daysUntil - b.daysUntil; });
+    return items;
+  }, [tasks, reminders, jointReminders, isHistory]);
+
   return React.createElement("div", null,
     React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 } },
       React.createElement("div", null,
@@ -767,6 +837,25 @@ function Morning({
     insightBanner && view === "log" && React.createElement("div", { style: { padding: "10px 14px", background: "rgba(167,139,250,.06)", border: "1px solid rgba(167,139,250,.12)", borderRadius: 10, marginBottom: 14 } },
       React.createElement("p", { style: { color: "var(--color-accent-purple)", fontSize: 11, fontWeight: 700, margin: 0, letterSpacing: ".03em" } }, insightBanner)
     ),
+
+    view === "log" && dueItems.length > 0 && React.createElement(Card, {
+      s: { marginBottom: 14, borderColor: "rgba(96,165,250,.18)", background: "rgba(96,165,250,.04)" },
+      ch: React.createElement(React.Fragment, null,
+        React.createElement(Lbl, { c: "Tasks Due" }),
+        dueItems.map(function(item) {
+          var overdue = item.daysUntil < 0, dueToday = item.daysUntil === 0;
+          var pc = overdue ? "var(--color-danger)" : dueToday ? "var(--color-primary)" : "var(--color-accent-blue)";
+          var pbg = overdue ? "rgba(239,68,68,.12)" : dueToday ? "rgba(244,168,35,.12)" : "rgba(96,165,250,.12)";
+          var plabel = overdue ? Math.abs(item.daysUntil) + "d overdue" : dueToday ? "Due today" : "Tomorrow";
+          return React.createElement("div", { key: item.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,.05)" } },
+            React.createElement("span", { style: { flex: 1, fontSize: 13, color: "var(--text-secondary)" } }, item.label),
+            item.owner && item.owner !== "Both" && React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, item.owner),
+            item.joint && React.createElement("span", { style: { fontSize: 9, background: "rgba(96,165,250,.15)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 4, padding: "1px 5px", color: "var(--color-accent-blue)", fontWeight: 700 } }, "JOINT"),
+            React.createElement("span", { style: { fontSize: 10, fontWeight: 700, color: pc, background: pbg, borderRadius: 5, padding: "2px 7px", whiteSpace: "nowrap" } }, plabel)
+          );
+        })
+      )
+    }),
 
     (view === "log" || isHistory) && React.createElement(React.Fragment, null,
 

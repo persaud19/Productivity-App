@@ -3491,6 +3491,9 @@ function App() {
     settings: settings,
     onMilestone: handleMilestone,
     allLogs: allLogs,
+    tasks: tasks,
+    reminders: reminders,
+    jointReminders: jointReminders,
     initialDate: editLogDate?.section === "morning" ? editLogDate.date : null,
     onInitialDateConsumed: () => setEditLogDate(null)
   }), tab === "train" && /*#__PURE__*/React.createElement(window.TrainTab, {
