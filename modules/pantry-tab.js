@@ -279,7 +279,7 @@ function PantryEditModal({
     value: form.location,
     onChange: e => s("location", e.target.value),
     style: { ...inp, fontSize: 13, padding: "10px 8px" }
-  }, ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Bedroom", "Office", "Basement", "Car", "Other"].map(loc => /*#__PURE__*/React.createElement("option", { key: loc, value: loc }, loc || "\u2014 Select location \u2014"))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
+  }, ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Spice Drawer", "Bathroom", "Garage", "Laundry Room", "Bedroom", "Office", "Basement", "Car", "Other"].map(loc => /*#__PURE__*/React.createElement("option", { key: loc, value: loc }, loc || "\u2014 Select location \u2014"))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
     c: "Item Type"
   }), /*#__PURE__*/React.createElement("div", {
     style: { display: "flex", gap: 8, alignItems: "center" }
@@ -450,8 +450,8 @@ RULES:
 - unitSize is OPTIONAL — only include when the size per package is explicitly stated
 - sizeUnit must be one of: g, kg, ml, l, oz, lb, cup, tbsp, tsp
 - unit (package type) must be one of: g, kg, ml, l, oz, lb, cup, tbsp, tsp, piece, can, bag, box, bottle, bunch, loaf, dozen, unit, roll, jar, pack, tray, tube, sachet
-- location is OPTIONAL — valid values: Kitchen, Fridge, Freezer, Pantry Closet, Bathroom, Garage, Laundry Room, Bedroom, Office, Basement, Car, Other
-- LOCATION MAPPING: if user says "pantry", "in the pantry", "pantry shelf", or any pantry reference → use "Pantry Closet". "fridge" or "refrigerator" → "Fridge". "freezer" → "Freezer".
+- location is OPTIONAL — valid values: Kitchen, Fridge, Freezer, Pantry Closet, Spice Drawer, Bathroom, Garage, Laundry Room, Bedroom, Office, Basement, Car, Other
+- LOCATION MAPPING: if user says "pantry", "in the pantry", "pantry shelf", or any pantry reference → use "Pantry Closet". "spice drawer", "spice rack", "with the spices" → "Spice Drawer". "fridge" or "refrigerator" → "Fridge". "freezer" → "Freezer".
 - If the item name is unclear or matches multiple things, use action "clarify".
 - expiry: YYYY-MM format or empty string
 - reply: 1-2 sentences max. Be specific about what you're changing.
@@ -643,7 +643,7 @@ Return ONLY valid JSON. No markdown fences.`;
             /*#__PURE__*/React.createElement("select", {
               value: item.location || "", onChange: e => upd("location", e.target.value),
               style: { ...selStyle, flex: 1 }
-            }, ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Basement", "Other"].map(l => /*#__PURE__*/React.createElement("option", { key: l, value: l }, l || "Location\u2026"))),
+            }, ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Spice Drawer", "Bathroom", "Garage", "Laundry Room", "Basement", "Other"].map(l => /*#__PURE__*/React.createElement("option", { key: l, value: l }, l || "Location\u2026"))),
             /*#__PURE__*/React.createElement("select", {
               value: item.cat || "Other", onChange: e => upd("cat", e.target.value),
               style: { ...selStyle, flex: 1 }
@@ -795,8 +795,8 @@ function PantryBarcodeScanner({
               role: "user",
               content: `Parse this voice note for a pantry item's expiry date and storage location.
 Voice: "${transcript}"
-Valid locations: Kitchen, Fridge, Freezer, Pantry Closet, Bathroom, Garage, Laundry Room, Basement, Other
-Location mapping: "pantry", "in the pantry", "pantry closet", "pantry shelf" → "Pantry Closet". "fridge"/"refrigerator" → "Fridge". "freezer" → "Freezer".
+Valid locations: Kitchen, Fridge, Freezer, Pantry Closet, Spice Drawer, Bathroom, Garage, Laundry Room, Basement, Other
+Location mapping: "pantry", "in the pantry", "pantry closet", "pantry shelf" → "Pantry Closet". "spice drawer", "spice rack", "with the spices" → "Spice Drawer". "fridge"/"refrigerator" → "Fridge". "freezer" → "Freezer".
 Return ONLY JSON, no markdown: {"expiry":"YYYY-MM-DD or empty","location":"exact location name or empty"}
 If no expiry mentioned set expiry "". If no location mentioned set location "".`
             }]
@@ -1109,7 +1109,7 @@ If no expiry mentioned set expiry "". If no location mentioned set location "".`
     value: form.location,
     onChange: e => setForm(p => ({ ...p, location: e.target.value })),
     style: { ...inp, fontSize: 13, padding: "10px 8px" }
-  }, ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Basement", "Other"].map(loc => /*#__PURE__*/React.createElement("option", { key: loc, value: loc }, loc || "\u2014 Select location \u2014")))),
+  }, ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Spice Drawer", "Bathroom", "Garage", "Laundry Room", "Basement", "Other"].map(loc => /*#__PURE__*/React.createElement("option", { key: loc, value: loc }, loc || "\u2014 Select location \u2014")))),
 
   // ── Voice fill button ──
   React.createElement("button", {
@@ -1623,7 +1623,7 @@ function PantryShelfScanner({ pantryItems, onApplyAll, onClose }) {
   const [applying, setApplying] = useState(false);
   const fileRef = useRef(null);
 
-  const STORAGE_LOCATIONS = ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Bathroom", "Garage", "Laundry Room", "Bedroom", "Office", "Basement", "Car", "Other"];
+  const STORAGE_LOCATIONS = ["", "Kitchen", "Fridge", "Freezer", "Pantry Closet", "Spice Drawer", "Bathroom", "Garage", "Laundry Room", "Bedroom", "Office", "Basement", "Car", "Other"];
   const PACKAGING_TYPES = ["bottle", "jar", "bag", "box", "can", "tube", "sachet", "pack", "tray", "bunch", "loaf", "carton", "pouch", "container", "other"];
 
   const compressImage = (file) => new Promise(resolve => {
