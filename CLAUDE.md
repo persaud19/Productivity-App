@@ -17,10 +17,13 @@ GitHub: https://github.com/persaud19/Productivity-App (user: persaud19)
 
 ## File Structure
 ```
-index.html      ← Shell only (4KB). Loads CDNs, Firebase config, then app.js
-app.js          ← Entire compiled React app (~470KB). THIS IS THE ONLY FILE TO EDIT.
-pantry-seed.json ← NOT USED (seed is now embedded in app.js). Can delete.
+index.html      ← Shell: CDNs, Firebase config, theme CSS variables, script load order
+app.js          ← Core: DB/KEYS layer, AuthGate, App root, shared UI (Card, Dots, inp, Lbl…), Settings, SetupWizard
+modules/*.js    ← One file per tab (personal, sunday, home, train, history, finance, food, pantry, receipt-scanner)
+data/*.js       ← Static seed data (meals, exercises, chores, stores)
 ```
+Modules are IIFEs that pull shared helpers from `window.__ml`. Bump the `?v=` query
+string in index.html when editing a module, or the browser serves the cached copy.
 
 ## Critical Architecture Rules
 
@@ -88,6 +91,10 @@ Train             — Workout tracker (strength, cardio, outdoor walk with Leafl
 Goals             — Goal tracking with progress charts
 Sunday            — Weekly review with AI accountability brief
 FoodTab           — Week planner, meal library, grocery route planner
+FoodLogThread     — Health→Log: unified conversational day-thread (modules/food-log-thread.js).
+                    AI infers meal slot, logs render as gradient+emoji "studio" cards, swipe
+                    between days, ▦ opens 14-day magazine timeline. This is the DESIGN
+                    REFERENCE for future premium UI work (see design ethos in memory).
 PantryTab         — Pantry inventory (voice add, barcode scan, manual)
 PantryEditor      — List view with low stock banners, expiry alerts, quick adjust
 Home              — Chore tracker (34 household tasks, due dates, Ryan/Sabrina ownership)
@@ -301,8 +308,23 @@ Danger:         #ef4444
 Font headers:   'Syne' 700/800
 Font body:      'DM Sans' 300/400/500
 Border radius:  8-12px cards, 50% circles
-Card style:     background: rgba(255,255,255,.03), border: 1px solid rgba(255,255,255,.07)
+Card style:     background: var(--card-bg), border: 1px solid var(--card-border)
 ```
+
+### Theming rules (light + dark mode) — MANDATORY
+The app has a light theme (`[data-theme="light"]` on <html>). All surface/border/text
+colors MUST use the CSS variables defined in index.html — never hardcoded rgba values.
+
+- **NEVER write `rgba(255,255,255,.XX)`** for backgrounds or borders — invisible in light
+  mode. Use: `var(--card-bg)` (subtle), `var(--card-bg-2)`, `var(--card-bg-3)`,
+  `var(--card-bg-4)` (strongest) for fills; `var(--card-border)`, `var(--card-border-2)`,
+  `var(--border-strong)` for borders (weakest → strongest).
+- **Text on colored/accent fills** (buttons, filled circles, badges): use
+  `var(--ink-on-accent)`, NOT `var(--bg)` (near-white in light mode = unreadable on amber).
+- **Date/time inputs & selects**: `colorScheme: "var(--input-color-scheme)"`, never `"dark"`.
+- **Small round buttons**: set `minHeight` equal to `height` inline, or the global
+  `button{min-height:36px}` touch-target rule stretches circles into ovals.
+- Accent colors (`--color-primary` etc.) are theme-independent — fine to use anywhere.
 
 ## Deployment
 1. Edit app.js

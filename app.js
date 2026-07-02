@@ -137,7 +137,7 @@ function AuthGate({
   }, "Daily Life OS"), /*#__PURE__*/React.createElement("div", {
     style: {
       background: "var(--card-bg-3)",
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       borderRadius: 16,
       padding: "32px 24px"
     }
@@ -168,7 +168,7 @@ function AuthGate({
       width: "100%",
       padding: "14px 0",
       background: signingIn ? "var(--card-bg-2)" : "var(--card-border-2)",
-      border: "1px solid rgba(255,255,255,.15)",
+      border: "1px solid var(--border-strong)",
       borderRadius: 12,
       color: signingIn ? "var(--text-muted)" : "var(--text-primary)",
       fontSize: 14,
@@ -587,8 +587,8 @@ const CL = {
   S: "Snack"
 };
 const inp = {
-  background: "rgba(255,255,255,0.05)",
-  border: "1px solid rgba(255,255,255,0.09)",
+  background: "var(--card-bg-2)",
+  border: "1px solid var(--card-border-2)",
   borderRadius: 8,
   color: "var(--text-heading)",
   padding: "10px 13px",
@@ -615,8 +615,8 @@ const Card = ({
   s = {}
 }) => /*#__PURE__*/React.createElement("div", {
   style: {
-    background: "rgba(255,255,255,0.035)",
-    border: "1px solid rgba(255,255,255,0.07)",
+    background: "var(--card-bg)",
+    border: "1px solid var(--card-border)",
     borderRadius: 12,
     padding: "15px 17px",
     ...s
@@ -668,11 +668,12 @@ const Dots = ({
   style: {
     width: sz,
     height: sz,
+    minHeight: sz,
     borderRadius: "50%",
     padding: 0,
     cursor: "pointer",
-    background: i < val ? col : "rgba(255,255,255,0.06)",
-    border: `2px solid ${i < val ? col : "rgba(255,255,255,0.11)"}`,
+    background: i < val ? col : "var(--card-bg-2)",
+    border: `2px solid ${i < val ? col : "var(--border-strong)"}`,
     transform: i < val ? "scale(1.07)" : "scale(1)",
     transition: "all .12s"
   }
@@ -691,7 +692,7 @@ const YN = ({
     display: "flex",
     borderRadius: 8,
     overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.09)",
+    border: "1px solid var(--card-border-2)",
     width: 130
   }
 }, ["No", "Yes"].map((lbl, i) => {
@@ -847,8 +848,8 @@ function TodayStrip({
   const isExceptional = e.exceptionalDay;
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      background: "rgba(255,255,255,.025)",
-      borderBottom: "1px solid rgba(255,255,255,.06)",
+      background: "var(--card-bg)",
+      borderBottom: "1px solid var(--card-bg-2)",
       padding: "10px 20px",
       display: "flex",
       gap: 14,
@@ -1152,8 +1153,8 @@ function MobilityChecklist({
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
         swRunning
           ? /*#__PURE__*/React.createElement("button", { onClick: swPause, style: { padding: "9px 18px", background: "rgba(244,168,35,.18)", border: "1px solid rgba(244,168,35,.4)", borderRadius: 9, color: "var(--color-primary)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "\u23F8 Pause")
-          : /*#__PURE__*/React.createElement("button", { onClick: swStart, style: { padding: "9px 18px", background: "var(--color-primary)", border: "none", borderRadius: 9, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, swElapsed > 0 ? "\u25B6 Resume" : "\u25B6 Start"),
-        swElapsed > 0 && /*#__PURE__*/React.createElement("button", { onClick: swReset, style: { padding: "9px 14px", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 9, color: "var(--text-muted)", fontSize: 12, cursor: "pointer" } }, "\u21BA")
+          : /*#__PURE__*/React.createElement("button", { onClick: swStart, style: { padding: "9px 18px", background: "var(--color-primary)", border: "none", borderRadius: 9, color: "var(--ink-on-accent)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, swElapsed > 0 ? "\u25B6 Resume" : "\u25B6 Start"),
+        swElapsed > 0 && /*#__PURE__*/React.createElement("button", { onClick: swReset, style: { padding: "9px 14px", background: "transparent", border: "1px solid var(--card-border-2)", borderRadius: 9, color: "var(--text-muted)", fontSize: 12, cursor: "pointer" } }, "\u21BA")
       )
     ),
 
@@ -1179,7 +1180,7 @@ function MobilityChecklist({
     style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }
   },
     /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, "Weekly plan \xB7 No two days the same"),
-    onManagePool && /*#__PURE__*/React.createElement("button", { onClick: onManagePool, style: { background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 6, padding: "3px 9px", color: "var(--text-muted)", fontSize: 10, cursor: "pointer" } }, "\u2699\uFE0F Pool")
+    onManagePool && /*#__PURE__*/React.createElement("button", { onClick: onManagePool, style: { background: "transparent", border: "1px solid var(--card-border-2)", borderRadius: 6, padding: "3px 9px", color: "var(--text-muted)", fontSize: 10, cursor: "pointer" } }, "\u2699\uFE0F Pool")
   ), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
@@ -1194,7 +1195,7 @@ function MobilityChecklist({
       key: ex.id,
       style: {
         borderRadius: 8,
-        background: ck ? "rgba(74,222,128,.05)" : "rgba(255,255,255,.025)",
+        background: ck ? "rgba(74,222,128,.05)" : "var(--card-bg)",
         border: `1px solid ${ck ? "rgba(74,222,128,.15)" : "var(--card-bg-2)"}`
       }
     }, /*#__PURE__*/React.createElement("div", {
@@ -1213,7 +1214,7 @@ function MobilityChecklist({
         width: 21,
         height: 21,
         borderRadius: 5,
-        border: `2px solid ${ck ? "var(--color-success)" : "rgba(255,255,255,.18)"}`,
+        border: `2px solid ${ck ? "var(--color-success)" : "var(--border-strong)"}`,
         background: ck ? "var(--color-success)" : "transparent",
         cursor: "pointer",
         flexShrink: 0,
@@ -1221,7 +1222,7 @@ function MobilityChecklist({
         alignItems: "center",
         justifyContent: "center",
         padding: 0,
-        color: "var(--bg)",
+        color: "var(--ink-on-accent)",
         fontSize: 11,
         fontWeight: 800
       }
@@ -1624,9 +1625,9 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
     setTimeout(() => { setMsg(""); onClose(); }, 800);
   };
 
-  const card = { background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, padding: "16px 18px", marginBottom: 14 };
+  const card = { background: "var(--card-bg)", border: "1px solid var(--card-bg-4)", borderRadius: 10, padding: "16px 18px", marginBottom: 14 };
   const label = { color: "var(--text-secondary)", fontSize: 10, fontFamily: "'Syne',sans-serif", letterSpacing: ".07em", marginBottom: 6, display: "block" };
-  const inp = { width: "100%", background: "var(--card-bg-2)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, padding: "9px 12px", boxSizing: "border-box", outline: "none", fontFamily: "'DM Sans',sans-serif" };
+  const inp = { width: "100%", background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, padding: "9px 12px", boxSizing: "border-box", outline: "none", fontFamily: "'DM Sans',sans-serif" };
 
   return React.createElement("div", {
     style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" },
@@ -1708,7 +1709,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                   type: "date",
                   value: c.dob || "",
                   onChange: e => setChildren(prev => prev.map((x, xi) => xi === i ? { ...x, dob: e.target.value } : x)),
-                  style: { ...inp, width: 130, fontSize: 12, colorScheme: "dark" }
+                  style: { ...inp, width: 130, fontSize: 12, colorScheme: "var(--input-color-scheme)" }
                 }),
                 React.createElement("button", {
                   onClick: () => setChildren(prev => prev.filter((_, xi) => xi !== i)),
@@ -1726,7 +1727,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
               }),
               newChildName.trim() && React.createElement("button", {
                 onClick: () => { setChildren(prev => [...prev, { id: "child_" + Date.now(), name: newChildName.trim(), dob: "" }]); setNewChildName(""); },
-                style: { padding: "8px 12px", background: "var(--color-success)", border: "none", borderRadius: 8, color: "var(--bg)", fontWeight: 800, cursor: "pointer", fontSize: 13, flexShrink: 0 }
+                style: { padding: "8px 12px", background: "var(--color-success)", border: "none", borderRadius: 8, color: "var(--ink-on-accent)", fontWeight: 800, cursor: "pointer", fontSize: 13, flexShrink: 0 }
               }, "+")
             )
           )
@@ -1805,7 +1806,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
 
         // Existing cards
         myCards.length > 0 && React.createElement("div", { style: { marginBottom: 10 } },
-          myCards.map(c => React.createElement("div", { key: c.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 8, marginBottom: 6 } },
+          myCards.map(c => React.createElement("div", { key: c.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "var(--card-bg-3)", border: "1px solid var(--card-bg-4)", borderRadius: 8, marginBottom: 6 } },
             React.createElement("span", { style: { fontSize: 16 } }, "💳"),
             React.createElement("div", { style: { flex: 1 } },
               React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 600, margin: 0 } }, c.nickname),
@@ -1820,12 +1821,12 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
 
         // Add card form
         showSettingsCardForm
-          ? React.createElement("div", { style: { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "12px", marginBottom: 10 } },
+          ? React.createElement("div", { style: { background: "var(--card-bg)", border: "1px solid var(--card-border-2)", borderRadius: 10, padding: "12px", marginBottom: 10 } },
               React.createElement("p", { style: { ...label, marginBottom: 6 } }, "BANK / ISSUER"),
               React.createElement("select", {
                 value: settingsCardIssuer,
                 onChange: e => { setSettingsCardIssuer(e.target.value); setSettingsCardNick(e.target.value ? e.target.value + " Card" : ""); },
-                style: { ...inp, marginBottom: 8, colorScheme: "dark" }
+                style: { ...inp, marginBottom: 8, colorScheme: "var(--input-color-scheme)" }
               },
                 React.createElement("option", { value: "" }, "— Select issuer —"),
                 ["Amex","BMO","CIBC","Costco","Desjardins","Home Trust","National Bank","Neo Financial","PC Financial","RBC","Rogers / Fido","Scotiabank","Simplii Financial","Tangerine","TD"].map(i =>
@@ -1845,13 +1846,13 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                 }, "Add"),
                 React.createElement("button", {
                   onClick: () => { setShowSettingsCardForm(false); setSettingsCardIssuer(""); setSettingsCardNick(""); },
-                  style: { padding: "9px 14px", background: "transparent", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, color: "var(--text-muted)", fontSize: 13, cursor: "pointer" }
+                  style: { padding: "9px 14px", background: "transparent", border: "1px solid var(--card-border-2)", borderRadius: 8, color: "var(--text-muted)", fontSize: 13, cursor: "pointer" }
                 }, "Cancel")
               )
             )
           : React.createElement("button", {
               onClick: () => setShowSettingsCardForm(true),
-              style: { width: "100%", padding: "10px", background: "rgba(255,255,255,.03)", border: "1px dashed rgba(52,211,153,.3)", borderRadius: 8, color: "var(--color-accent-teal)", fontSize: 13, fontWeight: 600, cursor: "pointer" }
+              style: { width: "100%", padding: "10px", background: "var(--card-bg)", border: "1px dashed rgba(52,211,153,.3)", borderRadius: 8, color: "var(--color-accent-teal)", fontSize: 13, fontWeight: 600, cursor: "pointer" }
             }, "+ Add a card")
       ),
 
@@ -1875,7 +1876,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
               localMeta.members && React.createElement("div", { style: { marginBottom: 12 } },
                 React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "MEMBERS"),
                 Object.entries(localMeta.members).map(([memUid, m]) =>
-                  React.createElement("div", { key: memUid, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+                  React.createElement("div", { key: memUid, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--card-bg-3)" } },
                     React.createElement("div", null,
                       React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12 } }, m.name || "Member"),
                       m.email && React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10, marginLeft: 6 } }, m.email)
@@ -1904,12 +1905,12 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                     placeholder: "email@example.com",
                     value: inviteEmail,
                     onChange: e => { setInviteEmail(e.target.value); setInviteMsg(""); },
-                    style: { flex: 1, background: "var(--card-bg-2)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, color: "var(--text-primary)", fontSize: 12, padding: "8px 10px", outline: "none", fontFamily: "'DM Sans',sans-serif" }
+                    style: { flex: 1, background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", borderRadius: 8, color: "var(--text-primary)", fontSize: 12, padding: "8px 10px", outline: "none", fontFamily: "'DM Sans',sans-serif" }
                   }),
                   React.createElement("button", {
                     onClick: handleInviteByEmail,
                     disabled: inviting || !inviteEmail.trim(),
-                    style: { background: inviteEmail.trim() ? "var(--color-success)" : "rgba(74,222,128,.15)", border: "none", borderRadius: 8, color: inviteEmail.trim() ? "var(--bg)" : "var(--text-muted)", fontSize: 11, fontWeight: 800, padding: "8px 14px", cursor: inviteEmail.trim() ? "pointer" : "not-allowed", whiteSpace: "nowrap", fontFamily: "'Syne',sans-serif" }
+                    style: { background: inviteEmail.trim() ? "var(--color-success)" : "rgba(74,222,128,.15)", border: "none", borderRadius: 8, color: inviteEmail.trim() ? "var(--ink-on-accent)" : "var(--text-muted)", fontSize: 11, fontWeight: 800, padding: "8px 14px", cursor: inviteEmail.trim() ? "pointer" : "not-allowed", whiteSpace: "nowrap", fontFamily: "'Syne',sans-serif" }
                   }, inviting ? "..." : "PRE-LINK")
                 ),
                 inviteMsg && React.createElement("p", { style: { color: inviteMsg.startsWith("✓") ? "var(--color-success)" : "var(--color-danger)", fontSize: 11, margin: "0 0 10px" } }, inviteMsg),
@@ -1918,7 +1919,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                 localMeta.pendingInvites && Object.keys(localMeta.pendingInvites).length > 0 && React.createElement("div", null,
                   React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 6px" } }, "PENDING — AWAITING SIGN-IN"),
                   Object.entries(localMeta.pendingInvites).map(([encoded, inv]) =>
-                    React.createElement("div", { key: encoded, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+                    React.createElement("div", { key: encoded, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid var(--card-bg-3)" } },
                       React.createElement("span", { style: { color: "var(--color-primary)", fontSize: 11 } }, inv.email || decodeEmailKey(encoded)),
                       React.createElement("button", {
                         onClick: () => handleRevokeInvite(encoded),
@@ -1930,7 +1931,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
               ),
 
               // ── Finance sharing toggle (leader only) ──
-              isLeader && React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.05)", marginBottom: 4 } },
+              isLeader && React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid var(--card-bg-2)", marginBottom: 4 } },
                 React.createElement("div", null,
                   React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 12, fontWeight: 700, margin: "0 0 2px" } }, "Share Finance with household"),
                   React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, localMeta.shareFinance !== false ? "All members see shared Finance data" : "Finance is personal — members see their own only")
@@ -1939,7 +1940,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                   onClick: handleToggleFinanceShare,
                   style: {
                     width: 44, height: 24, borderRadius: 12, cursor: "pointer", position: "relative", flexShrink: 0,
-                    background: localMeta.shareFinance !== false ? "var(--color-accent-teal)" : "rgba(255,255,255,.12)",
+                    background: localMeta.shareFinance !== false ? "var(--color-accent-teal)" : "var(--card-border-2)",
                     transition: "background .2s"
                   }
                 },
@@ -1958,7 +1959,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                 React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: 0 } }, regenMsg || "Rotate invite code to invalidate old one"),
                 React.createElement("button", {
                   onClick: handleRegenCode,
-                  style: { background: "none", border: "1px solid rgba(255,255,255,.12)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 10, padding: "4px 10px", cursor: "pointer", whiteSpace: "nowrap" }
+                  style: { background: "none", border: "1px solid var(--card-border-2)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 10, padding: "4px 10px", cursor: "pointer", whiteSpace: "nowrap" }
                 }, "🔄 New Code")
               ),
 
@@ -1983,7 +1984,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       masterMode && React.createElement("div", { style: { ...card, border: "1px solid rgba(167,139,250,.3)", background: "rgba(167,139,250,.06)", marginBottom: 14 } },
         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
           React.createElement("p", { style: { ...label, color: "var(--color-accent-purple)", margin: 0 } }, "🔧 MASTER ADMIN"),
-          React.createElement("span", { style: { background: "var(--color-accent-purple)", color: "var(--bg)", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4, letterSpacing: ".05em" } }, "MASTER")
+          React.createElement("span", { style: { background: "var(--color-accent-purple)", color: "var(--ink-on-accent)", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 4, letterSpacing: ".05em" } }, "MASTER")
         ),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 } },
           "Read-only access to all households for troubleshooting. No data is modified."
@@ -2026,7 +2027,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                     React.createElement("div", { style: { background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "10px 12px", marginBottom: 8 } },
                       React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "0 0 6px", fontWeight: 700, letterSpacing: ".05em" } }, "MEMBERS (" + Object.keys(viewingHousehold.meta.members || {}).length + ")"),
                       Object.entries(viewingHousehold.meta.members || {}).map(([uid, m]) =>
-                        React.createElement("div", { key: uid, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+                        React.createElement("div", { key: uid, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid var(--card-bg-3)" } },
                           React.createElement("div", null,
                             React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 11 } }, m.name || "—"),
                             m.email && React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 10, marginLeft: 6 } }, m.email)
@@ -2075,7 +2076,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                           style: {
                             width: 44, height: 24, borderRadius: 12, cursor: libraryToggling ? "not-allowed" : "pointer",
                             position: "relative", flexShrink: 0, opacity: libraryToggling ? .5 : 1,
-                            background: (viewingHousehold.meta.unlockedLibraries && viewingHousehold.meta.unlockedLibraries[householdId]) ? "var(--color-primary)" : "rgba(255,255,255,.12)",
+                            background: (viewingHousehold.meta.unlockedLibraries && viewingHousehold.meta.unlockedLibraries[householdId]) ? "var(--color-primary)" : "var(--card-border-2)",
                             transition: "background .2s"
                           }
                         },
@@ -2097,7 +2098,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
                       React.createElement("div", {
                         key: hid,
                         onClick: () => handleImpersonateHousehold(hid, meta),
-                        style: { background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "10px 12px", marginBottom: 8, cursor: "pointer", border: "1px solid rgba(255,255,255,.04)" }
+                        style: { background: "rgba(0,0,0,.2)", borderRadius: 8, padding: "10px 12px", marginBottom: 8, cursor: "pointer", border: "1px solid var(--card-bg-3)" }
                       },
                         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
                           React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 700, margin: "0 0 2px", fontFamily: "'Syne',sans-serif" } }, meta.name || hid),
@@ -2121,7 +2122,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       React.createElement("button", {
         onClick: save,
         disabled: saving,
-        style: { width: "100%", background: "var(--color-primary)", border: "none", borderRadius: 10, color: "var(--bg)", fontSize: 13, fontWeight: 800, padding: "14px", cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
+        style: { width: "100%", background: "var(--color-primary)", border: "none", borderRadius: 10, color: "var(--ink-on-accent)", fontSize: 13, fontWeight: 800, padding: "14px", cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
       }, saving ? "SAVING..." : "SAVE SETTINGS"),
       msg && React.createElement("p", { style: { color: "var(--color-success)", textAlign: "center", fontSize: 12, margin: "10px 0 0" } }, msg)
     )
@@ -2140,7 +2141,7 @@ function HouseholdJoinPrompt({ onSetup }) {
     React.createElement("div", { style: { fontSize: 48, marginBottom: 16 } }, "\uD83C\uDFE0"),
     React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "var(--color-accent-blue)", margin: "0 0 8px" } }, "Join a Household"),
     React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px", lineHeight: 1.6 } }, "Tasks, pantry, and reminders are shared with your household. Set up or join one to get started."),
-    React.createElement("button", { onClick: onSetup, style: { padding: "14px 28px", background: "var(--color-accent-blue)", border: "none", borderRadius: 10, color: "var(--bg)", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Set Up Household \u2192")
+    React.createElement("button", { onClick: onSetup, style: { padding: "14px 28px", background: "var(--color-accent-blue)", border: "none", borderRadius: 10, color: "var(--ink-on-accent)", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Set Up Household \u2192")
   );
 }
 
@@ -2276,12 +2277,12 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
     error && React.createElement("p", { style: { color: "var(--color-danger)", fontSize: 12 } }, error)
   );
 
-  const cardStyle = { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: 20 };
+  const cardStyle = { background: "var(--card-bg)", border: "1px solid var(--card-bg-4)", borderRadius: 14, padding: 20 };
 
   // Shared input style — explicit hex values to prevent browser autofill colour overrides on mobile
-  const hhInp = { width: "100%", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 10, padding: "12px 14px", color: "var(--text-heading)", WebkitTextFillColor: "var(--text-heading)", fontSize: 15, outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans',sans-serif" };
+  const hhInp = { width: "100%", background: "var(--card-bg-4)", border: "1px solid var(--border-strong)", borderRadius: 10, padding: "12px 14px", color: "var(--text-heading)", WebkitTextFillColor: "var(--text-heading)", fontSize: 15, outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans',sans-serif" };
   const hhLabel = { fontSize: 11, color: "var(--text-muted)", fontWeight: 700, letterSpacing: ".07em", margin: "0 0 8px", display: "block", fontFamily: "'Syne',sans-serif" };
-  const hhCard = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 14, padding: "18px 20px", marginBottom: 16 };
+  const hhCard = { background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", borderRadius: 14, padding: "18px 20px", marginBottom: 16 };
 
   // ── Choose view ──
   if (view === "choose") return React.createElement("div", {
@@ -2334,7 +2335,7 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
       React.createElement("button", {
         onClick: createHousehold,
         disabled: !householdName.trim(),
-        style: { width: "100%", padding: "15px 0", background: householdName.trim() ? "var(--color-accent-blue)" : "rgba(96,165,250,.2)", border: "none", borderRadius: 10, color: householdName.trim() ? "var(--bg)" : "var(--text-muted)", fontSize: 14, fontWeight: 800, cursor: householdName.trim() ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+        style: { width: "100%", padding: "15px 0", background: householdName.trim() ? "var(--color-accent-blue)" : "rgba(96,165,250,.2)", border: "none", borderRadius: 10, color: householdName.trim() ? "var(--ink-on-accent)" : "var(--text-muted)", fontSize: 14, fontWeight: 800, cursor: householdName.trim() ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
       }, "CREATE & MIGRATE DATA \u2192")
     )
   );
@@ -2363,7 +2364,7 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
       React.createElement("button", {
         onClick: joinHousehold,
         disabled: inviteCode.trim().length !== 6,
-        style: { width: "100%", padding: "15px 0", background: inviteCode.trim().length === 6 ? "var(--color-success)" : "rgba(74,222,128,.2)", border: "none", borderRadius: 10, color: inviteCode.trim().length === 6 ? "var(--bg)" : "var(--text-muted)", fontSize: 14, fontWeight: 800, cursor: inviteCode.trim().length === 6 ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+        style: { width: "100%", padding: "15px 0", background: inviteCode.trim().length === 6 ? "var(--color-success)" : "rgba(74,222,128,.2)", border: "none", borderRadius: 10, color: inviteCode.trim().length === 6 ? "var(--ink-on-accent)" : "var(--text-muted)", fontSize: 14, fontWeight: 800, cursor: inviteCode.trim().length === 6 ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
       }, "JOIN HOUSEHOLD \u2192")
     )
   );
@@ -2502,8 +2503,8 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
   };
 
   const inp = {
-    width: "100%", padding: "12px 14px", background: "rgba(255,255,255,.06)",
-    border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, color: "var(--text-primary)",
+    width: "100%", padding: "12px 14px", background: "var(--card-bg-2)",
+    border: "1px solid var(--card-border-2)", borderRadius: 10, color: "var(--text-primary)",
     fontSize: 15, fontFamily: "'DM Sans',sans-serif", outline: "none", boxSizing: "border-box"
   };
   const btnPrimary = {
@@ -2513,7 +2514,7 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
   };
   const btnSkip = {
     width: "100%", padding: "14px", background: "transparent",
-    border: "1px solid rgba(255,255,255,.15)", borderRadius: 12, color: "var(--text-secondary)",
+    border: "1px solid var(--border-strong)", borderRadius: 12, color: "var(--text-secondary)",
     fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginTop: 10
   };
   const lbl = {
@@ -2523,24 +2524,24 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
 
   // Tap card — single-select row with icon, label, detail text, checkmark
   const selCard = (selected, onClick, icon, labelText, detail) =>
-    React.createElement("div", { onClick, style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: selected ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: selected ? "1px solid rgba(244,168,35,.4)" : "1px solid rgba(255,255,255,.08)", borderRadius: 10, cursor: "pointer", transition: "all .15s", marginBottom: 8 } },
+    React.createElement("div", { onClick, style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: selected ? "rgba(244,168,35,.1)" : "var(--card-bg)", border: selected ? "1px solid rgba(244,168,35,.4)" : "1px solid var(--card-bg-4)", borderRadius: 10, cursor: "pointer", transition: "all .15s", marginBottom: 8 } },
       React.createElement("span", { style: { fontSize: 20, flexShrink: 0, width: 28, textAlign: "center" } }, icon),
       React.createElement("div", { style: { flex: 1 } },
         React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 14, fontWeight: 600, margin: 0 } }, labelText),
         detail && React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "2px 0 0" } }, detail)
       ),
-      React.createElement("div", { style: { width: 18, height: 18, borderRadius: "50%", flexShrink: 0, background: selected ? "var(--color-primary)" : "transparent", border: selected ? "none" : "2px solid rgba(255,255,255,.2)", display: "flex", alignItems: "center", justifyContent: "center" } },
+      React.createElement("div", { style: { width: 18, height: 18, borderRadius: "50%", flexShrink: 0, background: selected ? "var(--color-primary)" : "transparent", border: selected ? "none" : "2px solid var(--border-strong)", display: "flex", alignItems: "center", justifyContent: "center" } },
         selected && React.createElement("span", { style: { color: "#000", fontSize: 10, fontWeight: 700 } }, "✓")
       )
     );
 
   // Chip — compact pill for multi-select
   const chip = (selected, onClick, labelText) =>
-    React.createElement("button", { onClick, style: { padding: "8px 14px", borderRadius: 20, border: selected ? "1px solid rgba(244,168,35,.5)" : "1px solid rgba(255,255,255,.1)", background: selected ? "rgba(244,168,35,.12)" : "rgba(255,255,255,.04)", color: selected ? "var(--color-primary)" : "var(--text-secondary)", fontSize: 13, fontWeight: selected ? 600 : 400, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all .15s" } }, labelText);
+    React.createElement("button", { onClick, style: { padding: "8px 14px", borderRadius: 20, border: selected ? "1px solid rgba(244,168,35,.5)" : "1px solid var(--card-border-2)", background: selected ? "rgba(244,168,35,.12)" : "var(--card-bg-3)", color: selected ? "var(--color-primary)" : "var(--text-secondary)", fontSize: 13, fontWeight: selected ? 600 : 400, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all .15s" } }, labelText);
 
   // Icon tile — square tap target (emoji + label), used for yes/no, own/rent, etc.
   const iconTile = (val, current, setter, icon, labelText) =>
-    React.createElement("div", { onClick: () => setter(val), style: { flex: 1, padding: "12px 6px", textAlign: "center", borderRadius: 10, cursor: "pointer", background: current === val ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: current === val ? "1px solid rgba(244,168,35,.4)" : "1px solid rgba(255,255,255,.08)", transition: "all .15s" } },
+    React.createElement("div", { onClick: () => setter(val), style: { flex: 1, padding: "12px 6px", textAlign: "center", borderRadius: 10, cursor: "pointer", background: current === val ? "rgba(244,168,35,.1)" : "var(--card-bg)", border: current === val ? "1px solid rgba(244,168,35,.4)" : "1px solid var(--card-bg-4)", transition: "all .15s" } },
       React.createElement("div", { style: { fontSize: 20 } }, icon),
       React.createElement("div", { style: { color: current === val ? "var(--color-primary)" : "var(--text-muted)", fontSize: 11, fontWeight: 600, marginTop: 4 } }, labelText)
     );
@@ -2548,7 +2549,7 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
   // Number row — horizontal tap buttons for small integer choices
   const numRow = (options, current, setter) =>
     React.createElement("div", { style: { display: "flex", gap: 8 } },
-      options.map(n => React.createElement("button", { key: n, onClick: () => setter(n), style: { flex: 1, padding: "12px 0", borderRadius: 10, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 600, background: current === n ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: current === n ? "1px solid rgba(244,168,35,.4)" : "1px solid rgba(255,255,255,.08)", color: current === n ? "var(--color-primary)" : "var(--text-secondary)", transition: "all .15s" } }, n))
+      options.map(n => React.createElement("button", { key: n, onClick: () => setter(n), style: { flex: 1, padding: "12px 0", borderRadius: 10, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 600, background: current === n ? "rgba(244,168,35,.1)" : "var(--card-bg)", border: current === n ? "1px solid rgba(244,168,35,.4)" : "1px solid var(--card-bg-4)", color: current === n ? "var(--color-primary)" : "var(--text-secondary)", transition: "all .15s" } }, n))
     );
 
   const pct = (step / STEPS) * 100;
@@ -2557,7 +2558,7 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
     React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
       React.createElement("p", { style: { color: "var(--color-primary)", fontFamily: "'Syne',sans-serif", fontSize: 24, fontWeight: 800, margin: "0 0 4px", letterSpacing: ".05em" } }, "COREVADO"),
       React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 20px", letterSpacing: ".08em", textTransform: "uppercase" } }, "Setup — " + step + " of " + STEPS),
-      React.createElement("div", { style: { height: 3, background: "rgba(255,255,255,.08)", borderRadius: 99, marginBottom: 28, overflow: "hidden" } },
+      React.createElement("div", { style: { height: 3, background: "var(--card-bg-4)", borderRadius: 99, marginBottom: 28, overflow: "hidden" } },
         React.createElement("div", { style: { height: "100%", width: pct + "%", background: "var(--color-primary)", borderRadius: 99, transition: "width .35s ease" } })
       ),
 
@@ -2578,7 +2579,7 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
           React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 12px" } }, "Choose your default — you can always switch it later."),
           React.createElement("div", { style: { display: "flex", gap: 10 } },
             [["dark", "🌙", "Dark", "The default — easy on the eyes at night."], ["light", "☀️", "Light", "Bright Pinterest-style. Great in daylight."]].map(([t, icon, label, desc]) =>
-              React.createElement("div", { key: t, onClick: () => { setWizTheme(t); applyTheme(t); }, style: { flex: 1, padding: "14px 10px", borderRadius: 12, cursor: "pointer", textAlign: "center", background: wizTheme === t ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: wizTheme === t ? "1px solid rgba(244,168,35,.5)" : "1px solid rgba(255,255,255,.08)", transition: "all .15s" } },
+              React.createElement("div", { key: t, onClick: () => { setWizTheme(t); applyTheme(t); }, style: { flex: 1, padding: "14px 10px", borderRadius: 12, cursor: "pointer", textAlign: "center", background: wizTheme === t ? "rgba(244,168,35,.1)" : "var(--card-bg)", border: wizTheme === t ? "1px solid rgba(244,168,35,.5)" : "1px solid var(--card-bg-4)", transition: "all .15s" } },
                 React.createElement("div", { style: { fontSize: 24, marginBottom: 6 } }, icon),
                 React.createElement("div", { style: { color: wizTheme === t ? "var(--color-primary)" : "var(--text-primary)", fontSize: 13, fontWeight: 700, marginBottom: 4 } }, label),
                 React.createElement("div", { style: { color: "var(--text-muted)", fontSize: 11, lineHeight: 1.4 } }, desc)
@@ -2701,7 +2702,7 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
         React.createElement("span", { style: lbl }, "What day starts your week?"),
         React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 24 } },
           [["mon","Monday"],["sun","Sunday"]].map(([val, labelText]) =>
-            React.createElement("div", { key: val, onClick: () => setWeekStart(val), style: { flex: 1, padding: "14px", textAlign: "center", borderRadius: 10, cursor: "pointer", background: weekStart === val ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: weekStart === val ? "1px solid rgba(244,168,35,.4)" : "1px solid rgba(255,255,255,.08)", color: weekStart === val ? "var(--color-primary)" : "var(--text-muted)", fontSize: 14, fontWeight: 600, transition: "all .15s" } }, labelText)
+            React.createElement("div", { key: val, onClick: () => setWeekStart(val), style: { flex: 1, padding: "14px", textAlign: "center", borderRadius: 10, cursor: "pointer", background: weekStart === val ? "rgba(244,168,35,.1)" : "var(--card-bg)", border: weekStart === val ? "1px solid rgba(244,168,35,.4)" : "1px solid var(--card-bg-4)", color: weekStart === val ? "var(--color-primary)" : "var(--text-muted)", fontSize: 14, fontWeight: 600, transition: "all .15s" } }, labelText)
           )
         ),
         React.createElement("span", { style: lbl }, "Top focus areas  (pick up to 3)"),
@@ -2740,7 +2741,7 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
 
         // Added cards list
         myCards.length > 0 && React.createElement("div", { style: { marginBottom: 16 } },
-          myCards.map(c => React.createElement("div", { key: c.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 10, marginBottom: 8 } },
+          myCards.map(c => React.createElement("div", { key: c.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--card-bg-3)", border: "1px solid var(--card-border-2)", borderRadius: 10, marginBottom: 8 } },
             React.createElement("span", { style: { fontSize: 18 } }, c.issuer === "Amex" ? "💳" : "💳"),
             React.createElement("div", { style: { flex: 1 } },
               React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 14, fontWeight: 600, margin: 0 } }, c.nickname),
@@ -2752,12 +2753,12 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
 
         // Add card form
         showCardForm
-          ? React.createElement("div", { style: { background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: "14px", marginBottom: 16 } },
+          ? React.createElement("div", { style: { background: "var(--card-bg-3)", border: "1px solid var(--card-border-2)", borderRadius: 12, padding: "14px", marginBottom: 16 } },
               React.createElement("span", { style: lbl }, "Bank / Issuer"),
               React.createElement("select", {
                 value: cardAddIssuer,
                 onChange: e => { setCardAddIssuer(e.target.value); setCardAddNick(e.target.value ? e.target.value + " Card" : ""); },
-                style: { ...inp, marginBottom: 12, colorScheme: "dark" }
+                style: { ...inp, marginBottom: 12, colorScheme: "var(--input-color-scheme)" }
               },
                 React.createElement("option", { value: "" }, "— Select issuer —"),
                 ["Amex","BMO","CIBC","Costco","Desjardins","Home Trust","National Bank","Neo Financial","PC Financial","RBC","Rogers / Fido","Scotiabank","Simplii Financial","Tangerine","TD"].map(i =>
@@ -2775,10 +2776,10 @@ function SetupWizard({ googleDisplayName, onComplete, existingSettings }) {
                   },
                   style: { flex: 1, padding: "11px", background: "var(--color-accent-teal)", border: "none", borderRadius: 10, color: "#000", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: (cardAddIssuer && cardAddNick.trim()) ? 1 : .4 }
                 }, "Add card"),
-                React.createElement("button", { onClick: () => { setShowCardForm(false); setCardAddIssuer(""); setCardAddNick(""); }, style: { padding: "11px 16px", background: "transparent", border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, color: "var(--text-muted)", fontSize: 14, cursor: "pointer" } }, "Cancel")
+                React.createElement("button", { onClick: () => { setShowCardForm(false); setCardAddIssuer(""); setCardAddNick(""); }, style: { padding: "11px 16px", background: "transparent", border: "1px solid var(--card-border-2)", borderRadius: 10, color: "var(--text-muted)", fontSize: 14, cursor: "pointer" } }, "Cancel")
               )
             )
-          : React.createElement("button", { onClick: () => setShowCardForm(true), style: { width: "100%", padding: "12px", background: "rgba(255,255,255,.04)", border: "1px dashed rgba(255,255,255,.15)", borderRadius: 10, color: "var(--color-accent-teal)", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 20 } }, "+ Add a card"),
+          : React.createElement("button", { onClick: () => setShowCardForm(true), style: { width: "100%", padding: "12px", background: "var(--card-bg-3)", border: "1px dashed var(--border-strong)", borderRadius: 10, color: "var(--color-accent-teal)", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 20 } }, "+ Add a card"),
 
         React.createElement("button", { style: { ...btnPrimary, marginTop: myCards.length === 0 && !showCardForm ? 8 : 0 }, onClick: () => setStep(9) }, myCards.length > 0 ? "Continue →" : "Continue →"),
         React.createElement("button", { style: btnSkip, onClick: () => setStep(9) }, "Skip for now")
@@ -3314,7 +3315,7 @@ function App() {
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "14px 20px 0",
-      borderBottom: "1px solid rgba(255,255,255,.06)",
+      borderBottom: "1px solid var(--card-bg-2)",
       position: "sticky",
       top: 0,
       background: "var(--bg)",
@@ -3388,7 +3389,7 @@ function App() {
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
-      borderBottom: "1px solid rgba(255,255,255,.06)",
+      borderBottom: "1px solid var(--card-bg-2)",
       marginTop: 6
     }
   }, NAV.map(section => {
@@ -3455,8 +3456,8 @@ function App() {
       display: "flex",
       overflowX: "auto",
       gap: 0,
-      background: "rgba(255,255,255,.02)",
-      borderBottom: "1px solid rgba(255,255,255,.04)"
+      background: "var(--card-bg)",
+      borderBottom: "1px solid var(--card-bg-3)"
     }
   }, activeSection.tabs.map(t => /*#__PURE__*/React.createElement("button", {
     key: t.id,

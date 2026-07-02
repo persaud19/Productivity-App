@@ -80,14 +80,14 @@ function HistoryStrip({
         width: 38,
         padding: "6px 2px",
         borderRadius: 8,
-        border: "1px solid " + (sel ? ac : hasData ? "rgba(74,222,128,.3)" : "rgba(255,255,255,.08)"),
-        background: sel ? ac : hasData ? "rgba(74,222,128,.08)" : "rgba(255,255,255,.02)",
+        border: "1px solid " + (sel ? ac : hasData ? "rgba(74,222,128,.3)" : "var(--card-bg-4)"),
+        background: sel ? ac : hasData ? "rgba(74,222,128,.08)" : "var(--card-bg)",
         cursor: "pointer",
         transition: "all .12s"
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: sel ? "var(--bg)" : isToday ? "var(--text-primary)" : "var(--text-secondary)",
+        color: sel ? "var(--ink-on-accent)" : isToday ? "var(--text-primary)" : "var(--text-secondary)",
         fontSize: 9,
         fontWeight: 700,
         margin: "0 0 2px",
@@ -95,7 +95,7 @@ function HistoryStrip({
       }
     }, isToday ? "NOW" : dow), /*#__PURE__*/React.createElement("p", {
       style: {
-        color: sel ? "var(--bg)" : hasData ? "var(--color-success)" : "var(--text-secondary)",
+        color: sel ? "var(--ink-on-accent)" : hasData ? "var(--color-success)" : "var(--text-secondary)",
         fontFamily: "'Syne',sans-serif",
         fontSize: 14,
         fontWeight: 800,
@@ -120,8 +120,8 @@ function MorningReadOnly({
     style: {
       padding: "24px 16px",
       textAlign: "center",
-      background: "rgba(255,255,255,.02)",
-      border: "1px solid rgba(255,255,255,.06)",
+      background: "var(--card-bg)",
+      border: "1px solid var(--card-bg-2)",
       borderRadius: 12
     }
   }, /*#__PURE__*/React.createElement("p", {
@@ -220,7 +220,7 @@ function MorningReadOnly({
       style: {
         padding: "8px 11px",
         background: "var(--card-bg-3)",
-        border: "1px solid rgba(255,255,255,.07)",
+        border: "1px solid var(--card-border)",
         borderRadius: 8,
         minWidth: 90
       }
@@ -283,8 +283,8 @@ function EveningReadOnly({
     style: {
       padding: "24px 16px",
       textAlign: "center",
-      background: "rgba(255,255,255,.02)",
-      border: "1px solid rgba(255,255,255,.06)",
+      background: "var(--card-bg)",
+      border: "1px solid var(--card-bg-2)",
       borderRadius: 12
     }
   }, /*#__PURE__*/React.createElement("p", {
@@ -375,7 +375,7 @@ function EveningReadOnly({
       style: {
         padding: "8px 11px",
         background: "var(--card-bg-3)",
-        border: "1px solid rgba(255,255,255,.07)",
+        border: "1px solid var(--card-border)",
         borderRadius: 8,
         minWidth: 90
       }
@@ -814,7 +814,7 @@ function Morning({
         React.createElement(SectionHead, { label: "Morning Check-in", color: "var(--color-primary)" }),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 0 13px" } }, fmtMid(getToday()))
       ),
-      React.createElement("div", { style: { display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,.09)" } },
+      React.createElement("div", { style: { display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid var(--card-border-2)" } },
         React.createElement("button", { onClick: () => setView("log"), style: { padding: "6px 12px", border: "none", background: view === "log" ? "rgba(244,168,35,.15)" : "transparent", color: view === "log" ? "var(--color-primary)" : "var(--text-secondary)", fontWeight: view === "log" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "TODAY"),
         React.createElement("button", { onClick: () => setView("history"), style: { padding: "6px 12px", border: "none", background: view === "history" ? "rgba(96,165,250,.15)" : "transparent", color: view === "history" ? "var(--color-accent-blue)" : "var(--text-secondary)", fontWeight: view === "history" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "HISTORY")
       )
@@ -847,7 +847,7 @@ function Morning({
           var pc = overdue ? "var(--color-danger)" : dueToday ? "var(--color-primary)" : "var(--color-accent-blue)";
           var pbg = overdue ? "rgba(239,68,68,.12)" : dueToday ? "rgba(244,168,35,.12)" : "rgba(96,165,250,.12)";
           var plabel = overdue ? Math.abs(item.daysUntil) + "d overdue" : dueToday ? "Due today" : "Tomorrow";
-          return React.createElement("div", { key: item.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,.05)" } },
+          return React.createElement("div", { key: item.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid var(--card-bg-2)" } },
             React.createElement("span", { style: { flex: 1, fontSize: 13, color: "var(--text-secondary)" } }, item.label),
             item.owner && item.owner !== "Both" && React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, item.owner),
             item.joint && React.createElement("span", { style: { fontSize: 9, background: "rgba(96,165,250,.15)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 4, padding: "1px 5px", color: "var(--color-accent-blue)", fontWeight: 700 } }, "JOINT"),
@@ -864,7 +864,7 @@ function Morning({
           React.createElement("p", { style: { color: "var(--color-accent-purple)", fontSize: 11, fontWeight: 700, margin: 0 } }, "Did you miss yesterday?"),
           React.createElement("button", { onClick: function() { setBackfill(!backfill); }, style: { padding: "4px 10px", background: backfill ? "rgba(167,139,250,.2)" : "transparent", border: "1px solid rgba(167,139,250,.3)", color: "var(--color-accent-purple)", borderRadius: 6, fontSize: 10, cursor: "pointer", fontWeight: 700 } }, backfill ? "Cancel" : "Log Yesterday")
         ),
-        backfill && React.createElement("input", { type: "date", value: backfillDate, onChange: function(e) { setBackfillDate(e.target.value); }, style: { ...inp, marginTop: 8, fontSize: 13, colorScheme: "dark" } })
+        backfill && React.createElement("input", { type: "date", value: backfillDate, onChange: function(e) { setBackfillDate(e.target.value); }, style: { ...inp, marginTop: 8, fontSize: 13, colorScheme: "var(--input-color-scheme)" } })
       ),
 
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 13 } },
@@ -885,7 +885,7 @@ function Morning({
         React.createElement(Card, { ch: React.createElement(React.Fragment, null,
           React.createElement(Lbl, { c: "Wake-up Time" }),
           React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14 } },
-            React.createElement("input", { type: "time", value: wake, onChange: function(e) { setWake(e.target.value); }, style: { ...inp, width: 130, colorScheme: "dark" } }),
+            React.createElement("input", { type: "time", value: wake, onChange: function(e) { setWake(e.target.value); }, style: { ...inp, width: 130, colorScheme: "var(--input-color-scheme)" } }),
             sleepDuration && React.createElement("div", { style: { padding: "6px 12px", background: "rgba(167,139,250,.1)", borderRadius: 8 } },
               React.createElement("p", { style: { color: "var(--color-accent-purple)", fontSize: 13, fontWeight: 700, margin: 0 } }, sleepDuration),
               React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, "slept")
@@ -926,12 +926,12 @@ function Morning({
 
         // Exceptional day — collapsed toggle
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 0" } },
-          React.createElement("button", { onClick: function() { setIsExceptional(!isExceptional); }, style: { background: isExceptional ? "rgba(167,139,250,.15)" : "transparent", border: "1px solid " + (isExceptional ? "rgba(167,139,250,.3)" : "rgba(255,255,255,.1)"), borderRadius: 8, padding: "6px 12px", color: isExceptional ? "var(--color-accent-purple)" : "var(--text-muted)", fontSize: 11, cursor: "pointer", fontWeight: isExceptional ? 700 : 400 } }, isExceptional ? "⚡ Exceptional day" : "Flag as exceptional day"),
+          React.createElement("button", { onClick: function() { setIsExceptional(!isExceptional); }, style: { background: isExceptional ? "rgba(167,139,250,.15)" : "transparent", border: "1px solid " + (isExceptional ? "rgba(167,139,250,.3)" : "var(--card-border-2)"), borderRadius: 8, padding: "6px 12px", color: isExceptional ? "var(--color-accent-purple)" : "var(--text-muted)", fontSize: 11, cursor: "pointer", fontWeight: isExceptional ? 700 : 400 } }, isExceptional ? "⚡ Exceptional day" : "Flag as exceptional day"),
           isExceptional && React.createElement("input", { type: "text", value: exceptionalReason, onChange: function(e) { setExceptionalReason(e.target.value); }, placeholder: "Reason...", style: { ...inp, flex: 1, fontSize: 12 } })
         ),
 
         // Submit
-        React.createElement("button", { onClick: go, disabled: busy, style: { background: busy ? "rgba(244,168,35,.45)" : "var(--color-primary)", color: "var(--bg)", border: "none", borderRadius: 10, padding: "14px 0", fontSize: 15, fontWeight: 800, cursor: busy ? "wait" : "pointer", width: "100%", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" } }, busy ? "SAVING..." : isHistory ? "SAVE CHANGES →" : "LOG MORNING →")
+        React.createElement("button", { onClick: go, disabled: busy, style: { background: busy ? "rgba(244,168,35,.45)" : "var(--color-primary)", color: "var(--ink-on-accent)", border: "none", borderRadius: 10, padding: "14px 0", fontSize: 15, fontWeight: 800, cursor: busy ? "wait" : "pointer", width: "100%", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" } }, busy ? "SAVING..." : isHistory ? "SAVE CHANGES →" : "LOG MORNING →")
       )
     )
   );
@@ -982,7 +982,7 @@ function HealthScorecard({ todayLog, todayMealLog, macroTargets }) {
       /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: barColor, letterSpacing: ".07em", margin: 0 } }, "TODAY'S CALORIE BALANCE"),
       /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, fontWeight: 800, color: barColor, margin: 0 } }, (isDeficit ? "" : "+") + net.toFixed(0) + " kcal")
     ),
-    /*#__PURE__*/React.createElement("div", { style: { height: 7, background: "rgba(255,255,255,.07)", borderRadius: 4, overflow: "hidden", marginBottom: 8 } },
+    /*#__PURE__*/React.createElement("div", { style: { height: 7, background: "var(--card-border)", borderRadius: 4, overflow: "hidden", marginBottom: 8 } },
       /*#__PURE__*/React.createElement("div", { style: { width: pct + "%", height: "100%", background: barColor, borderRadius: 4, transition: "width .3s" } })
     ),
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between" } },
@@ -1084,29 +1084,29 @@ function MobilityTab({ todayLog, onSave }) {
     showPoolManager && /*#__PURE__*/React.createElement(React.Fragment, null,
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 300 }, onClick: () => setShowPoolManager(false) }),
       /*#__PURE__*/React.createElement("div", { style: { position: "fixed", inset: 0, background: "var(--bg)", zIndex: 301, display: "flex", flexDirection: "column" } },
-        /*#__PURE__*/React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 } },
+        /*#__PURE__*/React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "1px solid var(--card-bg-4)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 } },
           /*#__PURE__*/React.createElement("div", null,
             /*#__PURE__*/React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "var(--color-accent-purple)", margin: 0 } }, "MOBILITY POOL"),
             /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0" } }, mobilityPool.length + " exercises \xB7 " + Math.ceil(mobilityPool.length / 7) + "x coverage/week")
           ),
           /*#__PURE__*/React.createElement("button", { onClick: () => setShowPoolManager(false), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 22, cursor: "pointer", lineHeight: 1 } }, "\xD7")
         ),
-        /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", background: "rgba(167,139,250,.04)", flexShrink: 0 } },
+        /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--card-bg-2)", background: "rgba(167,139,250,.04)", flexShrink: 0 } },
           /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--color-accent-purple)", fontWeight: 700, letterSpacing: ".05em", margin: "0 0 8px" } }, "ADD EXERCISE"),
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
-            /*#__PURE__*/React.createElement("input", { placeholder: "Exercise name *", value: poolForm.name, onChange: e => setPoolForm(f => ({ ...f, name: e.target.value })), onKeyDown: e => e.key === "Enter" && handleAddPoolExercise(), style: { flex: "2 1 140px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
-            /*#__PURE__*/React.createElement("select", { value: poolForm.zone, onChange: e => setPoolForm(f => ({ ...f, zone: e.target.value })), style: { flex: "1 1 90px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 6px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
+            /*#__PURE__*/React.createElement("input", { placeholder: "Exercise name *", value: poolForm.name, onChange: e => setPoolForm(f => ({ ...f, name: e.target.value })), onKeyDown: e => e.key === "Enter" && handleAddPoolExercise(), style: { flex: "2 1 140px", background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+            /*#__PURE__*/React.createElement("select", { value: poolForm.zone, onChange: e => setPoolForm(f => ({ ...f, zone: e.target.value })), style: { flex: "1 1 90px", background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", borderRadius: 7, padding: "7px 6px", color: "var(--text-primary)", fontSize: 12, outline: "none" } },
               Object.keys(ZONE_COLORS).map(z => /*#__PURE__*/React.createElement("option", { key: z, value: z }, z.charAt(0).toUpperCase() + z.slice(1)))
             ),
-            /*#__PURE__*/React.createElement("input", { placeholder: "Reps/time", value: poolForm.reps, onChange: e => setPoolForm(f => ({ ...f, reps: e.target.value })), style: { flex: "1 1 110px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
-            /*#__PURE__*/React.createElement("input", { placeholder: "Tip (optional)", value: poolForm.tip, onChange: e => setPoolForm(f => ({ ...f, tip: e.target.value })), style: { flex: "2 1 140px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
-            /*#__PURE__*/React.createElement("button", { onClick: handleAddPoolExercise, style: { padding: "7px 16px", background: "var(--color-accent-purple)", border: "none", borderRadius: 7, color: "var(--bg)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
+            /*#__PURE__*/React.createElement("input", { placeholder: "Reps/time", value: poolForm.reps, onChange: e => setPoolForm(f => ({ ...f, reps: e.target.value })), style: { flex: "1 1 110px", background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+            /*#__PURE__*/React.createElement("input", { placeholder: "Tip (optional)", value: poolForm.tip, onChange: e => setPoolForm(f => ({ ...f, tip: e.target.value })), style: { flex: "2 1 140px", background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", borderRadius: 7, padding: "7px 10px", color: "var(--text-primary)", fontSize: 12, outline: "none" } }),
+            /*#__PURE__*/React.createElement("button", { onClick: handleAddPoolExercise, style: { padding: "7px 16px", background: "var(--color-accent-purple)", border: "none", borderRadius: 7, color: "var(--ink-on-accent)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ ADD")
           )
         ),
         /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "0 0 60px" } },
           mobilityPool.map(ex => {
             const zc = ZONE_COLORS[ex.zone] || "#555";
-            return /*#__PURE__*/React.createElement("div", { key: ex.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,.04)" } },
+            return /*#__PURE__*/React.createElement("div", { key: ex.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid var(--card-bg-3)" } },
               /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                 /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 7 } },
                   /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: 0, fontWeight: 500 } }, ex.name),
@@ -1118,7 +1118,7 @@ function MobilityTab({ todayLog, onSave }) {
             );
           })
         ),
-        /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderTop: "1px solid rgba(255,255,255,.06)", flexShrink: 0 } },
+        /*#__PURE__*/React.createElement("div", { style: { padding: "12px 16px", borderTop: "1px solid var(--card-bg-2)", flexShrink: 0 } },
           /*#__PURE__*/React.createElement("button", { onClick: () => { if (window.confirm("Reset to 50 default exercises?")) handleResetPool(); }, style: { background: "transparent", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "8px 16px", color: "var(--color-danger)", fontSize: 11, cursor: "pointer" } }, "Reset to defaults (50 exercises)")
         )
       )
@@ -1260,7 +1260,7 @@ function Evening({
         React.createElement(SectionHead, { label: "Evening Check-in", color: "var(--color-accent-blue)" }),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 0 13px" } }, fmtMid(getToday()))
       ),
-      React.createElement("div", { style: { display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,.09)" } },
+      React.createElement("div", { style: { display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid var(--card-border-2)" } },
         React.createElement("button", { onClick: function() { setView("log"); }, style: { padding: "6px 12px", border: "none", background: view === "log" ? "rgba(96,165,250,.15)" : "transparent", color: view === "log" ? "var(--color-accent-blue)" : "var(--text-secondary)", fontWeight: view === "log" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "TODAY"),
         React.createElement("button", { onClick: function() { setView("history"); }, style: { padding: "6px 12px", border: "none", background: view === "history" ? "rgba(96,165,250,.15)" : "transparent", color: view === "history" ? "var(--color-accent-blue)" : "var(--text-secondary)", fontWeight: view === "history" ? 700 : 400, fontSize: 11, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "HISTORY")
       )
@@ -1307,7 +1307,7 @@ function Evening({
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8 } },
           React.createElement("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" } },
             [0, 1, 2, 3, 4, 5, 6, 7, 8].map(function(n) {
-              return React.createElement("button", { key: n, onClick: function() { setGlasses(n); }, style: { width: 30, height: 30, borderRadius: 7, border: "2px solid " + (glasses >= n && n > 0 ? "var(--color-accent-blue)" : "rgba(255,255,255,.12)"), background: glasses >= n && n > 0 ? "rgba(96,165,250,.18)" : "transparent", cursor: "pointer", color: glasses >= n && n > 0 ? "var(--color-accent-blue)" : "var(--text-muted)", fontSize: 12, fontWeight: 700, padding: 0 } }, n === 0 ? "0" : n);
+              return React.createElement("button", { key: n, onClick: function() { setGlasses(n); }, style: { width: 30, height: 30, borderRadius: 7, border: "2px solid " + (glasses >= n && n > 0 ? "var(--color-accent-blue)" : "var(--card-border-2)"), background: glasses >= n && n > 0 ? "rgba(96,165,250,.18)" : "transparent", cursor: "pointer", color: glasses >= n && n > 0 ? "var(--color-accent-blue)" : "var(--text-muted)", fontSize: 12, fontWeight: 700, padding: 0 } }, n === 0 ? "0" : n);
             })
           ),
           React.createElement("p", { style: { color: glasses >= 8 ? "var(--color-success)" : glasses >= 5 ? "var(--color-accent-blue)" : "var(--text-secondary)", fontSize: 11, margin: 0, fontWeight: 700 } }, glasses + "/8 glasses " + (glasses >= 8 ? "✓" : ""))
@@ -1333,7 +1333,7 @@ function Evening({
           React.createElement(Lbl, { c: "Day Rating" }),
           React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
             [1,2,3,4,5].map(function(n) {
-              return React.createElement("div", { key: n, onClick: function() { setDr(n); }, style: { width: 28, height: 28, borderRadius: "50%", background: n <= dr ? "var(--color-primary)" : "rgba(255,255,255,.07)", border: "2px solid " + (n <= dr ? "var(--color-primary)" : "rgba(255,255,255,.1)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: n <= dr ? "var(--bg)" : "var(--text-muted)", cursor: "pointer" } }, n);
+              return React.createElement("div", { key: n, onClick: function() { setDr(n); }, style: { width: 28, height: 28, borderRadius: "50%", background: n <= dr ? "var(--color-primary)" : "var(--card-bg-2)", border: "2px solid " + (n <= dr ? "var(--color-primary)" : "var(--border-strong)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: n <= dr ? "var(--ink-on-accent)" : "var(--text-muted)", cursor: "pointer" } }, n);
             }),
             ratingLabel && React.createElement("span", { style: { fontSize: 12, color: "var(--color-primary)", fontWeight: 700 } }, ratingLabel)
           ),
@@ -1376,7 +1376,7 @@ function Evening({
         return React.createElement(Card, { ch: React.createElement(React.Fragment, null,
           React.createElement(Lbl, { c: "Reminders Completed Today" }),
           doneToday.map(function(r) {
-            return React.createElement("div", { key: r.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.05)", fontSize: 13, color: "var(--text-secondary)" } },
+            return React.createElement("div", { key: r.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--card-bg-2)", fontSize: 13, color: "var(--text-secondary)" } },
               React.createElement("span", { style: { color: "var(--color-success)", fontSize: 12 } }, "✓"),
               React.createElement("span", { style: { flex: 1 } }, r.title),
               r.type === "joint" && React.createElement("span", { style: { fontSize: 10, background: "rgba(96,165,250,.15)", border: "1px solid rgba(96,165,250,.25)", borderRadius: 4, padding: "1px 6px", color: "var(--color-accent-blue)", fontWeight: 700 } }, "JOINT")
@@ -1393,7 +1393,7 @@ function Evening({
         return React.createElement(Card, { ch: React.createElement(React.Fragment, null,
           React.createElement(Lbl, { c: "Tasks Completed Today" }),
           tasksDoneToday.map(function(t) {
-            return React.createElement("div", { key: t.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.05)", fontSize: 13, color: "var(--text-secondary)" } },
+            return React.createElement("div", { key: t.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--card-bg-2)", fontSize: 13, color: "var(--text-secondary)" } },
               React.createElement("span", { style: { color: "var(--color-success)", fontSize: 12 } }, "✓"),
               React.createElement("span", { style: { flex: 1 } }, t.name || t.title),
               t.completedBy && React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, t.completedBy)
@@ -1405,18 +1405,18 @@ function Evening({
       // 6. Bedtime
       React.createElement(Card, { ch: React.createElement(React.Fragment, null,
         React.createElement(Lbl, { c: "Bedtime Tonight" }),
-        React.createElement("input", { type: "time", value: bedtime, onChange: function(e) { setBedtime(e.target.value); }, style: { ...inp, width: 130, colorScheme: "dark" } }),
+        React.createElement("input", { type: "time", value: bedtime, onChange: function(e) { setBedtime(e.target.value); }, style: { ...inp, width: 130, colorScheme: "var(--input-color-scheme)" } }),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "6px 0 0" } }, "Tomorrow's morning will calculate how long you slept")
       ) }),
 
       // Exceptional day — collapsed toggle
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 0" } },
-        React.createElement("button", { onClick: function() { setExceptional(!exceptional); }, style: { background: exceptional ? "rgba(167,139,250,.15)" : "transparent", border: "1px solid " + (exceptional ? "rgba(167,139,250,.3)" : "rgba(255,255,255,.1)"), borderRadius: 8, padding: "6px 12px", color: exceptional ? "var(--color-accent-purple)" : "var(--text-muted)", fontSize: 11, cursor: "pointer", fontWeight: exceptional ? 700 : 400 } }, exceptional ? "⚡ Exceptional day" : "Flag as exceptional day"),
+        React.createElement("button", { onClick: function() { setExceptional(!exceptional); }, style: { background: exceptional ? "rgba(167,139,250,.15)" : "transparent", border: "1px solid " + (exceptional ? "rgba(167,139,250,.3)" : "var(--card-border-2)"), borderRadius: 8, padding: "6px 12px", color: exceptional ? "var(--color-accent-purple)" : "var(--text-muted)", fontSize: 11, cursor: "pointer", fontWeight: exceptional ? 700 : 400 } }, exceptional ? "⚡ Exceptional day" : "Flag as exceptional day"),
         exceptional && React.createElement("input", { type: "text", value: exceptReason, onChange: function(e) { setExceptReason(e.target.value); }, placeholder: "Reason...", style: { ...inp, flex: 1, fontSize: 12 } })
       ),
 
       // Submit
-      React.createElement("button", { onClick: go, disabled: busy, style: { background: busy ? "rgba(96,165,250,.45)" : "var(--color-accent-blue)", color: "var(--bg)", border: "none", borderRadius: 10, padding: "14px 0", fontSize: 15, fontWeight: 800, cursor: busy ? "wait" : "pointer", width: "100%", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" } }, busy ? "SAVING..." : isHistory ? "SAVE CHANGES →" : "CLOSE THE DAY →")
+      React.createElement("button", { onClick: go, disabled: busy, style: { background: busy ? "rgba(96,165,250,.45)" : "var(--color-accent-blue)", color: "var(--ink-on-accent)", border: "none", borderRadius: 10, padding: "14px 0", fontSize: 15, fontWeight: 800, cursor: busy ? "wait" : "pointer", width: "100%", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" } }, busy ? "SAVING..." : isHistory ? "SAVE CHANGES →" : "CLOSE THE DAY →")
     )
   );
 }
@@ -1502,7 +1502,7 @@ function GoalWizard({ onSave, onClose }) {
   return React.createElement(React.Fragment, null,
     React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.75)", zIndex: 200 }, onClick: onClose }),
     React.createElement("div", {
-      style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 420, background: "var(--bg-modal)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 16, padding: "20px", zIndex: 201, maxHeight: "85vh", overflowY: "auto" }
+      style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 32px)", maxWidth: 420, background: "var(--bg-modal)", border: "1px solid var(--card-border-2)", borderRadius: 16, padding: "20px", zIndex: 201, maxHeight: "85vh", overflowY: "auto" }
     },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 } },
         React.createElement("p", { style: { color: col, fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, margin: 0 } },
@@ -1517,7 +1517,7 @@ function GoalWizard({ onSave, onClose }) {
       step === 1 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } },
         ...Object.entries(GOAL_CATEGORY_META).map(([id, meta]) =>
           React.createElement("button", { key: id, onClick: () => { setCat(id); setStep(2); },
-            style: { padding: "14px 12px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, cursor: "pointer", textAlign: "left" } },
+            style: { padding: "14px 12px", background: "var(--card-bg)", border: "1px solid var(--card-bg-4)", borderRadius: 10, cursor: "pointer", textAlign: "left" } },
             React.createElement("p", { style: { color: meta.color, fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 11, margin: "0 0 4px", letterSpacing: ".06em" } }, meta.label.toUpperCase()),
             React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: 0 } }, meta.desc)
           )
@@ -1527,7 +1527,7 @@ function GoalWizard({ onSave, onClose }) {
       step === 2 && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...(GOAL_TEMPLATES[cat] || []).map(tpl =>
           React.createElement("button", { key: tpl.id, onClick: () => selectTemplate(tpl),
-            style: { padding: "13px 14px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, cursor: "pointer", textAlign: "left", color: "var(--text-primary)", fontSize: 13, fontWeight: 500 } },
+            style: { padding: "13px 14px", background: "var(--card-bg)", border: "1px solid var(--card-bg-4)", borderRadius: 10, cursor: "pointer", textAlign: "left", color: "var(--text-primary)", fontSize: 13, fontWeight: 500 } },
             tpl.label, " \u2192")
         )
       ),
@@ -1543,7 +1543,7 @@ function GoalWizard({ onSave, onClose }) {
           React.createElement("div", null, React.createElement(Lbl, { c: "Target weight (lbs)" }),
             React.createElement("input", { type: "number", value: form.targetWeight || "", placeholder: "e.g. 185", onChange: e => sf("targetWeight", parseFloat(e.target.value)), style: { ...inp, fontSize: 13 } })),
           React.createElement("div", null, React.createElement(Lbl, { c: "Deadline" }),
-            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "dark" } }))
+            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "var(--input-color-scheme)" } }))
         ),
         cat === "fitness_streak" && React.createElement("div", null,
           React.createElement(Lbl, { c: "Streak target (days)" }),
@@ -1559,14 +1559,14 @@ function GoalWizard({ onSave, onClose }) {
           React.createElement("div", null, React.createElement(Lbl, { c: "Savings target ($)" }),
             React.createElement("input", { type: "number", value: form.targetAmount || "", placeholder: "e.g. 10000", onChange: e => sf("targetAmount", parseFloat(e.target.value)), style: { ...inp, fontSize: 13 } })),
           React.createElement("div", null, React.createElement(Lbl, { c: "Target date (optional)" }),
-            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "dark" } })),
+            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "var(--input-color-scheme)" } })),
           React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "2px 0 0" } }, "Progress auto-calculated from Finance tab (income \u2212 spending from goal start date).")
         ),
         cat === "debt" && React.createElement(React.Fragment, null,
           React.createElement("div", null, React.createElement(Lbl, { c: "Starting balance ($)" }),
             React.createElement("input", { type: "number", value: form.startBalance || "", placeholder: "e.g. 15000", onChange: e => sf("startBalance", parseFloat(e.target.value)), style: { ...inp, fontSize: 13 } })),
           React.createElement("div", null, React.createElement(Lbl, { c: "Payoff deadline (optional)" }),
-            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "dark" } }))
+            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "var(--input-color-scheme)" } }))
         ),
         cat === "custom" && React.createElement(React.Fragment, null,
           React.createElement("div", null, React.createElement(Lbl, { c: "Unit (e.g. books, km, reps)" }),
@@ -1576,11 +1576,11 @@ function GoalWizard({ onSave, onClose }) {
           React.createElement("div", null, React.createElement(Lbl, { c: "Target value" }),
             React.createElement("input", { type: "number", value: form.targetValue || "", placeholder: "e.g. 12", onChange: e => sf("targetValue", parseFloat(e.target.value)), style: { ...inp, fontSize: 13 } })),
           React.createElement("div", null, React.createElement(Lbl, { c: "Deadline (optional)" }),
-            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "dark" } }))
+            React.createElement("input", { type: "date", value: form.deadline || "", onChange: e => sf("deadline", e.target.value), style: { ...inp, fontSize: 13, colorScheme: "var(--input-color-scheme)" } }))
         ),
         React.createElement("button", {
           onClick: handleSave,
-          style: { marginTop: 4, width: "100%", padding: "12px 0", background: col, color: "var(--bg)", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+          style: { marginTop: 4, width: "100%", padding: "12px 0", background: col, color: "var(--ink-on-accent)", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
         }, "ADD GOAL \u2192")
       )
     )
@@ -1731,8 +1731,8 @@ function Goals({
   const today = getToday();
   const recentWins = wins.filter(w => daysBetween(w.date, today) <= winsFilter);
   const wtLogs = allLogs.filter(l => l.morning?.weight).sort((a, b) => a.date.localeCompare(b.date));
-  const ttStyle = { background: "var(--bg-tooltip)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, fontSize: 12 };
-  const cardStyle = { background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 14, padding: "16px", marginBottom: 14 };
+  const ttStyle = { background: "var(--bg-tooltip)", border: "1px solid var(--card-border-2)", borderRadius: 8, fontSize: 12 };
+  const cardStyle = { background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 14, padding: "16px", marginBottom: 14 };
 
   const renderGoalCard = goal => {
     const meta = GOAL_CATEGORY_META[goal.type] || GOAL_CATEGORY_META.custom;
@@ -1787,7 +1787,7 @@ function Goals({
             React.createElement(Lbl, { c: "Weight Trend" }),
             React.createElement("div", { style: { display: "flex", gap: 4 } },
               [30, 90, 365].map(r => React.createElement("button", { key: r, onClick: () => setWeightRange(r),
-                style: { padding: "2px 7px", borderRadius: 5, fontSize: 10, cursor: "pointer", border: `1px solid ${weightRange === r ? col + "66" : "rgba(255,255,255,.07)"}`, background: weightRange === r ? col + "22" : "transparent", color: weightRange === r ? col : "var(--text-muted)", fontWeight: weightRange === r ? 700 : 400 } }, r, "d"))
+                style: { padding: "2px 7px", borderRadius: 5, fontSize: 10, cursor: "pointer", border: `1px solid ${weightRange === r ? col + "66" : "var(--card-border)"}`, background: weightRange === r ? col + "22" : "transparent", color: weightRange === r ? col : "var(--text-muted)", fontWeight: weightRange === r ? 700 : 400 } }, r, "d"))
             )
           ),
           React.createElement("div", { style: { height: 120 } },
@@ -1841,9 +1841,9 @@ function Goals({
       return React.createElement("div", { key: goal.id, style: { ...cardStyle, borderLeft: `3px solid ${col}` } },
         cardHeader,
         React.createElement("button", { onClick: () => toggleHabit(goal.id, today),
-          style: { width: "100%", padding: "13px", marginBottom: 14, background: todayDone ? `${col}22` : "rgba(255,255,255,.03)", border: `2px solid ${todayDone ? col : "rgba(255,255,255,.08)"}`, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 } },
+          style: { width: "100%", padding: "13px", marginBottom: 14, background: todayDone ? `${col}22` : "var(--card-bg)", border: `2px solid ${todayDone ? col : "var(--card-bg-4)"}`, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 } },
           React.createElement("div", { style: { width: 26, height: 26, borderRadius: "50%", background: todayDone ? col : "transparent", border: `2px solid ${todayDone ? col : "var(--text-muted)"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } },
-            todayDone && React.createElement("span", { style: { color: "var(--bg)", fontWeight: 900, fontSize: 13 } }, "\u2713")),
+            todayDone && React.createElement("span", { style: { color: "var(--ink-on-accent)", fontWeight: 900, fontSize: 13 } }, "\u2713")),
           React.createElement("div", { style: { textAlign: "left" } },
             React.createElement("p", { style: { color: todayDone ? col : "var(--text-secondary)", fontWeight: 700, fontSize: 13, margin: 0, fontFamily: "'Syne',sans-serif" } }, todayDone ? "Done today!" : "Mark today complete"),
             React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 11, margin: "2px 0 0" } }, goal.habitName || goal.label)
@@ -1931,7 +1931,7 @@ function Goals({
         React.createElement("div", { style: { display: "flex", gap: 8 } },
           React.createElement("input", { type: "number", value: balInputs[goal.id] || "", onChange: e => setBalInputs(p => ({ ...p, [goal.id]: e.target.value })), placeholder: "Update current balance...", style: { ...inp, flex: 1, fontSize: 12 } }),
           React.createElement("button", { onClick: () => { if (!balInputs[goal.id]) return; addProgress(goal.id, balInputs[goal.id]); setBalInputs(p => ({ ...p, [goal.id]: "" })); },
-            style: { padding: "0 14px", background: col, color: "var(--bg)", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Update")
+            style: { padding: "0 14px", background: col, color: "var(--ink-on-accent)", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Update")
         ),
         chartData.length >= 2 && React.createElement("div", { style: { marginTop: 12, height: 100 } },
           React.createElement(ResponsiveContainer, { width: "100%", height: "100%" },
@@ -1970,7 +1970,7 @@ function Goals({
       React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 12 } },
         React.createElement("input", { type: "number", value: valInputs[goal.id] || "", onChange: e => setValInputs(p => ({ ...p, [goal.id]: e.target.value })), placeholder: `Log current ${goal.unit || "value"}...`, style: { ...inp, flex: 1, fontSize: 12 } }),
         React.createElement("button", { onClick: () => { if (!valInputs[goal.id]) return; addProgress(goal.id, valInputs[goal.id]); setValInputs(p => ({ ...p, [goal.id]: "" })); },
-          style: { padding: "0 14px", background: col, color: "var(--bg)", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Log")
+          style: { padding: "0 14px", background: col, color: "var(--ink-on-accent)", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Log")
       )
     );
   };
@@ -1979,24 +1979,24 @@ function Goals({
     showWizard && React.createElement(GoalWizard, { onSave: addGoal, onClose: () => setShowWizard(false) }),
     confirmGoal && React.createElement(React.Fragment, null,
       React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setConfirmGoal(null) }),
-      React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 40px)", maxWidth: 360, background: "var(--bg-modal)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 14, padding: "20px", zIndex: 201 } },
+      React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 40px)", maxWidth: 360, background: "var(--bg-modal)", border: "1px solid var(--card-border-2)", borderRadius: 14, padding: "20px", zIndex: 201 } },
         React.createElement("p", { style: { color: "var(--color-success)", fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, margin: "0 0 4px" } }, "Mark as Complete?"),
         React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 13, margin: "0 0 14px" } }, confirmGoal.label),
         React.createElement("input", { type: "text", value: confirmNote, onChange: e => setConfirmNote(e.target.value), placeholder: "Add a note (optional)...", style: { ...inp, marginBottom: 12, fontSize: 13 } }),
         React.createElement("div", { style: { display: "flex", gap: 8 } },
-          React.createElement("button", { onClick: completeGoal, style: { flex: 1, padding: "11px 0", background: "var(--color-success)", color: "var(--bg)", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "CONFIRM \u2713"),
-          React.createElement("button", { onClick: () => setConfirmGoal(null), style: { flex: 1, padding: "11px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", color: "var(--text-muted)", borderRadius: 9, fontSize: 13, cursor: "pointer" } }, "Cancel")
+          React.createElement("button", { onClick: completeGoal, style: { flex: 1, padding: "11px 0", background: "var(--color-success)", color: "var(--ink-on-accent)", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "CONFIRM \u2713"),
+          React.createElement("button", { onClick: () => setConfirmGoal(null), style: { flex: 1, padding: "11px 0", background: "transparent", border: "1px solid var(--card-border-2)", color: "var(--text-muted)", borderRadius: 9, fontSize: 13, cursor: "pointer" } }, "Cancel")
         )
       )
     ),
     deleteConfirm && React.createElement(React.Fragment, null,
       React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", zIndex: 200 }, onClick: () => setDeleteConfirm(null) }),
-      React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 40px)", maxWidth: 340, background: "var(--bg-modal)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 14, padding: "20px", zIndex: 201 } },
+      React.createElement("div", { style: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "calc(100% - 40px)", maxWidth: 340, background: "var(--bg-modal)", border: "1px solid var(--card-border-2)", borderRadius: 14, padding: "20px", zIndex: 201 } },
         React.createElement("p", { style: { color: "var(--color-danger)", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: "0 0 8px" } }, "Delete this goal?"),
         React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 16px" } }, "This cannot be undone."),
         React.createElement("div", { style: { display: "flex", gap: 8 } },
           React.createElement("button", { onClick: () => deleteGoal(deleteConfirm), style: { flex: 1, padding: "10px 0", background: "rgba(239,68,68,.15)", border: "1px solid rgba(239,68,68,.3)", color: "var(--color-danger)", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer" } }, "Delete"),
-          React.createElement("button", { onClick: () => setDeleteConfirm(null), style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid rgba(255,255,255,.1)", color: "var(--text-muted)", borderRadius: 9, fontSize: 13, cursor: "pointer" } }, "Cancel")
+          React.createElement("button", { onClick: () => setDeleteConfirm(null), style: { flex: 1, padding: "10px 0", background: "transparent", border: "1px solid var(--card-border-2)", color: "var(--text-muted)", borderRadius: 9, fontSize: 13, cursor: "pointer" } }, "Cancel")
         )
       )
     ),
@@ -2004,9 +2004,9 @@ function Goals({
       React.createElement(SectionHead, { label: "My Goals", color: "var(--color-accent-teal)" }),
       React.createElement("button", { onClick: () => setShowWizard(true), style: { padding: "8px 14px", background: "rgba(52,211,153,.12)", border: "1px solid rgba(52,211,153,.25)", color: "var(--color-accent-teal)", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "+ Add Goal")
     ),
-    goalsList.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 20px", background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 14, marginBottom: 14 } },
+    goalsList.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 20px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 14, marginBottom: 14 } },
       React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 14, margin: "0 0 16px" } }, "No active goals yet."),
-      React.createElement("button", { onClick: () => setShowWizard(true), style: { padding: "11px 20px", background: "var(--color-accent-teal)", color: "var(--bg)", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Set Your First Goal \u2192")
+      React.createElement("button", { onClick: () => setShowWizard(true), style: { padding: "11px 20px", background: "var(--color-accent-teal)", color: "var(--ink-on-accent)", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Set Your First Goal \u2192")
     ),
     ...goalsList.map(g => renderGoalCard(g)),
     wins.length > 0 && React.createElement("div", { style: { marginBottom: 14 } },
@@ -2014,14 +2014,14 @@ function Goals({
         React.createElement(Lbl, { c: "Wins Archive" }),
         React.createElement("div", { style: { display: "flex", gap: 4 } },
           [7, 30, 90].map(f => React.createElement("button", { key: f, onClick: () => setWinsFilter(f),
-            style: { padding: "2px 7px", borderRadius: 5, fontSize: 10, cursor: "pointer", border: `1px solid ${winsFilter === f ? "rgba(74,222,128,.4)" : "rgba(255,255,255,.07)"}`, background: winsFilter === f ? "rgba(74,222,128,.12)" : "transparent", color: winsFilter === f ? "var(--color-success)" : "var(--text-muted)", fontWeight: winsFilter === f ? 700 : 400 } }, f, "d"))
+            style: { padding: "2px 7px", borderRadius: 5, fontSize: 10, cursor: "pointer", border: `1px solid ${winsFilter === f ? "rgba(74,222,128,.4)" : "var(--card-border)"}`, background: winsFilter === f ? "rgba(74,222,128,.12)" : "transparent", color: winsFilter === f ? "var(--color-success)" : "var(--text-muted)", fontWeight: winsFilter === f ? 700 : 400 } }, f, "d"))
         )
       ),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 5 } },
         recentWins.length === 0
           ? React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: 0, textAlign: "center", padding: "12px 0" } }, "No wins in the last ", winsFilter, " days.")
           : recentWins.slice(0, 10).map((w, i) => React.createElement("div", { key: i,
-              style: { display: "flex", gap: 10, padding: "9px 12px", background: "var(--card-bg)", borderRadius: 9, border: "1px solid rgba(255,255,255,.06)", alignItems: "flex-start" } },
+              style: { display: "flex", gap: 10, padding: "9px 12px", background: "var(--card-bg)", borderRadius: 9, border: "1px solid var(--card-bg-2)", alignItems: "flex-start" } },
               React.createElement("span", { style: { color: "var(--color-primary)", fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 2 } }, fmtDate(w.date)),
               React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 12, flex: 1 } }, w.win)
             ))

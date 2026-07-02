@@ -9,11 +9,11 @@
 
   // ── Local helpers not in window.__ml ──
   const fmtShort = d => new Date(d + "T12:00:00").toLocaleDateString("en-CA", { weekday: "short" });
-  const Card = ({ ch, s = {} }) => React.createElement("div", { style: { background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "15px 17px", ...s } }, ch);
+  const Card = ({ ch, s = {} }) => React.createElement("div", { style: { background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 12, padding: "15px 17px", ...s } }, ch);
   const Dots = ({ val, set, max = 5, col = "var(--color-primary)", sz = 26 }) => React.createElement("div", { style: { display: "flex", gap: 7, alignItems: "center" } },
     Array.from({ length: max }).map((_, i) => React.createElement("button", {
       key: i, onClick: () => set(i + 1),
-      style: { width: sz, height: sz, borderRadius: "50%", padding: 0, cursor: "pointer", background: i < val ? col : "rgba(255,255,255,0.06)", border: `2px solid ${i < val ? col : "rgba(255,255,255,0.11)"}`, transform: i < val ? "scale(1.07)" : "scale(1)", transition: "all .12s" }
+      style: { width: sz, height: sz, minHeight: sz, borderRadius: "50%", padding: 0, cursor: "pointer", background: i < val ? col : "var(--card-bg-2)", border: `2px solid ${i < val ? col : "var(--border-strong)"}`, transform: i < val ? "scale(1.07)" : "scale(1)", transition: "all .12s" }
     })),
     React.createElement("span", { style: { color: "var(--text-secondary)", fontSize: 12, marginLeft: 3 } }, val + "/" + max)
   );
@@ -172,7 +172,7 @@
         borderRadius: 6, padding: "3px 10px", fontSize: 10, cursor: "pointer", fontWeight: copied ? 700 : 400
       }
     }, copied ? "COPIED ✓" : "COPY")), !generated && !loading && React.createElement("div", {
-      style: { background: "rgba(255,255,255,.025)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 12, padding: "14px", marginBottom: 10 }
+      style: { background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 12, padding: "14px", marginBottom: 10 }
     }, React.createElement("p", {
       style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 12px", lineHeight: 1.6 }
     }, "5-line brief from your week data + all previous Sunday history."), React.createElement("button", {
@@ -186,10 +186,10 @@
       key: i,
       style: { width: 6, height: 6, borderRadius: "50%", background: "var(--color-accent-purple)", animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }
     }))), React.createElement("p", { style: { color: "var(--color-accent-purple)", fontSize: 12, margin: 0 } }, "Reading your week..."), React.createElement("style", null, `@keyframes pulse{0%,100%{opacity:.2}50%{opacity:1}}`)), generated && !loading && lines.length > 0 && React.createElement("div", {
-      style: { background: "rgba(255,255,255,.025)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 12, overflow: "hidden" }
+      style: { background: "var(--card-bg)", border: "1px solid var(--card-bg-4)", borderRadius: 12, overflow: "hidden" }
     }, lines.map((line, i) => React.createElement("div", {
       key: i,
-      style: { display: "flex", borderBottom: i < lines.length - 1 ? "1px solid rgba(255,255,255,.05)" : "none" }
+      style: { display: "flex", borderBottom: i < lines.length - 1 ? "1px solid var(--card-bg-2)" : "none" }
     }, React.createElement("div", {
       style: { width: 3, background: lc[i] || "var(--text-secondary)", flexShrink: 0 }
     }), React.createElement("div", {
@@ -199,10 +199,10 @@
     }, ll[i] || ""), React.createElement("p", {
       style: { color: "var(--text-primary)", fontSize: 13, margin: 0, lineHeight: 1.6 }
     }, line)))), React.createElement("div", {
-      style: { padding: "10px 14px", background: "rgba(255,255,255,.02)", display: "flex", justifyContent: "space-between", alignItems: "center" }
+      style: { padding: "10px 14px", background: "var(--card-bg)", display: "flex", justifyContent: "space-between", alignItems: "center" }
     }, React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: 0 } }, "Generated ", fmtDate(getToday())), React.createElement("button", {
       onClick: generate,
-      style: { background: "transparent", border: "1px solid rgba(255,255,255,.08)", color: "var(--text-secondary)", borderRadius: 6, padding: "3px 10px", fontSize: 10, cursor: "pointer" }
+      style: { background: "transparent", border: "1px solid var(--card-bg-4)", color: "var(--text-secondary)", borderRadius: 6, padding: "3px 10px", fontSize: 10, cursor: "pointer" }
     }, "Regenerate"))));
   }
 
@@ -539,7 +539,7 @@
     const shortSleep = sleepCorr.filter(s => s.h < 6), longSleep = sleepCorr.filter(s => s.h >= 6);
     const avgEnShort = shortSleep.length ? (shortSleep.reduce((a, s) => a + s.en, 0) / shortSleep.length).toFixed(1) : null;
     const avgEnLong = longSleep.length ? (longSleep.reduce((a, s) => a + s.en, 0) / longSleep.length).toFixed(1) : null;
-    const ttStyle = { background: "var(--bg-tooltip)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, fontSize: 12 };
+    const ttStyle = { background: "var(--bg-tooltip)", border: "1px solid var(--card-border-2)", borderRadius: 8, fontSize: 12 };
     const toggleSundayOpt = async key => {
       const updated = { ...sundayOpts, [key]: !sundayOpts[key] };
       setSundayOpts(updated);
@@ -560,7 +560,7 @@
       return { d: fmtShort(date), mood: (d?.morning?.showingUp || d?.morning?.mood) > 0 ? (d.morning.showingUp || d.morning.mood) : null, energy: (d?.morning?.showingUp || d?.morning?.energy) > 0 ? (d.morning.showingUp || d.morning.energy) : null };
     });
     const SC = ({ lbl, val, sub, c = "var(--color-primary)" }) => React.createElement("div", {
-      style: { background: "var(--card-bg-3)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10, padding: "11px 12px", flex: "1 1 76px" }
+      style: { background: "var(--card-bg-3)", border: "1px solid var(--card-bg-2)", borderRadius: 10, padding: "11px 12px", flex: "1 1 76px" }
     }, React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".07em", margin: "0 0 2px" } }, lbl),
       React.createElement("p", { style: { color: c, fontSize: 20, fontWeight: 800, margin: "0 0 1px", fontFamily: "'Syne',sans-serif" } }, val ?? "-"),
       sub && React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, margin: 0 } }, sub));
@@ -573,7 +573,7 @@
             key: val,
             onClick: () => onToggle(val),
             style: { padding: "6px 12px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700,
-              background: selected.includes(val) ? col + "33" : "rgba(255,255,255,.05)",
+              background: selected.includes(val) ? col + "33" : "var(--card-bg-2)",
               color: selected.includes(val) ? col : "var(--text-disabled)" }
           }, (selected.includes(val) ? "✓ " : "") + label)
         )
@@ -581,16 +581,16 @@
     const toggleArr = (arr, val) => arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val];
     const Stepper = ({ val, set, min = 0, max = 14, label = "" }) =>
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
-        React.createElement("button", { onClick: () => set(Math.max(min, val - 1)), style: { width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.05)", color: "var(--text-secondary)", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" } }, "\u2212"),
+        React.createElement("button", { onClick: () => set(Math.max(min, val - 1)), style: { width: 32, height: 32, borderRadius: 8, border: "1px solid var(--card-border-2)", background: "var(--card-bg-2)", color: "var(--text-secondary)", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" } }, "\u2212"),
         React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 18, fontWeight: 800, minWidth: 32, textAlign: "center", fontFamily: "'Syne',sans-serif" } }, val),
-        React.createElement("button", { onClick: () => set(Math.min(max, val + 1)), style: { width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.05)", color: "var(--text-secondary)", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" } }, "+"),
+        React.createElement("button", { onClick: () => set(Math.min(max, val + 1)), style: { width: 32, height: 32, borderRadius: 8, border: "1px solid var(--card-border-2)", background: "var(--card-bg-2)", color: "var(--text-secondary)", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" } }, "+"),
         label && React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 11 } }, label)
       );
     const FieldLabel = ({ t }) => React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 9, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 6px" } }, t);
     const YesNo = ({ val, set, yesLabel = "Yes", noLabel = "No" }) =>
       React.createElement("div", { style: { display: "flex", gap: 8 } },
-        React.createElement("button", { onClick: () => set(true), style: { flex: 1, padding: "9px 0", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: val === true ? "rgba(74,222,128,.2)" : "rgba(255,255,255,.05)", color: val === true ? "var(--color-success)" : "var(--text-disabled)" } }, yesLabel),
-        React.createElement("button", { onClick: () => set(false), style: { flex: 1, padding: "9px 0", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: val === false ? "rgba(239,68,68,.15)" : "rgba(255,255,255,.05)", color: val === false ? "var(--color-danger)" : "var(--text-disabled)" } }, noLabel)
+        React.createElement("button", { onClick: () => set(true), style: { flex: 1, padding: "9px 0", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: val === true ? "rgba(74,222,128,.2)" : "var(--card-bg-2)", color: val === true ? "var(--color-success)" : "var(--text-disabled)" } }, yesLabel),
+        React.createElement("button", { onClick: () => set(false), style: { flex: 1, padding: "9px 0", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: val === false ? "rgba(239,68,68,.15)" : "var(--card-bg-2)", color: val === false ? "var(--color-danger)" : "var(--text-disabled)" } }, noLabel)
       );
 
     return React.createElement("div", null,
@@ -602,7 +602,7 @@
           React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 0 13px" } }, wk.length, " days logged this week")
         ),
         React.createElement("div", {
-          style: { display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,.09)" }
+          style: { display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid var(--card-border-2)" }
         },
           React.createElement("button", {
             onClick: () => setView("review"),
@@ -642,7 +642,7 @@
               React.createElement("span", null, showModulePanel ? "▲" : "▼")
             ),
             showModulePanel && React.createElement("div", {
-              style: { position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 50, background: "var(--bg-tooltip)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: "8px 4px", minWidth: 200, boxShadow: "0 8px 32px rgba(0,0,0,.5)" }
+              style: { position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 50, background: "var(--bg-tooltip)", border: "1px solid var(--card-border-2)", borderRadius: 12, padding: "8px 4px", minWidth: 200, boxShadow: "0 8px 32px rgba(0,0,0,.5)" }
             },
               [...(getChildren(settings).length > 0 ? [["showChildren", "👶", "Kids"]] : []),
                 ["showFaith", "💜", "Faith"],
@@ -928,14 +928,14 @@
                       const done = weekDates2.filter(d => log[d]).length;
                       const pct = Math.round(done / 7 * 100);
                       const barCol = pct >= 80 ? "var(--color-success)" : pct >= 50 ? "var(--color-primary)" : "var(--color-danger)";
-                      return React.createElement("div", { key: g.id, style: { padding: "10px 12px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 10 } },
+                      return React.createElement("div", { key: g.id, style: { padding: "10px 12px", background: "var(--card-bg)", border: "1px solid var(--card-bg-2)", borderRadius: 10 } },
                         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
                           React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 600, margin: 0 } }, g.label),
                           React.createElement("p", { style: { color: barCol, fontSize: 12, fontWeight: 800, margin: 0, fontFamily: "'Syne',sans-serif" } }, done + "/7 days")
                         ),
                         React.createElement("div", { style: { display: "flex", gap: 3 } },
                           weekDates2.map((d, i) =>
-                            React.createElement("div", { key: i, title: d, style: { flex: 1, height: 6, borderRadius: 3, background: log[d] ? barCol : "rgba(255,255,255,.06)" } })
+                            React.createElement("div", { key: i, title: d, style: { flex: 1, height: 6, borderRadius: 3, background: log[d] ? barCol : "var(--card-bg-2)" } })
                           )
                         ),
                         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 3 } },
@@ -1043,7 +1043,7 @@
                     React.createElement("button", {
                       key: val, onClick: () => setSunTimeOutside(val),
                       style: { padding: "6px 10px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, textAlign: "left",
-                        background: sunTimeOutside === val ? "rgba(244,168,35,.2)" : "rgba(255,255,255,.05)",
+                        background: sunTimeOutside === val ? "rgba(244,168,35,.2)" : "var(--card-bg-2)",
                         color: sunTimeOutside === val ? "var(--color-primary)" : "var(--text-disabled)" }
                     }, label)
                   )
@@ -1145,7 +1145,7 @@
                   React.createElement("button", {
                     key: val, onClick: () => setScreenTime(val),
                     style: { padding: "7px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700,
-                      background: screenTime === val ? "rgba(239,68,68,.2)" : "rgba(255,255,255,.05)",
+                      background: screenTime === val ? "rgba(239,68,68,.2)" : "var(--card-bg-2)",
                       color: screenTime === val ? "var(--color-danger)" : "var(--text-disabled)" }
                   }, label)
                 )
@@ -1237,7 +1237,7 @@
                 }),
                 React.createElement("button", {
                   onClick: () => addMilestone(child.id),
-                  style: { padding: "8px 13px", background: "var(--color-accent-pink)", color: "var(--bg)", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", flexShrink: 0 }
+                  style: { padding: "8px 13px", background: "var(--color-accent-pink)", color: "var(--ink-on-accent)", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", flexShrink: 0 }
                 }, "\u2713")
               ),
               (childMilestonesMap[child.id] || []).length > 0
@@ -1317,7 +1317,7 @@
         React.createElement("button", {
           onClick: go,
           disabled: busy,
-          style: { background: busy ? "rgba(74,222,128,.45)" : "var(--color-success)", color: "var(--bg)", border: "none", borderRadius: 10, padding: "14px 0", fontSize: 15, fontWeight: 800, cursor: busy ? "wait" : "pointer", width: "100%", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
+          style: { background: busy ? "rgba(74,222,128,.45)" : "var(--color-success)", color: "var(--ink-on-accent)", border: "none", borderRadius: 10, padding: "14px 0", fontSize: 15, fontWeight: 800, cursor: busy ? "wait" : "pointer", width: "100%", fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" }
         }, busy ? "SAVING..." : "SAVE SUNDAY REVIEW \u2192")
       )
     );

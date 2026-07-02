@@ -196,8 +196,8 @@
 
   var inputStyle = {
     width: "100%", boxSizing: "border-box",
-    background: "rgba(255,255,255,.05)",
-    border: "1px solid rgba(255,255,255,.1)",
+    background: "var(--card-bg-2)",
+    border: "1px solid var(--card-border-2)",
     borderRadius: 8, color: C.text,
     padding: "10px 12px", fontSize: 13,
     fontFamily: "'DM Sans',sans-serif",
@@ -212,8 +212,8 @@
   };
 
   var cardStyle = {
-    background: "rgba(255,255,255,.03)",
-    border: "1px solid rgba(255,255,255,.07)",
+    background: "var(--card-bg)",
+    border: "1px solid var(--card-border)",
     borderRadius: 10, padding: "12px 14px", marginBottom: 8
   };
 
@@ -262,7 +262,7 @@
           style: {
             maxWidth: "100%", maxHeight: 280,
             borderRadius: 10,
-            border: "1px solid rgba(255,255,255,.1)",
+            border: "1px solid var(--card-border-2)",
             objectFit: "contain"
           }
         })
@@ -349,7 +349,7 @@
         React.createElement("div", { style: { flex: 1 } },
           React.createElement("label", { style: labelStyle }, "Date"),
           React.createElement("input", {
-            style: Object.assign({}, inputStyle, { colorScheme: "dark" }),
+            style: Object.assign({}, inputStyle, { colorScheme: "var(--input-color-scheme)" }),
             type: "date",
             value: form.date,
             onChange: function (e) { set("date", e.target.value); }
@@ -361,7 +361,7 @@
       React.createElement("div", { style: { marginBottom: 2 } },
         React.createElement("label", { style: labelStyle }, "Card Used"),
         React.createElement("select", {
-          style: Object.assign({}, inputStyle, { colorScheme: "dark" }),
+          style: Object.assign({}, inputStyle, { colorScheme: "var(--input-color-scheme)" }),
           value: form.card,
           onChange: function (e) { set("card", e.target.value); }
         },
@@ -398,8 +398,8 @@
         style: {
           display: "flex", alignItems: "center", gap: 10,
           marginTop: 14, padding: "11px 14px",
-          background: important ? "rgba(244,168,35,.08)" : "rgba(255,255,255,.03)",
-          border: "1px solid " + (important ? "rgba(244,168,35,.35)" : "rgba(255,255,255,.08)"),
+          background: important ? "rgba(244,168,35,.08)" : "var(--card-bg)",
+          border: "1px solid " + (important ? "rgba(244,168,35,.35)" : "var(--card-bg-4)"),
           borderRadius: 10, cursor: "pointer"
         }
       },
@@ -407,11 +407,11 @@
           style: {
             width: 18, height: 18, borderRadius: 4, flexShrink: 0,
             background: important ? C.amber : "transparent",
-            border: "2px solid " + (important ? C.amber : "rgba(255,255,255,.2)"),
+            border: "2px solid " + (important ? C.amber : "var(--border-strong)"),
             display: "flex", alignItems: "center", justifyContent: "center"
           }
         },
-          important && React.createElement("span", { style: { fontSize: 11, color: "var(--bg)", fontWeight: 900, lineHeight: 1 } }, "✓")
+          important && React.createElement("span", { style: { fontSize: 11, color: "var(--ink-on-accent)", fontWeight: 900, lineHeight: 1 } }, "✓")
         ),
         React.createElement("div", null,
           React.createElement("p", {
@@ -498,7 +498,7 @@
               React.createElement("select", {
                 style: Object.assign({}, inputStyle, {
                   flex: 1, padding: "6px 8px", fontSize: 11,
-                  marginBottom: 0, colorScheme: "dark"
+                  marginBottom: 0, colorScheme: "var(--input-color-scheme)"
                 }),
                 value: m.action,
                 onChange: function (e) { setMatch(i, { action: e.target.value }); }
@@ -642,8 +642,8 @@
                 onClick: function () { setSelected(t.id); },
                 style: Object.assign({}, cardStyle, {
                   cursor: "pointer", marginBottom: 6,
-                  borderColor: isSelected ? "rgba(244,168,35,.45)" : "rgba(255,255,255,.07)",
-                  background: isSelected ? "rgba(244,168,35,.06)" : "rgba(255,255,255,.03)"
+                  borderColor: isSelected ? "rgba(244,168,35,.45)" : "var(--card-border)",
+                  background: isSelected ? "rgba(244,168,35,.06)" : "var(--card-bg)"
                 })
               },
                 React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },

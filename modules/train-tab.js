@@ -226,7 +226,7 @@ function IntervalTimer({
     style: {
       padding: "12px 16px",
       background: "var(--card-bg-3)",
-      border: "1px solid rgba(255,255,255,.08)",
+      border: "1px solid var(--card-bg-4)",
       color: "var(--text-secondary)",
       borderRadius: 10,
       fontSize: 13,
@@ -412,7 +412,7 @@ function OutdoorWalk({
     style: {
       height: 280,
       borderRadius: 10,
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       overflow: "hidden",
       marginBottom: 12
     }
@@ -630,7 +630,7 @@ function StrengthSession({
         width: 21,
         height: 21,
         borderRadius: 5,
-        border: `2px solid ${ck ? "var(--color-success)" : "rgba(255,255,255,.18)"}`,
+        border: `2px solid ${ck ? "var(--color-success)" : "var(--border-strong)"}`,
         background: ck ? "var(--color-success)" : "transparent",
         cursor: "pointer",
         flexShrink: 0,
@@ -638,7 +638,7 @@ function StrengthSession({
         alignItems: "center",
         justifyContent: "center",
         padding: 0,
-        color: "var(--bg)",
+        color: "var(--ink-on-accent)",
         fontSize: 11,
         fontWeight: 800
       }
@@ -732,8 +732,8 @@ function IndoorWalk({
   const speed = dist && time && parseFloat(time) > 0 ? (parseFloat(dist) / parseFloat(time) * 60).toFixed(1) : null;
   const inp = {
     width: "100%",
-    background: "rgba(255,255,255,.05)",
-    border: "1px solid rgba(255,255,255,.1)",
+    background: "var(--card-bg-2)",
+    border: "1px solid var(--card-border-2)",
     borderRadius: 8,
     padding: "10px 12px",
     color: "var(--text-primary)",
@@ -856,7 +856,7 @@ function IndoorWalk({
     style: {
       width: "100%",
       padding: "12px 0",
-      background: dist && time ? "var(--color-accent-blue)" : "rgba(255,255,255,.05)",
+      background: dist && time ? "var(--color-accent-blue)" : "var(--card-bg-2)",
       border: "none",
       borderRadius: 9,
       color: dist && time ? "var(--bg-nav)" : "var(--text-muted)",
@@ -958,11 +958,11 @@ function Train({
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6, marginRight: 4 } },
       /*#__PURE__*/React.createElement("button", {
         onClick: () => { setTrainView("today"); setBacklogDate(null); setWorkoutType(null); setCardioType(null); setWalkType(null); setStrengthPair(null); setSessionDone(null); },
-        style: { background: trainView === "today" ? "rgba(251,146,60,.18)" : "rgba(255,255,255,.04)", border: `1px solid ${trainView === "today" ? "rgba(251,146,60,.4)" : "rgba(255,255,255,.1)"}`, borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 700, color: trainView === "today" ? "var(--color-accent-orange)" : "var(--text-secondary)", cursor: "pointer" }
+        style: { background: trainView === "today" ? "rgba(251,146,60,.18)" : "var(--card-bg-3)", border: `1px solid ${trainView === "today" ? "rgba(251,146,60,.4)" : "var(--card-border-2)"}`, borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 700, color: trainView === "today" ? "var(--color-accent-orange)" : "var(--text-secondary)", cursor: "pointer" }
       }, "TODAY"),
       /*#__PURE__*/React.createElement("button", {
         onClick: () => { setTrainView("backlog"); setBacklogDate(null); setWorkoutType(null); setCardioType(null); setWalkType(null); setStrengthPair(null); setSessionDone(null); },
-        style: { background: trainView === "backlog" ? "rgba(251,146,60,.18)" : "rgba(255,255,255,.04)", border: `1px solid ${trainView === "backlog" ? "rgba(251,146,60,.4)" : "rgba(255,255,255,.1)"}`, borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 700, color: trainView === "backlog" ? "var(--color-accent-orange)" : "var(--text-secondary)", cursor: "pointer" }
+        style: { background: trainView === "backlog" ? "rgba(251,146,60,.18)" : "var(--card-bg-3)", border: `1px solid ${trainView === "backlog" ? "rgba(251,146,60,.4)" : "var(--card-border-2)"}`, borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 700, color: trainView === "backlog" ? "var(--color-accent-orange)" : "var(--text-secondary)", cursor: "pointer" }
       }, "PAST 7")
     )
   ),
@@ -980,7 +980,7 @@ function Train({
       return /*#__PURE__*/React.createElement("button", {
         key: d,
         onClick: () => setBacklogDate(d),
-        style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, padding: "12px 16px", marginBottom: 8, cursor: "pointer", textAlign: "left" }
+        style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "var(--card-bg-3)", border: "1px solid var(--card-bg-4)", borderRadius: 10, padding: "12px 16px", marginBottom: 8, cursor: "pointer", textAlign: "left" }
       },
         /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 500 } }, lbl),
         hasLog
@@ -1031,7 +1031,7 @@ function Train({
         textAlign: "center",
         padding: "7px 3px",
         borderRadius: 8,
-        background: isToday ? `${c}18` : "rgba(255,255,255,.025)",
+        background: isToday ? `${c}18` : "var(--card-bg)",
         border: `1px solid ${isToday ? `${c}35` : "var(--card-bg-2)"}`
       }
     }, /*#__PURE__*/React.createElement("p", {
@@ -1530,7 +1530,7 @@ function Train({
     style: {
       marginTop: 22,
       paddingTop: 16,
-      borderTop: "1px solid rgba(255,255,255,.06)"
+      borderTop: "1px solid var(--card-bg-2)"
     }
   }, /*#__PURE__*/React.createElement(Lbl, {
     c: "Coming Up"
@@ -1552,9 +1552,9 @@ function Train({
         alignItems: "center",
         gap: 10,
         padding: "9px 12px",
-        background: "rgba(255,255,255,.025)",
+        background: "var(--card-bg)",
         borderRadius: 9,
-        border: "1px solid rgba(255,255,255,.06)"
+        border: "1px solid var(--card-bg-2)"
       }
     }, /*#__PURE__*/React.createElement("span", {
       style: {
@@ -1584,7 +1584,7 @@ function Train({
     style: {
       marginTop: 20,
       paddingTop: 16,
-      borderTop: "1px solid rgba(255,255,255,.06)"
+      borderTop: "1px solid var(--card-bg-2)"
     }
   }, /*#__PURE__*/React.createElement(Lbl, {
     c: "Recent Sessions"
@@ -1603,7 +1603,7 @@ function Train({
         alignItems: "center",
         gap: 10,
         padding: "8px 11px",
-        background: "rgba(255,255,255,.025)",
+        background: "var(--card-bg)",
         borderRadius: 8
       }
     }, /*#__PURE__*/React.createElement("span", {

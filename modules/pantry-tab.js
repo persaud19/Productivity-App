@@ -51,7 +51,7 @@ function PantryItemCard({
       gap: 10,
       padding: "10px 12px",
       background: "var(--card-bg)",
-      border: "1px solid rgba(255,255,255,.07)",
+      border: "1px solid var(--card-border)",
       borderRadius: 9,
       marginBottom: 5
     }
@@ -104,8 +104,8 @@ function PantryItemCard({
     onClick: () => onEdit(item),
     style: {
       padding: "5px 9px",
-      background: "rgba(255,255,255,.05)",
-      border: "1px solid rgba(255,255,255,.09)",
+      background: "var(--card-bg-2)",
+      border: "1px solid var(--card-border-2)",
       color: "var(--text-secondary)",
       borderRadius: 7,
       fontSize: 10,
@@ -165,7 +165,7 @@ function PantryEditModal({
       width: "calc(100% - 32px)",
       maxWidth: 420,
       background: "var(--bg-modal)",
-      border: "1px solid rgba(255,255,255,.12)",
+      border: "1px solid var(--card-border-2)",
       borderRadius: 14,
       padding: "20px",
       zIndex: 201
@@ -261,7 +261,7 @@ function PantryEditModal({
     style: {
       ...inp,
       fontSize: 13,
-      colorScheme: "dark"
+      colorScheme: "var(--input-color-scheme)"
     }
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
     c: "Brand (optional)"
@@ -288,7 +288,7 @@ function PantryEditModal({
     style: {
       padding: "7px 14px",
       borderRadius: 8,
-      border: "1px solid " + (form.consumable ? "rgba(96,165,250,.4)" : "rgba(255,255,255,.1)"),
+      border: "1px solid " + (form.consumable ? "rgba(96,165,250,.4)" : "var(--card-border-2)"),
       background: form.consumable ? "rgba(96,165,250,.15)" : "transparent",
       color: form.consumable ? "var(--color-accent-blue)" : "var(--text-muted)",
       fontSize: 11,
@@ -324,8 +324,8 @@ function PantryEditModal({
     style: {
       flex: 1,
       padding: "12px 0",
-      background: form.name.trim() ? "var(--color-primary)" : "rgba(255,255,255,.05)",
-      color: form.name.trim() ? "var(--bg)" : "var(--text-muted)",
+      background: form.name.trim() ? "var(--color-primary)" : "var(--card-bg-2)",
+      color: form.name.trim() ? "var(--ink-on-accent)" : "var(--text-muted)",
       border: "none",
       borderRadius: 9,
       fontSize: 13,
@@ -339,7 +339,7 @@ function PantryEditModal({
       flex: 1,
       padding: "12px 0",
       background: "transparent",
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       color: "var(--text-secondary)",
       borderRadius: 9,
       fontSize: 13,
@@ -569,7 +569,7 @@ Return ONLY valid JSON. No markdown fences.`;
   })), /*#__PURE__*/React.createElement("style", null, `@keyframes pulse{0%,100%{opacity:.2}50%{opacity:1}}`)), /*#__PURE__*/React.createElement("div", {
     ref: chatEndRef
   })), hasPending && !confirmed && /*#__PURE__*/React.createElement("div", {
-    style: { padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.07)", marginTop: 8 }
+    style: { padding: "10px 0", borderTop: "1px solid var(--card-border)", marginTop: 8 }
   },
     /*#__PURE__*/React.createElement("div", {
       style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }
@@ -581,7 +581,7 @@ Return ONLY valid JSON. No markdown fences.`;
       ),
       /*#__PURE__*/React.createElement("button", {
         onClick: confirm,
-        style: { padding: "6px 14px", background: "var(--color-success)", color: "var(--bg)", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+        style: { padding: "6px 14px", background: "var(--color-success)", color: "var(--ink-on-accent)", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
       }, "APPLY ALL \u2192")
     ),
     /*#__PURE__*/React.createElement("div", {
@@ -589,7 +589,7 @@ Return ONLY valid JSON. No markdown fences.`;
     },
       extracted.map((item, i) => {
         const upd = (k, v) => setExtracted(prev => prev.map((x, j) => j === i ? { ...x, [k]: v } : x));
-        const fieldStyle = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 6, color: "var(--text-primary)", fontSize: 12, padding: "4px 6px", outline: "none", boxSizing: "border-box" };
+        const fieldStyle = { background: "var(--card-bg-2)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 6, color: "var(--text-primary)", fontSize: 12, padding: "4px 6px", outline: "none", boxSizing: "border-box" };
         const selStyle = { ...fieldStyle, background: "var(--card-bg-2)", color: "var(--text-secondary)", fontSize: 11, padding: "4px 4px" };
         const dupMatch = (pantryItems || []).find(p => p.name.toLowerCase() === (item.name || "").toLowerCase());
         return /*#__PURE__*/React.createElement("div", {
@@ -638,7 +638,7 @@ Return ONLY valid JSON. No markdown fences.`;
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 5 } },
             /*#__PURE__*/React.createElement("input", {
               type: "date", value: item.expiry || "", onChange: e => upd("expiry", e.target.value),
-              style: { ...fieldStyle, flex: 1, colorScheme: "dark" }
+              style: { ...fieldStyle, flex: 1, colorScheme: "var(--input-color-scheme)" }
             }),
             /*#__PURE__*/React.createElement("select", {
               value: item.location || "", onChange: e => upd("location", e.target.value),
@@ -702,7 +702,7 @@ Return ONLY valid JSON. No markdown fences.`;
       display: "flex",
       gap: 7,
       paddingTop: 10,
-      borderTop: "1px solid rgba(255,255,255,.07)",
+      borderTop: "1px solid var(--card-border)",
       marginTop: 8
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -972,7 +972,7 @@ If no expiry mentioned set expiry "". If no location mentioned set location "".`
     style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 14px", lineHeight: 1.6 }
   }, errorMsg || "Could not open camera. Try the voice/text method instead."), /*#__PURE__*/React.createElement("button", {
     onClick: onClose,
-    style: { padding: "10px 20px", background: "var(--card-bg-2)", border: "1px solid rgba(255,255,255,.1)", color: "var(--text-secondary)", borderRadius: 9, fontSize: 13, cursor: "pointer" }
+    style: { padding: "10px 20px", background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", color: "var(--text-secondary)", borderRadius: 9, fontSize: 13, cursor: "pointer" }
   }, "Go Back"));
   if (status === "found" && foundItem) {
     const existingMatch = (pantryItems || []).find(p => p.name.toLowerCase() === (foundItem.name || "").toLowerCase());
@@ -1101,7 +1101,7 @@ If no expiry mentioned set expiry "". If no location mentioned set location "".`
     style: {
       ...inp,
       fontSize: 13,
-      colorScheme: "dark"
+      colorScheme: "var(--input-color-scheme)"
     }
   }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
     c: "Storage Location (optional)"
@@ -1122,12 +1122,12 @@ If no expiry mentioned set expiry "". If no location mentioned set location "".`
         : voiceStatus === "error" ? "rgba(239,68,68,.1)"
         : voiceStatus === "listening" ? "rgba(244,168,35,.18)"
         : voiceStatus === "parsing" ? "rgba(96,165,250,.12)"
-        : "rgba(255,255,255,.05)",
+        : "var(--card-bg-2)",
       border: "1px solid " + (voiceStatus === "done" ? "rgba(74,222,128,.3)"
         : voiceStatus === "error" ? "rgba(239,68,68,.25)"
         : voiceStatus === "listening" ? "rgba(244,168,35,.4)"
         : voiceStatus === "parsing" ? "rgba(96,165,250,.3)"
-        : "rgba(255,255,255,.1)"),
+        : "var(--card-border-2)"),
       color: voiceStatus === "done" ? "var(--color-success)"
         : voiceStatus === "error" ? "var(--color-danger)"
         : voiceStatus === "listening" ? "var(--color-primary)"
@@ -1167,7 +1167,7 @@ If no expiry mentioned set expiry "". If no location mentioned set location "".`
       flex: 1,
       padding: "12px 0",
       background: "var(--color-primary)",
-      color: "var(--bg)",
+      color: "var(--ink-on-accent)",
       border: "none",
       borderRadius: 9,
       fontSize: 14,
@@ -1181,7 +1181,7 @@ If no expiry mentioned set expiry "". If no location mentioned set location "".`
       flex: 1,
       padding: "12px 0",
       background: "transparent",
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       color: "var(--text-secondary)",
       borderRadius: 9,
       fontSize: 13,
@@ -1540,7 +1540,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginTop: 8 } },
       unknowns.length > 0 && /*#__PURE__*/React.createElement("button", {
         onClick: startClarify,
-        style: { width: "100%", padding: "13px", background: "var(--color-primary)", border: "none", borderRadius: 10, color: "var(--bg)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+        style: { width: "100%", padding: "13px", background: "var(--color-primary)", border: "none", borderRadius: 10, color: "var(--ink-on-accent)", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
       }, "Clarify " + unknowns.length + " Unknown Item" + (unknowns.length !== 1 ? "s" : "") + " \u2192"),
       /*#__PURE__*/React.createElement("button", {
         onClick: unknowns.length > 0 ? skipAllUnknowns : applyAll,
@@ -1557,7 +1557,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
       ),
       phase === "done" && /*#__PURE__*/React.createElement("button", {
         onClick: applyAll,
-        style: { padding: "8px 18px", background: "var(--color-success)", border: "none", borderRadius: 8, color: "var(--bg)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+        style: { padding: "8px 18px", background: "var(--color-success)", border: "none", borderRadius: 8, color: "var(--ink-on-accent)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
       }, "Apply to Inventory \u2192")
     ),
     /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", paddingBottom: 8 } },
@@ -1923,13 +1923,13 @@ Return JSON only, no markdown:
         ? /*#__PURE__*/React.createElement("select", {
           value: value || "",
           onChange: e => onChange(e.target.value),
-          style: { width: "100%", background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, padding: "8px 10px", boxSizing: "border-box" }
+          style: { width: "100%", background: "var(--card-bg)", border: "1px solid var(--card-border-2)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, padding: "8px 10px", boxSizing: "border-box" }
         }, (opts || []).map(o => /*#__PURE__*/React.createElement("option", { key: o, value: o }, o)))
         : /*#__PURE__*/React.createElement("input", {
           type: type || "text",
           value: value || "",
           onChange: e => onChange(e.target.value),
-          style: { width: "100%", background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, padding: "8px 10px", boxSizing: "border-box" }
+          style: { width: "100%", background: "var(--card-bg)", border: "1px solid var(--card-border-2)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13, padding: "8px 10px", boxSizing: "border-box" }
         })
     );
 
@@ -2003,7 +2003,7 @@ Return JSON only, no markdown:
       cards.map((item, i) =>
         /*#__PURE__*/React.createElement("div", {
           key: i,
-          style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 9 }
+          style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 9 }
         },
           /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 11, fontWeight: 700, minWidth: 20 } }, i + 1),
           confidenceDot(item.confidence),
@@ -2027,7 +2027,7 @@ Return JSON only, no markdown:
       }, "Check Inventory →"),
       /*#__PURE__*/React.createElement("button", {
         onClick: () => setPhase("confirm-count"),
-        style: { padding: "12px 16px", background: "transparent", border: "1px solid rgba(255,255,255,.12)", color: "var(--text-secondary)", borderRadius: 9, fontSize: 13, cursor: "pointer" }
+        style: { padding: "12px 16px", background: "transparent", border: "1px solid var(--card-border-2)", color: "var(--text-secondary)", borderRadius: 9, fontSize: 13, cursor: "pointer" }
       }, "← Back")
     )
   );
@@ -2051,7 +2051,7 @@ Return JSON only, no markdown:
         /*#__PURE__*/React.createElement("div", { style: { height: "100%", width: (progress / total * 100) + "%", background: "#34d399", transition: "width .3s" } })
       ),
 
-      /*#__PURE__*/React.createElement("div", { style: { background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 12, padding: "14px", display: "flex", flexDirection: "column", gap: 10 } },
+      /*#__PURE__*/React.createElement("div", { style: { background: "var(--card-bg)", border: "1px solid var(--card-bg-4)", borderRadius: 12, padding: "14px", display: "flex", flexDirection: "column", gap: 10 } },
 
         /* NL correction box */
         currentCard.notes ? /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, fontStyle: "italic", margin: 0 } }, "👁️ Claude saw: \"" + currentCard.notes + "\"") : null,
@@ -2110,7 +2110,7 @@ Return JSON only, no markdown:
         /* Expiry */
         /*#__PURE__*/React.createElement("div", null,
           /*#__PURE__*/React.createElement(Lbl, { c: "Expiry Date (optional)" }),
-          /*#__PURE__*/React.createElement("input", { type: "date", value: currentCard.expiry, onChange: e => set("expiry", e.target.value), style: { ...fieldStyle, colorScheme: "dark" } })
+          /*#__PURE__*/React.createElement("input", { type: "date", value: currentCard.expiry, onChange: e => set("expiry", e.target.value), style: { ...fieldStyle, colorScheme: "var(--input-color-scheme)" } })
         ),
 
         /* Brand */
@@ -2141,7 +2141,7 @@ Return JSON only, no markdown:
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
             /*#__PURE__*/React.createElement("button", {
               onClick: () => set("consumable", !currentCard.consumable),
-              style: { padding: "7px 14px", borderRadius: 8, border: "1px solid " + (currentCard.consumable ? "rgba(96,165,250,.4)" : "rgba(255,255,255,.1)"), background: currentCard.consumable ? "rgba(96,165,250,.15)" : "transparent", color: currentCard.consumable ? "var(--color-accent-blue)" : "var(--text-muted)", fontSize: 11, fontWeight: 700, cursor: "pointer" }
+              style: { padding: "7px 14px", borderRadius: 8, border: "1px solid " + (currentCard.consumable ? "rgba(96,165,250,.4)" : "var(--card-border-2)"), background: currentCard.consumable ? "rgba(96,165,250,.15)" : "transparent", color: currentCard.consumable ? "var(--color-accent-blue)" : "var(--text-muted)", fontSize: 11, fontWeight: 700, cursor: "pointer" }
             }, "♻️ Consumable"),
             currentCard.consumable ? /*#__PURE__*/React.createElement("select", {
               value: currentCard.restockCycle,
@@ -2159,7 +2159,7 @@ Return JSON only, no markdown:
         }, progress < total ? "Save & Next →" : "Done → Save All"),
         /*#__PURE__*/React.createElement("button", {
           onClick: skipCard,
-          style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid rgba(255,255,255,.12)", color: "var(--text-muted)", borderRadius: 9, fontSize: 12, cursor: "pointer" }
+          style: { flex: 1, padding: "12px 0", background: "transparent", border: "1px solid var(--card-border-2)", color: "var(--text-muted)", borderRadius: 9, fontSize: 12, cursor: "pointer" }
         }, "Skip")
       )
     );
@@ -2176,7 +2176,7 @@ Return JSON only, no markdown:
         const dec = mergeDecisions[i];
         return /*#__PURE__*/React.createElement("div", {
           key: i,
-          style: { background: "var(--card-bg)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, padding: "12px" }
+          style: { background: "var(--card-bg)", border: "1px solid var(--card-bg-4)", borderRadius: 10, padding: "12px" }
         },
           /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-primary)", fontSize: 13, fontWeight: 600, margin: "0 0 2px" } }, x.card.name),
           x.existingItem
@@ -2185,7 +2185,7 @@ Return JSON only, no markdown:
             )
             : /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 10px" } }, "New item"),
           x.existingItem && dec === "merge"
-            ? /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 10, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 7, padding: "7px 10px" } },
+            ? /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 10, background: "var(--card-bg-3)", border: "1px solid var(--card-bg-4)", borderRadius: 7, padding: "7px 10px" } },
               /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-secondary)", fontSize: 11, flex: 1 } }, "Set actual qty in inventory:"),
               /*#__PURE__*/React.createElement("input", {
                 type: "number",
@@ -2201,25 +2201,25 @@ Return JSON only, no markdown:
             ? /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6 } },
               /*#__PURE__*/React.createElement("button", {
                 onClick: () => setMergeDecisions(prev => ({ ...prev, [i]: "merge" })),
-                style: { flex: 1, padding: "8px 0", background: dec === "merge" ? "rgba(52,211,153,.2)" : "transparent", border: dec === "merge" ? "1px solid rgba(52,211,153,.5)" : "1px solid rgba(255,255,255,.12)", color: dec === "merge" ? "#34d399" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+                style: { flex: 1, padding: "8px 0", background: dec === "merge" ? "rgba(52,211,153,.2)" : "transparent", border: dec === "merge" ? "1px solid rgba(52,211,153,.5)" : "1px solid var(--card-border-2)", color: dec === "merge" ? "#34d399" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
               }, "+ Add to existing"),
               /*#__PURE__*/React.createElement("button", {
                 onClick: () => setMergeDecisions(prev => ({ ...prev, [i]: "new" })),
-                style: { flex: 1, padding: "8px 0", background: dec === "new" ? "rgba(167,139,250,.2)" : "transparent", border: dec === "new" ? "1px solid rgba(167,139,250,.5)" : "1px solid rgba(255,255,255,.12)", color: dec === "new" ? "#a78bfa" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+                style: { flex: 1, padding: "8px 0", background: dec === "new" ? "rgba(167,139,250,.2)" : "transparent", border: dec === "new" ? "1px solid rgba(167,139,250,.5)" : "1px solid var(--card-border-2)", color: dec === "new" ? "#a78bfa" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
               }, "New entry"),
               /*#__PURE__*/React.createElement("button", {
                 onClick: () => setMergeDecisions(prev => ({ ...prev, [i]: "skip" })),
-                style: { flex: 1, padding: "8px 0", background: dec === "skip" ? "rgba(239,68,68,.15)" : "transparent", border: dec === "skip" ? "1px solid rgba(239,68,68,.4)" : "1px solid rgba(255,255,255,.12)", color: dec === "skip" ? "#ef4444" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+                style: { flex: 1, padding: "8px 0", background: dec === "skip" ? "rgba(239,68,68,.15)" : "transparent", border: dec === "skip" ? "1px solid rgba(239,68,68,.4)" : "1px solid var(--card-border-2)", color: dec === "skip" ? "#ef4444" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
               }, "Skip")
             )
             : /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6 } },
               /*#__PURE__*/React.createElement("button", {
                 onClick: () => setMergeDecisions(prev => ({ ...prev, [i]: "new" })),
-                style: { flex: 1, padding: "8px 0", background: dec !== "skip" ? "rgba(52,211,153,.15)" : "transparent", border: dec !== "skip" ? "1px solid rgba(52,211,153,.4)" : "1px solid rgba(255,255,255,.12)", color: dec !== "skip" ? "#34d399" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+                style: { flex: 1, padding: "8px 0", background: dec !== "skip" ? "rgba(52,211,153,.15)" : "transparent", border: dec !== "skip" ? "1px solid rgba(52,211,153,.4)" : "1px solid var(--card-border-2)", color: dec !== "skip" ? "#34d399" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
               }, "Add"),
               /*#__PURE__*/React.createElement("button", {
                 onClick: () => setMergeDecisions(prev => ({ ...prev, [i]: "skip" })),
-                style: { flex: 1, padding: "8px 0", background: dec === "skip" ? "rgba(239,68,68,.15)" : "transparent", border: dec === "skip" ? "1px solid rgba(239,68,68,.4)" : "1px solid rgba(255,255,255,.12)", color: dec === "skip" ? "#ef4444" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+                style: { flex: 1, padding: "8px 0", background: dec === "skip" ? "rgba(239,68,68,.15)" : "transparent", border: dec === "skip" ? "1px solid rgba(239,68,68,.4)" : "1px solid var(--card-border-2)", color: dec === "skip" ? "#ef4444" : "var(--text-secondary)", borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: "pointer" }
               }, "Skip")
             )
         );
@@ -2392,7 +2392,7 @@ function PantryTab({
     style: {
       padding: "5px 12px",
       background: "transparent",
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       color: "var(--text-secondary)",
       borderRadius: 7,
       fontSize: 11,
@@ -2423,7 +2423,7 @@ function PantryTab({
     style: {
       padding: "5px 12px",
       background: "transparent",
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       color: "var(--text-secondary)",
       borderRadius: 7,
       fontSize: 11,
@@ -2665,7 +2665,7 @@ function PantryItemRow({
       width: 24,
       height: 24,
       borderRadius: 6,
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       background: "transparent",
       color: "var(--text-secondary)",
       cursor: "pointer",
@@ -2706,7 +2706,7 @@ function PantryItemRow({
       width: 24,
       height: 24,
       borderRadius: 6,
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       background: "transparent",
       color: "var(--text-secondary)",
       cursor: "pointer",
@@ -2725,7 +2725,7 @@ function PantryItemRow({
       width: 24,
       height: 24,
       borderRadius: 6,
-      border: "1px solid rgba(255,255,255,.09)",
+      border: "1px solid var(--card-border-2)",
       background: "var(--card-bg-3)",
       color: "var(--text-secondary)",
       cursor: "pointer",
@@ -2816,7 +2816,7 @@ function PantryLowStockBanner({
     style: {
       padding: "5px 10px",
       background: "var(--card-bg-3)",
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       color: "var(--text-secondary)",
       borderRadius: 7,
       fontSize: 10,
@@ -2908,7 +2908,7 @@ function PantryExpiryBanner({
     style: {
       padding: "5px 10px",
       background: "var(--card-bg-3)",
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       color: "var(--text-secondary)",
       borderRadius: 7,
       fontSize: 10,
@@ -3107,7 +3107,7 @@ function PantryEditor({
     style: {
       padding: "8px 12px",
       background: "var(--card-bg)",
-      border: "1px solid rgba(255,255,255,.07)",
+      border: "1px solid var(--card-border)",
       borderRadius: 8,
       flex: "1 1 60px",
       textAlign: "center"
@@ -3220,8 +3220,8 @@ function PantryEditor({
     style: {
       padding: "32px 16px",
       textAlign: "center",
-      background: "rgba(255,255,255,.02)",
-      border: "1px solid rgba(255,255,255,.06)",
+      background: "var(--card-bg)",
+      border: "1px solid var(--card-bg-2)",
       borderRadius: 12
     }
   }, /*#__PURE__*/React.createElement("p", {
@@ -3253,7 +3253,7 @@ function PantryEditor({
   archivedItems.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 18 } },
     /*#__PURE__*/React.createElement("button", {
       onClick: () => setShowArchived(v => !v),
-      style: { width: "100%", padding: "10px 14px", background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 9, color: "var(--text-muted)", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "'Syne',sans-serif" }
+      style: { width: "100%", padding: "10px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 9, color: "var(--text-muted)", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "'Syne',sans-serif" }
     },
       /*#__PURE__*/React.createElement("span", null, "\u2606 Archived (" + archivedItems.length + ")"),
       /*#__PURE__*/React.createElement("span", null, showArchived ? "\u25B4" : "\u25BE")
@@ -3263,7 +3263,7 @@ function PantryEditor({
       archivedItems.filter(p => !search || (p.name || "").toLowerCase().includes(search.toLowerCase())).map(item =>
         /*#__PURE__*/React.createElement("div", {
           key: item.id,
-          style: { display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 9, marginBottom: 5, opacity: 0.6 }
+          style: { display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "var(--card-bg)", border: "1px solid var(--card-bg-2)", borderRadius: 9, marginBottom: 5, opacity: 0.6 }
         },
           /*#__PURE__*/React.createElement("div", { style: { flex: 1, minWidth: 0 } },
             /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 13, fontWeight: 600 } }, item.name),

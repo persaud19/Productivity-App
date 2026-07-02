@@ -29,8 +29,8 @@ function DayDetailView({
       flexDirection: "column",
       gap: 2,
       padding: "10px 13px",
-      background: "rgba(255,255,255,.035)",
-      border: "1px solid rgba(255,255,255,.07)",
+      background: "var(--card-bg)",
+      border: "1px solid var(--card-border)",
       borderRadius: 9
     }
   }, /*#__PURE__*/React.createElement("p", {
@@ -68,7 +68,7 @@ function DayDetailView({
       width: 10,
       height: 10,
       borderRadius: "50%",
-      background: i < val ? color : "var(--card-border-2)"
+      background: i < val ? color : "var(--border-strong)"
     }
   })), /*#__PURE__*/React.createElement("span", {
     style: {
@@ -95,7 +95,7 @@ function DayDetailView({
       position: "sticky",
       top: 0,
       background: "var(--bg)",
-      borderBottom: "1px solid rgba(255,255,255,.08)",
+      borderBottom: "1px solid var(--card-bg-4)",
       padding: "14px 20px",
       zIndex: 10
     }
@@ -127,7 +127,7 @@ function DayDetailView({
     }, "\u270F\uFE0F Edit"),
     /*#__PURE__*/React.createElement("button", {
       onClick: onClose,
-      style: { padding: "7px 14px", background: "var(--card-bg-2)", border: "1px solid rgba(255,255,255,.1)", color: "var(--text-secondary)", borderRadius: 9, fontSize: 12, cursor: "pointer", fontWeight: 700 }
+      style: { padding: "7px 14px", background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", color: "var(--text-secondary)", borderRadius: 9, fontSize: 12, cursor: "pointer", fontWeight: 700 }
     }, "\u2190 Back")
   )), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -294,7 +294,7 @@ function DayDetailView({
     style: {
       padding: "12px 14px",
       background: "var(--card-bg)",
-      border: "1px solid rgba(255,255,255,.07)",
+      border: "1px solid var(--card-border)",
       borderRadius: 10,
       display: "flex",
       flexDirection: "column",
@@ -450,7 +450,7 @@ function DayDetailView({
     style: {
       padding: "12px 14px",
       background: "var(--card-bg)",
-      border: "1px solid rgba(255,255,255,.07)",
+      border: "1px solid var(--card-border)",
       borderRadius: 10,
       display: "flex",
       flexDirection: "column",
@@ -683,7 +683,7 @@ function HistoryBrowser({
       padding: "9px 0",
       borderRadius: 9,
       border: "1px solid " + (view === id ? "rgba(167,139,250,.4)" : "var(--card-bg-4)"),
-      background: view === id ? "rgba(167,139,250,.12)" : "rgba(255,255,255,.02)",
+      background: view === id ? "rgba(167,139,250,.12)" : "var(--card-bg)",
       color: view === id ? "var(--color-accent-purple)" : "var(--text-secondary)",
       fontSize: 10,
       fontWeight: view === id ? 800 : 400,
@@ -703,7 +703,7 @@ function HistoryBrowser({
       width: 32,
       height: 32,
       borderRadius: 8,
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       background: "transparent",
       color: "var(--text-secondary)",
       cursor: "pointer",
@@ -727,7 +727,7 @@ function HistoryBrowser({
       width: 32,
       height: 32,
       borderRadius: 8,
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       background: "transparent",
       color: monthOffset === 0 ? "var(--text-disabled)" : "var(--text-secondary)",
       cursor: monthOffset === 0 ? "default" : "pointer",
@@ -784,8 +784,8 @@ function HistoryBrowser({
       style: {
         aspectRatio: "1",
         borderRadius: 8,
-        border: "1px solid " + (isSelected ? "var(--color-accent-purple)" : isToday ? "rgba(167,139,250,.5)" : hasLog ? "rgba(74,222,128,.3)" : "rgba(255,255,255,.06)"),
-        background: isSelected ? "var(--color-accent-purple)" : isToday ? "rgba(167,139,250,.18)" : hasLog ? "rgba(74,222,128,.1)" : "rgba(255,255,255,.02)",
+        border: "1px solid " + (isSelected ? "var(--color-accent-purple)" : isToday ? "rgba(167,139,250,.5)" : hasLog ? "rgba(74,222,128,.3)" : "var(--card-bg-2)"),
+        background: isSelected ? "var(--color-accent-purple)" : isToday ? "rgba(167,139,250,.18)" : hasLog ? "rgba(74,222,128,.1)" : "var(--card-bg)",
         cursor: hasLog && !isFuture ? "pointer" : "default",
         display: "flex",
         flexDirection: "column",
@@ -798,7 +798,7 @@ function HistoryBrowser({
       }
     }, /*#__PURE__*/React.createElement("p", {
       style: {
-        color: isSelected ? "var(--bg)" : isToday ? "var(--color-accent-purple)" : hasLog ? "var(--color-success)" : "var(--text-muted)",
+        color: isSelected ? "var(--ink-on-accent)" : isToday ? "var(--color-accent-purple)" : hasLog ? "var(--color-success)" : "var(--text-muted)",
         fontSize: 11,
         fontWeight: 800,
         margin: 0,
@@ -814,14 +814,14 @@ function HistoryBrowser({
         width: 4,
         height: 4,
         borderRadius: "50%",
-        background: isSelected ? "rgba(8,11,17,.5)" : hasMorning ? "var(--color-primary)" : "rgba(255,255,255,.15)"
+        background: isSelected ? "rgba(8,11,17,.5)" : hasMorning ? "var(--color-primary)" : "var(--border-strong)"
       }
     }), /*#__PURE__*/React.createElement("div", {
       style: {
         width: 4,
         height: 4,
         borderRadius: "50%",
-        background: isSelected ? "rgba(8,11,17,.5)" : hasEvening ? "var(--color-accent-blue)" : "rgba(255,255,255,.15)"
+        background: isSelected ? "rgba(8,11,17,.5)" : hasEvening ? "var(--color-accent-blue)" : "var(--border-strong)"
       }
     })), exceptional && /*#__PURE__*/React.createElement("div", {
       style: {
@@ -895,8 +895,8 @@ function HistoryBrowser({
     style: {
       padding: "32px 16px",
       textAlign: "center",
-      background: "rgba(255,255,255,.02)",
-      border: "1px solid rgba(255,255,255,.06)",
+      background: "var(--card-bg)",
+      border: "1px solid var(--card-bg-2)",
       borderRadius: 12
     }
   }, /*#__PURE__*/React.createElement("p", {
@@ -925,8 +925,8 @@ function HistoryBrowser({
     return /*#__PURE__*/React.createElement("div", {
       key: s.date || i,
       style: {
-        background: "rgba(255,255,255,.035)",
-        border: "1px solid rgba(255,255,255,.08)",
+        background: "var(--card-bg)",
+        border: "1px solid var(--card-bg-4)",
         borderRadius: 12,
         padding: "14px 16px"
       }
@@ -1131,14 +1131,14 @@ function HistoryBrowser({
   }, "This takes a few seconds")), /*#__PURE__*/React.createElement("style", null, "@keyframes pulse{0%,100%{opacity:.2}50%{opacity:1}}")), insight && !insightLoading && /*#__PURE__*/React.createElement("div", {
     style: {
       background: "var(--card-bg)",
-      border: "1px solid rgba(255,255,255,.09)",
+      border: "1px solid var(--card-border-2)",
       borderRadius: 12,
       overflow: "hidden"
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "14px 16px",
-      borderBottom: "1px solid rgba(255,255,255,.06)",
+      borderBottom: "1px solid var(--card-bg-2)",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center"
@@ -1168,7 +1168,7 @@ function HistoryBrowser({
     style: {
       padding: "3px 9px",
       background: "var(--card-bg-3)",
-      border: "1px solid rgba(255,255,255,.1)",
+      border: "1px solid var(--card-border-2)",
       color: "var(--text-secondary)",
       borderRadius: 6,
       fontSize: 10,
@@ -1189,14 +1189,14 @@ function HistoryBrowser({
   }, insight)), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "10px 16px",
-      background: "rgba(255,255,255,.02)",
-      borderTop: "1px solid rgba(255,255,255,.05)"
+      background: "var(--card-bg)",
+      borderTop: "1px solid var(--card-bg-2)"
     }
   }, /*#__PURE__*/React.createElement("button", {
     onClick: generateInsight,
     style: {
       background: "transparent",
-      border: "1px solid rgba(255,255,255,.08)",
+      border: "1px solid var(--card-bg-4)",
       color: "var(--text-secondary)",
       borderRadius: 6,
       padding: "4px 12px",
