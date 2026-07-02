@@ -325,7 +325,7 @@
         width: 22,
         height: 22,
         borderRadius: 6,
-        border: `2px solid ${picked ? "var(--color-success)" : "rgba(255,255,255,.2)"}`,
+        border: `2px solid ${picked ? "var(--color-success)" : "var(--border-strong)"}`,
         background: picked ? "var(--color-success)" : "transparent",
         cursor: "pointer",
         flexShrink: 0,
@@ -333,7 +333,7 @@
         alignItems: "center",
         justifyContent: "center",
         padding: 0,
-        color: "var(--bg)",
+        color: "var(--ink-on-accent)",
         fontSize: 11,
         fontWeight: 800
       }
@@ -415,7 +415,7 @@
       }
     }, open ? "▲" : "▼")), open && /*#__PURE__*/React.createElement("div", {
       style: {
-        borderTop: "1px solid rgba(255,255,255,.05)"
+        borderTop: "1px solid var(--card-bg-2)"
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
@@ -753,7 +753,7 @@
           padding: "7px 2px",
           borderRadius: 7,
           border: `1px solid ${dayIdx === i ? "rgba(96,165,250,.4)" : ok ? "rgba(74,222,128,.2)" : "var(--card-border)"}`,
-          background: dayIdx === i ? "rgba(96,165,250,.12)" : ok ? "rgba(74,222,128,.05)" : "rgba(255,255,255,.02)",
+          background: dayIdx === i ? "rgba(96,165,250,.12)" : ok ? "rgba(74,222,128,.05)" : "var(--card-bg)",
           cursor: "pointer"
         }
       }, /*#__PURE__*/React.createElement("p", {
@@ -803,7 +803,7 @@
       style: {
         padding: "5px 11px",
         background: "transparent",
-        border: "1px solid rgba(255,255,255,.08)",
+        border: "1px solid var(--card-bg-4)",
         color: "var(--text-muted)",
         borderRadius: 7,
         fontSize: 11,
@@ -829,7 +829,7 @@
         width: "calc(100% - 40px)",
         maxWidth: 420,
         background: "var(--bg-modal)",
-        border: "1px solid rgba(255,255,255,.12)",
+        border: "1px solid var(--card-border-2)",
         borderRadius: 14,
         padding: "20px",
         zIndex: 199
@@ -852,7 +852,7 @@
     }, "This will update your pantry to reflect what was used."), deductions.length > 0 ? /*#__PURE__*/React.createElement("div", {
       style: {
         background: "var(--card-bg)",
-        border: "1px solid rgba(255,255,255,.07)",
+        border: "1px solid var(--card-border)",
         borderRadius: 9,
         padding: "10px 12px",
         marginBottom: 14,
@@ -876,7 +876,7 @@
         alignItems: "center",
         marginBottom: 5,
         paddingBottom: 5,
-        borderBottom: i < deductions.length - 1 ? "1px solid rgba(255,255,255,.04)" : "none"
+        borderBottom: i < deductions.length - 1 ? "1px solid var(--card-bg-3)" : "none"
       }
     }, /*#__PURE__*/React.createElement("span", {
       style: {
@@ -904,7 +904,7 @@
     }, d.resultQty, " ", d.pantryItem.unit))))) : /*#__PURE__*/React.createElement("div", {
       style: {
         background: "var(--card-bg)",
-        border: "1px solid rgba(255,255,255,.07)",
+        border: "1px solid var(--card-border)",
         borderRadius: 9,
         padding: "10px 12px",
         marginBottom: 14
@@ -926,7 +926,7 @@
         flex: 1,
         padding: "12px 0",
         background: "var(--color-success)",
-        color: "var(--bg)",
+        color: "var(--ink-on-accent)",
         border: "none",
         borderRadius: 9,
         fontSize: 14,
@@ -940,7 +940,7 @@
         flex: 1,
         padding: "12px 0",
         background: "transparent",
-        border: "1px solid rgba(255,255,255,.1)",
+        border: "1px solid var(--card-border-2)",
         color: "var(--text-secondary)",
         borderRadius: 9,
         fontSize: 13,
@@ -994,13 +994,13 @@
           width: 14,
           height: 14,
           borderRadius: 3,
-          border: `2px solid ${isCooked ? "var(--color-success)" : "rgba(255,255,255,.25)"}`,
+          border: `2px solid ${isCooked ? "var(--color-success)" : "var(--border-strong)"}`,
           background: isCooked ? "var(--color-success)" : "transparent",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontSize: 9,
-          color: "var(--bg)",
+          color: "var(--ink-on-accent)",
           fontWeight: 800,
           flexShrink: 0
         }
@@ -1033,8 +1033,8 @@
         },
         style: {
           padding: "6px 10px",
-          background: "rgba(255,255,255,.05)",
-          border: "1px solid rgba(255,255,255,.1)",
+          background: "var(--card-bg-2)",
+          border: "1px solid var(--card-border-2)",
           color: "var(--text-secondary)",
           borderRadius: 7,
           fontSize: 10,
@@ -1045,7 +1045,7 @@
         style: {
           padding: "6px 10px",
           background: "transparent",
-          border: "1px solid rgba(255,255,255,.07)",
+          border: "1px solid var(--card-border)",
           color: "var(--text-muted)",
           borderRadius: 7,
           fontSize: 10,
@@ -1059,7 +1059,7 @@
         style: {
           width: "100%",
           padding: "14px 0",
-          background: "rgba(255,255,255,.02)",
+          background: "var(--card-bg)",
           border: `2px dashed ${cc}40`,
           borderRadius: 9,
           color: cc,
@@ -1088,7 +1088,7 @@
         width: "100%",
         maxWidth: 490,
         background: "var(--bg-modal)",
-        border: "1px solid rgba(255,255,255,.12)",
+        border: "1px solid var(--card-border-2)",
         borderRadius: "16px 16px 0 0",
         padding: "16px 16px 32px",
         zIndex: 99,
@@ -1114,7 +1114,7 @@
       onClick: () => setPicking(null),
       style: {
         background: "transparent",
-        border: "1px solid rgba(255,255,255,.1)",
+        border: "1px solid var(--card-border-2)",
         color: "var(--text-secondary)",
         borderRadius: 8,
         padding: "5px 14px",
@@ -1225,7 +1225,7 @@
     return /*#__PURE__*/React.createElement("div", null,
 
       // ── Section switcher: Default / Mine / Imported ──
-      React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 14, background: "rgba(255,255,255,.03)", borderRadius: 10, padding: 4 } },
+      React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 14, background: "var(--card-bg)", borderRadius: 10, padding: 4 } },
         [
           ["default", "DEFAULT (" + MEALS_DB.length + ")", "var(--color-primary)"],
           ["custom", "MINE (" + customMeals.length + ")", "var(--color-accent-blue)"],
@@ -1338,7 +1338,7 @@
             borderRadius: 20,
             fontSize: 10,
             cursor: "pointer",
-            border: `1px solid ${base === b ? bc : "rgba(255,255,255,.08)"}`,
+            border: `1px solid ${base === b ? bc : "var(--card-bg-4)"}`,
             background: base === b ? `${bc}22` : "transparent",
             color: base === b ? bc : "var(--text-muted)",
             fontWeight: base === b ? 700 : 400,
@@ -1693,7 +1693,7 @@
             const next = sel ? dCats.filter(c => c !== code) : [...dCats, code];
             setD(p => ({ ...p, cat: next.length > 0 ? next : [code] }));
           },
-          style: { padding: "5px 10px", borderRadius: 20, border: `1px solid ${sel ? col : "rgba(255,255,255,.12)"}`, background: sel ? col + "22" : "transparent", color: sel ? col : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer" }
+          style: { padding: "5px 10px", borderRadius: 20, border: `1px solid ${sel ? col : "var(--card-border-2)"}`, background: sel ? col + "22" : "transparent", color: sel ? col : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer" }
         }, label);
       })))), /*#__PURE__*/React.createElement("div", {
         style: {
@@ -1775,7 +1775,7 @@
       }, "Ingredients (", d.ing?.length || 0, ")"), /*#__PURE__*/React.createElement("div", {
         style: {
           background: "var(--card-bg)",
-          border: "1px solid rgba(255,255,255,.07)",
+          border: "1px solid var(--card-border)",
           borderRadius: 9,
           padding: "10px 12px",
           maxHeight: 140,
@@ -1803,7 +1803,7 @@
       }, "Cooking Steps (", d.steps?.length || 0, ")"), /*#__PURE__*/React.createElement("div", {
         style: {
           background: "var(--card-bg)",
-          border: "1px solid rgba(255,255,255,.07)",
+          border: "1px solid var(--card-border)",
           borderRadius: 9,
           padding: "10px 12px",
           maxHeight: 180,
@@ -1837,7 +1837,7 @@
         onClick: () => setD(p => ({ ...p, fromInventory: !p.fromInventory })),
         style: {
           width: "100%", padding: "10px 14px", borderRadius: 10,
-          border: `1px solid ${d.fromInventory ? "rgba(96,165,250,.4)" : "rgba(255,255,255,.1)"}`,
+          border: `1px solid ${d.fromInventory ? "rgba(96,165,250,.4)" : "var(--card-border-2)"}`,
           background: d.fromInventory ? "rgba(96,165,250,.12)" : "transparent",
           color: d.fromInventory ? "var(--color-accent-blue)" : "var(--text-muted)",
           fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left"
@@ -1853,8 +1853,8 @@
         style: {
           flex: 1,
           padding: "13px 0",
-          background: d.name?.trim() ? "var(--color-success)" : "rgba(255,255,255,.05)",
-          color: d.name?.trim() ? "var(--bg)" : "var(--text-muted)",
+          background: d.name?.trim() ? "var(--color-success)" : "var(--card-bg-2)",
+          color: d.name?.trim() ? "var(--ink-on-accent)" : "var(--text-muted)",
           border: "none",
           borderRadius: 10,
           fontSize: 14,
@@ -1871,7 +1871,7 @@
         style: {
           padding: "13px 14px",
           background: "transparent",
-          border: "1px solid rgba(255,255,255,.1)",
+          border: "1px solid var(--card-border-2)",
           color: "var(--text-secondary)",
           borderRadius: 10,
           fontSize: 13,
@@ -1900,7 +1900,7 @@
         maxWidth: 458,
         maxHeight: "90vh",
         background: "var(--bg-modal)",
-        border: "1px solid rgba(255,255,255,.12)",
+        border: "1px solid var(--card-border-2)",
         borderRadius: 16,
         zIndex: 201,
         display: "flex",
@@ -1913,7 +1913,7 @@
         justifyContent: "space-between",
         alignItems: "center",
         padding: "15px 18px",
-        borderBottom: "1px solid rgba(255,255,255,.08)",
+        borderBottom: "1px solid var(--card-bg-4)",
         flexShrink: 0
       }
     }, /*#__PURE__*/React.createElement("p", {
@@ -1929,7 +1929,7 @@
       onClick: onClose,
       style: {
         background: "transparent",
-        border: "1px solid rgba(255,255,255,.1)",
+        border: "1px solid var(--card-border-2)",
         color: "var(--text-secondary)",
         borderRadius: 8,
         padding: "5px 14px",
@@ -1995,7 +1995,7 @@
       ),
       frontFile && /*#__PURE__*/React.createElement("button", {
         onClick: () => handlePhotos(frontFile, backFile),
-        style: { width: "100%", padding: "13px 0", background: "var(--color-primary)", border: "none", borderRadius: 10, color: "var(--bg)", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", marginBottom: 8 }
+        style: { width: "100%", padding: "13px 0", background: "var(--color-primary)", border: "none", borderRadius: 10, color: "var(--ink-on-accent)", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", marginBottom: 8 }
       }, backFile ? "\uD83E\uDDE0  Extract from Both Sides" : "\uD83E\uDDE0  Extract from Front Side Only"),
       /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "4px 0 0", textAlign: "center" } }, frontFile ? (backFile ? "Both sides ready — tap to extract" : "Front uploaded \xB7 Back side is optional") : "Upload the front side to get started")), mode === "url" && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
       style: {
@@ -2176,8 +2176,8 @@
       },
       style: {
         padding: "6px 14px",
-        background: "rgba(255,255,255,.05)",
-        border: "1px solid rgba(255,255,255,.1)",
+        background: "var(--card-bg-2)",
+        border: "1px solid var(--card-border-2)",
         color: "var(--text-secondary)",
         borderRadius: 7,
         fontSize: 11,
@@ -2226,8 +2226,8 @@
       style: {
         padding: "24px 0",
         textAlign: "center",
-        background: "rgba(255,255,255,.02)",
-        border: "1px solid rgba(255,255,255,.05)",
+        background: "var(--card-bg)",
+        border: "1px solid var(--card-bg-2)",
         borderRadius: 12
       }
     }, /*#__PURE__*/React.createElement("p", {
@@ -2274,7 +2274,7 @@
         gap: 10,
         padding: "9px 12px",
         background: "var(--card-bg)",
-        border: "1px solid rgba(255,255,255,.07)",
+        border: "1px solid var(--card-border)",
         borderRadius: 9
       }
     }, /*#__PURE__*/React.createElement("span", {
@@ -2342,8 +2342,8 @@
         alignItems: "center",
         gap: 9,
         padding: "8px 11px",
-        background: "rgba(255,255,255,.02)",
-        border: "1px solid rgba(255,255,255,.06)",
+        background: "var(--card-bg)",
+        border: "1px solid var(--card-bg-2)",
         borderRadius: 9,
         borderLeft: `3px solid ${s.color}`
       }
@@ -2624,8 +2624,8 @@
             alignItems: "center",
             gap: 9,
             padding: "9px 12px",
-            background: done ? "rgba(74,222,128,.04)" : "rgba(255,255,255,.02)",
-            borderBottom: j < items.length - 1 ? "1px solid rgba(255,255,255,.04)" : "none",
+            background: done ? "rgba(74,222,128,.04)" : "var(--card-bg)",
+            borderBottom: j < items.length - 1 ? "1px solid var(--card-bg-3)" : "none",
             cursor: "pointer",
             textAlign: "left",
             width: "100%",
@@ -2639,7 +2639,7 @@
             width: 18,
             height: 18,
             borderRadius: 5,
-            border: `2px solid ${done ? "var(--color-success)" : "rgba(255,255,255,.2)"}`,
+            border: `2px solid ${done ? "var(--color-success)" : "var(--border-strong)"}`,
             background: done ? "var(--color-success)" : "transparent",
             flexShrink: 0,
             display: "flex",
@@ -2647,7 +2647,7 @@
             justifyContent: "center",
             fontSize: 10,
             fontWeight: 800,
-            color: "var(--bg)"
+            color: "var(--ink-on-accent)"
           }
         }, done ? "✓" : ""), /*#__PURE__*/React.createElement("span", {
           style: {
@@ -2678,7 +2678,7 @@
       }), "                      ", /*#__PURE__*/React.createElement("div", {
         style: {
           padding: "8px 12px",
-          background: "rgba(255,255,255,.02)",
+          background: "var(--card-bg)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center"
@@ -2697,8 +2697,8 @@
       }, "$", sub.toFixed(2))), /*#__PURE__*/React.createElement("div", {
         style: {
           padding: "6px 12px",
-          background: "rgba(255,255,255,.02)",
-          borderTop: "1px solid rgba(255,255,255,.04)"
+          background: "var(--card-bg)",
+          borderTop: "1px solid var(--card-bg-3)"
         }
       }, /*#__PURE__*/React.createElement("p", {
         style: {
@@ -2915,8 +2915,8 @@ Rules:
       maxWidth: "82%",
       padding: "9px 13px",
       borderRadius: isUser ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-      background: isUser ? "rgba(167,139,250,.18)" : "rgba(255,255,255,.05)",
-      border: `1px solid ${isUser ? "rgba(167,139,250,.3)" : "rgba(255,255,255,.08)"}`,
+      background: isUser ? "rgba(167,139,250,.18)" : "var(--card-bg-2)",
+      border: `1px solid ${isUser ? "rgba(167,139,250,.3)" : "var(--card-bg-4)"}`,
       fontSize: 13,
       lineHeight: 1.55,
       color: "var(--text-primary)",
@@ -2932,11 +2932,11 @@ Rules:
       },
         // Header
         /*#__PURE__*/React.createElement("div", {
-          style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px 10px", borderBottom: "1px solid rgba(255,255,255,.07)" }
+          style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px 10px", borderBottom: "1px solid var(--card-border)" }
         },
           /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
             /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "var(--color-accent-orange)", textTransform: "uppercase", letterSpacing: ".06em" } }, slot),
-            /*#__PURE__*/React.createElement("div", { style: { display: "flex", background: "rgba(255,255,255,.06)", borderRadius: 8, padding: 2 } },
+            /*#__PURE__*/React.createElement("div", { style: { display: "flex", background: "var(--card-bg-2)", borderRadius: 8, padding: 2 } },
               ["chat", "pick"].map(m => /*#__PURE__*/React.createElement("button", {
                 key: m, onClick: () => setMode(m),
                 style: { padding: "4px 10px", borderRadius: 6, border: "none", background: mode === m ? "rgba(251,146,60,.2)" : "transparent", color: mode === m ? "var(--color-accent-orange)" : "var(--text-muted)", fontSize: 10, fontWeight: 700, cursor: "pointer" }
@@ -2954,7 +2954,7 @@ Rules:
             /*#__PURE__*/React.createElement("input", {
               type: "text", value: libSearch, onChange: e => setLibSearch(e.target.value),
               placeholder: `Search ${allMealsLib.length} meals\u2026`,
-              style: { width: "100%", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", fontFamily: "'DM Sans',sans-serif", boxSizing: "border-box" }
+              style: { width: "100%", background: "var(--card-bg-3)", border: "1px solid var(--card-border-2)", borderRadius: 10, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", fontFamily: "'DM Sans',sans-serif", boxSizing: "border-box" }
             })
           ),
           /*#__PURE__*/React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "10px 16px 14px", display: "flex", flexDirection: "column", gap: 6 } },
@@ -2967,7 +2967,7 @@ Rules:
                   onSave({ action: "save", name: m.name, calories: m.cal || m.calories || 0, protein: m.prot || m.protein || 0, carbs: m.carbs || 0, fat: m.fat || 0, portionDesc: "1 serving", fromInventory: m.fromInventory || false, ing: m.ing || [] });
                   onClose();
                 },
-                style: { padding: "10px 12px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, cursor: "pointer" }
+                style: { padding: "10px 12px", background: "var(--card-bg-3)", border: "1px solid var(--card-bg-4)", borderRadius: 10, cursor: "pointer" }
               },
                 /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 } },
                   /*#__PURE__*/React.createElement("div", null,
@@ -3009,12 +3009,12 @@ Rules:
           /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--color-success)", fontWeight: 600 } }, confirmed.calories + "cal \xB7 " + confirmed.protein + "g P"),
           /*#__PURE__*/React.createElement("button", {
             onClick: handleConfirm,
-            style: { background: "var(--color-success)", border: "none", borderRadius: 8, padding: "8px 18px", color: "var(--bg)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+            style: { background: "var(--color-success)", border: "none", borderRadius: 8, padding: "8px 18px", color: "var(--ink-on-accent)", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
           }, "SAVE")
         ),
         // Input row
         /*#__PURE__*/React.createElement("div", {
-          style: { display: "flex", gap: 8, padding: "10px 16px 14px", borderTop: "1px solid rgba(255,255,255,.06)" }
+          style: { display: "flex", gap: 8, padding: "10px 16px 14px", borderTop: "1px solid var(--card-bg-2)" }
         },
           /*#__PURE__*/React.createElement("input", {
             ref: photoRef, type: "file", accept: "image/*", capture: "environment",
@@ -3034,7 +3034,7 @@ Rules:
             type: "text", value: input, onChange: e => setInput(e.target.value),
             onKeyDown: e => e.key === "Enter" && send(input),
             placeholder: "Describe what you ate\u2026",
-            style: { flex: 1, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", fontFamily: "'DM Sans',sans-serif" }
+            style: { flex: 1, background: "var(--card-bg-3)", border: "1px solid var(--card-border-2)", borderRadius: 10, padding: "9px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none", fontFamily: "'DM Sans',sans-serif" }
           }),
           /*#__PURE__*/React.createElement("button", {
             onClick: () => send(input), disabled: !input.trim() || loading,
@@ -3057,14 +3057,14 @@ Rules:
   
     const barRow = (label, val, target, p, color) => /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 5 } },
       /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)", width: 36, flexShrink: 0, fontWeight: 600 } }, label),
-      /*#__PURE__*/React.createElement("div", { style: { flex: 1, height: 6, background: "rgba(255,255,255,.07)", borderRadius: 3, overflow: "hidden" } },
+      /*#__PURE__*/React.createElement("div", { style: { flex: 1, height: 6, background: "var(--card-border)", borderRadius: 3, overflow: "hidden" } },
         /*#__PURE__*/React.createElement("div", { style: { width: p + "%", height: "100%", background: color, borderRadius: 3, transition: "width .3s" } })
       ),
       /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: p >= 90 ? color : "var(--text-muted)", width: 52, textAlign: "right", flexShrink: 0 } }, val + "/" + target)
     );
   
     return /*#__PURE__*/React.createElement("div", {
-      style: { background: over ? "rgba(239,68,68,.07)" : "rgba(255,255,255,.03)", border: `1px solid ${over ? "rgba(239,68,68,.2)" : "rgba(255,255,255,.07)"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16 }
+      style: { background: over ? "rgba(239,68,68,.07)" : "var(--card-bg)", border: `1px solid ${over ? "rgba(239,68,68,.2)" : "var(--card-border)"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 16 }
     },
       /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 } },
         /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: over ? "var(--color-danger)" : "var(--color-success)", letterSpacing: ".06em" } },
@@ -3125,7 +3125,7 @@ Rules:
           const itemQty = selections[c.id] !== undefined ? selections[c.id] : (c.qty || 1);
           return /*#__PURE__*/React.createElement("div", {
             key: c.id,
-            style: { padding: "12px 14px", marginBottom: 8, background: isOn ? "rgba(244,168,35,.1)" : "rgba(255,255,255,.03)", border: "1px solid " + (isOn ? "rgba(244,168,35,.35)" : "rgba(255,255,255,.08)"), borderRadius: 10 }
+            style: { padding: "12px 14px", marginBottom: 8, background: isOn ? "rgba(244,168,35,.1)" : "var(--card-bg)", border: "1px solid " + (isOn ? "rgba(244,168,35,.35)" : "var(--card-bg-4)"), borderRadius: 10 }
           },
             /*#__PURE__*/React.createElement("div", {
               onClick: () => toggle(c.id),
@@ -3133,7 +3133,7 @@ Rules:
             },
               /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
                 /*#__PURE__*/React.createElement("div", {
-                  style: { width: 20, height: 20, borderRadius: "50%", border: "2px solid " + (isOn ? "var(--color-primary)" : "rgba(255,255,255,.2)"), background: isOn ? "var(--color-primary)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, color: "var(--bg)", fontWeight: 800 }
+                  style: { width: 20, height: 20, borderRadius: "50%", border: "2px solid " + (isOn ? "var(--color-primary)" : "var(--border-strong)"), background: isOn ? "var(--color-primary)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, color: "var(--ink-on-accent)", fontWeight: 800 }
                 }, isOn ? "✓" : ""),
                 /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: isOn ? "var(--text-primary)" : "var(--text-secondary)" } }, c.name)
               ),
@@ -3144,18 +3144,18 @@ Rules:
               /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--text-secondary)", fontWeight: 600 } }, "Deduct:"),
               /*#__PURE__*/React.createElement("button", {
                 onClick: e => { e.stopPropagation(); setItemQty(c.id, Math.max(0.25, parseFloat((itemQty - 1).toFixed(2)))); },
-                style: { width: 28, height: 28, borderRadius: 7, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.04)", color: "var(--text-primary)", fontSize: 14, cursor: "pointer" }
+                style: { width: 28, height: 28, borderRadius: 7, border: "1px solid var(--border-strong)", background: "var(--card-bg-3)", color: "var(--text-primary)", fontSize: 14, cursor: "pointer" }
               }, "−"),
               /*#__PURE__*/React.createElement("input", {
                 type: "number", value: itemQty,
                 onChange: e => setItemQty(c.id, parseFloat(e.target.value) || 0),
                 onClick: e => e.stopPropagation(),
                 step: "0.5", min: "0",
-                style: { width: 56, padding: "5px 6px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 7, color: "var(--text-primary)", fontSize: 13, textAlign: "center", outline: "none" }
+                style: { width: 56, padding: "5px 6px", background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", borderRadius: 7, color: "var(--text-primary)", fontSize: 13, textAlign: "center", outline: "none" }
               }),
               /*#__PURE__*/React.createElement("button", {
                 onClick: e => { e.stopPropagation(); setItemQty(c.id, parseFloat((itemQty + 1).toFixed(2))); },
-                style: { width: 28, height: 28, borderRadius: 7, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.04)", color: "var(--text-primary)", fontSize: 14, cursor: "pointer" }
+                style: { width: 28, height: 28, borderRadius: 7, border: "1px solid var(--border-strong)", background: "var(--card-bg-3)", color: "var(--text-primary)", fontSize: 14, cursor: "pointer" }
               }, "+"),
               /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, c.unit)
             )
@@ -3165,15 +3165,15 @@ Rules:
         /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 10, marginTop: 18 } },
           /*#__PURE__*/React.createElement("button", {
             onClick: onSkip,
-            style: { flex: 1, padding: "12px 0", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
+            style: { flex: 1, padding: "12px 0", background: "var(--card-bg-3)", border: "1px solid var(--card-border-2)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
           }, "Skip"),
           /*#__PURE__*/React.createElement("button", {
             onClick: () => canConfirm ? onConfirm(selectedItems.map(x => ({ id: x.id, qty: x.qty }))) : onSkip(),
             disabled: !canConfirm,
             style: {
               flex: 1.3, padding: "12px 0",
-              background: canConfirm ? "rgba(244,168,35,.15)" : "rgba(255,255,255,.04)",
-              border: "1px solid " + (canConfirm ? "rgba(244,168,35,.4)" : "rgba(255,255,255,.08)"),
+              background: canConfirm ? "rgba(244,168,35,.15)" : "var(--card-bg-3)",
+              border: "1px solid " + (canConfirm ? "rgba(244,168,35,.4)" : "var(--card-bg-4)"),
               borderRadius: 10, color: canConfirm ? "var(--color-primary)" : "var(--text-muted)",
               fontSize: 13, fontWeight: 800, cursor: canConfirm ? "pointer" : "not-allowed", fontFamily: "'Syne',sans-serif"
             }
@@ -3410,6 +3410,7 @@ Rules:
         const planned = weekPlan[logDate + "_" + slot] || weekPlan[slot];
         updated[slot] = { ...mealData, plannedMeal: planned?.name || null, loggedAt: new Date().toISOString() };
       }
+      const savedEntry = slot === "snack" ? updated.snacks[updated.snacks.length - 1] : updated[slot];
       await saveMealLog(updated);
 
       // Pantry deduction — two paths, NOT exclusive:
@@ -3466,6 +3467,15 @@ Rules:
         await DB.set(KEYS.partnerMealPrompts(), [newPrompt, ...cleaned]);
       }
       setOpenSlot(null);
+      return savedEntry;
+    };
+
+    // Remove a logged entry (slot meal or a single snack by id) — used by FoodLogThread undo
+    const handleDeleteEntry = async (slot, snackId) => {
+      const updated = { ...mealLog };
+      if (slot === "snack") updated.snacks = (updated.snacks || []).filter(s => s.id !== snackId);
+      else delete updated[slot];
+      await saveMealLog(updated);
     };
   
     const handleSabrinaResponse = async (prompt, same) => {
@@ -3563,7 +3573,7 @@ Rules:
       style: {
         display: "flex",
         marginBottom: 14,
-        borderBottom: "1px solid rgba(255,255,255,.06)"
+        borderBottom: "1px solid var(--card-bg-2)"
       }
     // Only render sub-tab bar in home mode (health has only LOG — no picker needed)
     }, mode === "home" && subTabs.map(t => /*#__PURE__*/React.createElement("button", {
@@ -3584,27 +3594,6 @@ Rules:
       }
     }, t.l))),
   
-    /* ── Date picker — health mode only (log up to 7 days back) ── */
-    mode === "health" && React.createElement("div", { style: { overflowX: "auto", marginBottom: 12, paddingBottom: 2 } },
-      React.createElement("div", { style: { display: "flex", gap: 6, minWidth: "max-content" } },
-        Array.from({ length: 7 }, (_, i) => {
-          const d = addDays(today, -i);
-          const active = d === logDate;
-          const label = i === 0 ? "Today" : i === 1 ? "Yesterday" : fmtDate(d);
-          return React.createElement("button", {
-            key: d,
-            onClick: () => setLogDate(d),
-            style: {
-              padding: "5px 12px", borderRadius: 20, border: `1px solid ${active ? "var(--color-accent-orange)" : "rgba(255,255,255,.08)"}`,
-              background: active ? "rgba(251,146,60,.15)" : "transparent",
-              color: active ? "var(--color-accent-orange)" : "var(--text-muted)",
-              fontSize: 11, fontWeight: active ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap"
-            }
-          }, label);
-        })
-      )
-    ),
-
     /* ── MacroBar — health mode only (daily calorie tracking) ── */
     mode === "health" && /*#__PURE__*/React.createElement(MacroBar, { logged: dailyLogged, targets: macroTargets }),
 
@@ -3621,7 +3610,7 @@ Rules:
         }, "Yes, same meal"),
         /*#__PURE__*/React.createElement("button", {
           onClick: () => handleSabrinaResponse(activeSabrinaPrompt, false),
-          style: { flex: 1, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, padding: "8px 0", color: "var(--text-secondary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }
+          style: { flex: 1, background: "var(--card-bg-3)", border: "1px solid var(--card-border-2)", borderRadius: 8, padding: "8px 0", color: "var(--text-secondary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }
         }, "No, I\u2019ll log mine")
       )
     ),
@@ -3637,53 +3626,20 @@ Rules:
       }, "Recalculate")
     ),
   
-    /* ── LOG sub-tab ── */
-    subTab === "log" && /*#__PURE__*/React.createElement("div", null,
-      ["breakfast", "lunch", "dinner"].map(slot => {
-        const logged = mealLog[slot];
-        const planned = weekPlan[today + "_" + slot] || weekPlan[slot];
-        return /*#__PURE__*/React.createElement("div", {
-          key: slot,
-          onClick: () => setOpenSlot(slot),
-          style: { background: "rgba(255,255,255,.04)", border: `1px solid ${logged ? "rgba(74,222,128,.25)" : "rgba(255,255,255,.08)"}`, borderRadius: 12, padding: "13px 15px", marginBottom: 10, cursor: "pointer" }
-        },
-          /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: logged ? 6 : 0 } },
-            /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: logged ? "var(--color-success)" : "var(--text-secondary)", letterSpacing: ".06em", textTransform: "uppercase" } }, slot),
-            logged
-              ? /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--color-success)", fontWeight: 700 } }, logged.calories + " cal")
-              : /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "var(--text-muted)" } }, "tap to log \u203A")
-          ),
-          logged && /*#__PURE__*/React.createElement("div", null,
-            /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", fontWeight: 500, margin: "0 0 3px" } }, logged.name),
-            /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "0 0 2px" } }, logged.protein + "g P \xB7 " + logged.carbs + "g C \xB7 " + logged.fat + "g F"),
-            logged.plannedMeal && logged.plannedMeal !== logged.name && /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, "Planned: ", /*#__PURE__*/React.createElement("span", { style: { textDecoration: "line-through" } }, logged.plannedMeal))
-          ),
-          !logged && planned && /*#__PURE__*/React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0" } }, "Planned: ", planned.name || planned)
-        );
-      }),
-  
-      /* Snacks section */
-      /*#__PURE__*/React.createElement("div", { style: { marginTop: 18 } },
-        /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
-          /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", letterSpacing: ".06em" } }, "SNACKS"),
-          /*#__PURE__*/React.createElement("button", {
-            onClick: () => setOpenSlot("snack"),
-            style: { background: "rgba(251,146,60,.12)", border: "1px solid rgba(251,146,60,.25)", borderRadius: 8, padding: "5px 12px", fontSize: 10, color: "var(--color-accent-orange)", fontWeight: 700, cursor: "pointer" }
-          }, "+ Add Snack")
-        ),
-        (mealLog.snacks || []).length === 0 && /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "12px 0" } }, "No snacks logged"),
-        (mealLog.snacks || []).map((s, i) => /*#__PURE__*/React.createElement("div", {
-          key: s.id || i,
-          style: { background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 10, padding: "10px 13px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }
-        },
-          /*#__PURE__*/React.createElement("div", null,
-            /*#__PURE__*/React.createElement("p", { style: { fontSize: 13, color: "var(--text-primary)", margin: "0 0 2px", fontWeight: 500 } }, s.name),
-            /*#__PURE__*/React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: 0 } }, s.timestamp ? new Date(s.timestamp).toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit" }) : "")
-          ),
-          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--color-accent-orange)", fontWeight: 700 } }, s.calories + " cal")
-        ))
-      )
-    ),
+    /* ── LOG sub-tab — unified conversational day thread (modules/food-log-thread.js) ── */
+    subTab === "log" && /*#__PURE__*/React.createElement(window.FoodLogThread, {
+      logDate: logDate,
+      setLogDate: setLogDate,
+      today: today,
+      mealLog: mealLog,
+      dailyLogged: dailyLogged,
+      macroTargets: macroTargets,
+      mealLibrary: mealLibrary,
+      allMeals: allMeals,
+      userName: isPartner ? partnerName : userName,
+      onSaveMeal: handleSlotSave,
+      onDeleteEntry: handleDeleteEntry
+    }),
   
     /* ── PLAN sub-tab ── */
     subTab === "plan" && /*#__PURE__*/React.createElement(WeekPlanTab, {
