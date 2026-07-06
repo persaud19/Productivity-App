@@ -98,7 +98,7 @@
             "anthropic-version": "2023-06-01",
           },
           body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
+            model: "claude-sonnet-4-6",
             max_tokens: 1000,
             system: (() => {
               const kids = getChildren(settings);
@@ -137,6 +137,12 @@
           })
         });
         const data = await res.json();
+        // Surface real API errors (retired model, bad key) instead of a generic shrug
+        if (data.error) {
+          setBrief("Brief failed: " + (data.error.message || data.error.type || "API error"));
+          setLoading(false);
+          return;
+        }
         const text = data.content?.[0]?.text || "Couldn't generate.";
         setBrief(text);
         setGenerated(true);

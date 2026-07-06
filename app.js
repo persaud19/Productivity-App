@@ -4,7 +4,9 @@
 // Falls back to localStorage automatically if Firebase is not configured.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AI_MODEL = "claude-sonnet-4-5";
+// Keep this current — retired model IDs return 404 and silently break every AI
+// feature that uses them (this happened 2026-06-15 with claude-sonnet-4-20250514).
+const AI_MODEL = "claude-sonnet-4-6";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TOAST — lightweight sync-error notification system

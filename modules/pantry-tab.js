@@ -464,7 +464,7 @@ Return ONLY valid JSON. No markdown fences.`;
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 1500,
           system: systemPrompt,
           messages: apiMsgs
@@ -917,7 +917,7 @@ If no expiry mentioned set expiry "". If no location mentioned set location "".`
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 200,
           messages: [{
             role: "user",
@@ -1334,7 +1334,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
             "anthropic-version": "2023-06-01",
           },
           body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
+            model: "claude-sonnet-4-6",
             max_tokens: 2000,
             messages: [{
               role: "user",
@@ -1399,7 +1399,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 400,
           system: "You are helping a user identify a grocery item from a receipt. The receipt shows: \"" + current.rawText + "\". The user's inventory contains: " + pantryNames + ".\n\nRespond with ONLY valid JSON:\n{\"action\":\"resolved\"|\"skip\"|\"clarify\",\"pantryMatch\":\"exact name from inventory or null\",\"newItem\":{\"name\":\"\",\"qty\":1,\"unit\":\"piece\",\"cat\":\"Other\"}|null,\"qty\":1,\"reply\":\"short reply\"}\n\nRules:\n- resolved: user identified the item. Set pantryMatch if it exists in pantry, else newItem.\n- skip: user wants to skip.\n- clarify: response is ambiguous — ask one specific follow-up question.\n- qty: quantity purchased (from receipt or user message, default 1).\n- reply: 1-2 sentences. If resolved, confirm the match. If clarifying, ask one specific question.",
           messages: newMsgs.filter((m, i) => !(i === 0 && m.role === "assistant"))
