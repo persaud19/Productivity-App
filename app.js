@@ -45,6 +45,39 @@ function ToastContainer() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ERROR BOUNDARY — a crashing tab shows a recoverable card, never a black page.
+// Keyed by tab in App so switching tabs always resets it.
+// ─────────────────────────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error("[ErrorBoundary]", error, info && info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return /*#__PURE__*/React.createElement("div", { style: { padding: "48px 24px", textAlign: "center" } },
+        /*#__PURE__*/React.createElement("p", { style: { fontSize: 36, margin: "0 0 12px" } }, "🛠️"),
+        /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-heading)", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 16, margin: "0 0 6px" } }, "This tab hit a snag"),
+        /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "0 0 14px", lineHeight: 1.5 } }, "The rest of the app is fine — switch tabs to keep going, or try again."),
+        /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-disabled)", fontSize: 10, margin: "0 0 20px", fontFamily: "monospace", wordBreak: "break-word" } }, String((this.state.error && this.state.error.message) || this.state.error)),
+        /*#__PURE__*/React.createElement("button", {
+          onClick: () => this.setState({ error: null }),
+          style: { background: "var(--color-primary)", color: "var(--ink-on-accent)", border: "none", borderRadius: 10, padding: "11px 26px", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+        }, "TRY AGAIN")
+      );
+    }
+    return this.props.children;
+  }
+}
+window.ErrorBoundary = ErrorBoundary;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // AUTH — Google Sign-In via Firebase Auth
 // Each user gets their own data namespace: ml/users/<uid>/...
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1741,7 +1774,7 @@ function SettingsModal({ settings, onSave, onClose, householdId, householdMeta, 
       React.createElement("div", { style: card },
         React.createElement("p", { style: { ...label, color: "var(--color-accent-purple)" } }, "CLAUDE API KEY"),
         React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 11, margin: "0 0 10px", lineHeight: 1.5 } },
-          "Required for AI features: Sunday brief, pantry voice-add, recipe search, pattern insights."
+          "Required for AI features: Sunday brief, inventory voice-add, recipe search, pattern insights."
         ),
         React.createElement("input", {
           type: "password",
@@ -2140,7 +2173,7 @@ function HouseholdJoinPrompt({ onSetup }) {
   return React.createElement("div", { style: { padding: "40px 24px", textAlign: "center" } },
     React.createElement("div", { style: { fontSize: 48, marginBottom: 16 } }, "\uD83C\uDFE0"),
     React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "var(--color-accent-blue)", margin: "0 0 8px" } }, "Join a Household"),
-    React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px", lineHeight: 1.6 } }, "Tasks, pantry, and reminders are shared with your household. Set up or join one to get started."),
+    React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 24px", lineHeight: 1.6 } }, "Tasks, inventory, and reminders are shared with your household. Set up or join one to get started."),
     React.createElement("button", { onClick: onSetup, style: { padding: "14px 28px", background: "var(--color-accent-blue)", border: "none", borderRadius: 10, color: "var(--ink-on-accent)", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif" } }, "Set Up Household \u2192")
   );
 }
@@ -2202,7 +2235,7 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
         await DB.set(KEYS.hhChores(), allPersonalData.chores);
       }
       if (allPersonalData && allPersonalData.pantryItems && allPersonalData.pantryItems.length > 0) {
-        setMigrateMsg("Migrating pantry...");
+        setMigrateMsg("Migrating inventory...");
         await DB.set(KEYS.hhPantry(), allPersonalData.pantryItems);
       }
       if (allPersonalData && allPersonalData.financeMonths && allPersonalData.financeMonths.length > 0) {
@@ -2291,7 +2324,7 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
     React.createElement("div", { style: { width: "100%", maxWidth: 420 } },
       React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "var(--color-accent-blue)", margin: "0 0 8px" } }, "\uD83C\uDFE0 Set Up Your Household"),
       React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 28px", lineHeight: 1.6 } },
-        "Create a household to share tasks, pantry, and finances with your family. Or join an existing one with an invite code."
+        "Create a household to share tasks, inventory, and finances with your family. Or join an existing one with an invite code."
       ),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
         React.createElement("button", {
@@ -2320,7 +2353,7 @@ function HouseholdSetup({ currentUser, allPersonalData, onComplete }) {
       React.createElement("button", { onClick: () => setView("choose"), style: { background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer", marginBottom: 20, padding: 0, fontFamily: "'DM Sans',sans-serif" } }, "\u2190 Back"),
       React.createElement("p", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "var(--color-accent-blue)", margin: "0 0 8px" } }, "\uD83C\uDFD7 Create Household"),
       React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 13, margin: "0 0 20px", lineHeight: 1.6 } },
-        "Your existing tasks, pantry, and finance data will be migrated to the new household. Nothing will be lost."
+        "Your existing tasks, inventory, and finance data will be migrated to the new household. Nothing will be lost."
       ),
       React.createElement("div", { style: { ...hhCard } },
         React.createElement("label", { style: hhLabel }, "HOUSEHOLD NAME"),
@@ -3059,7 +3092,7 @@ function App() {
               migrated = true;
             }
           }
-        } catch(e) { console.warn("Pantry migration failed:", e); }
+        } catch(e) { console.warn("Inventory migration failed:", e); }
       }
       if (!migrated) setPantryItems([]);
     } else {
@@ -3477,7 +3510,9 @@ function App() {
       whiteSpace: "nowrap",
       transition: "all .14s"
     }
-  }, t.l)))), /*#__PURE__*/React.createElement("div", {
+  }, t.l)))), /*#__PURE__*/React.createElement(ErrorBoundary, {
+    key: tab
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "20px 20px 80px"
     }
@@ -3590,4 +3625,4 @@ function App() {
   }), tab === "finance" && /*#__PURE__*/React.createElement(window.FinanceTab, {
     settings: settings,
     householdId: householdId
-  })));}
+  }))));}

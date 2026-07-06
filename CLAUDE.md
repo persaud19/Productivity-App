@@ -25,6 +25,23 @@ data/*.js       ← Static seed data (meals, exercises, chores, stores)
 Modules are IIFEs that pull shared helpers from `window.__ml`. Bump the `?v=` query
 string in index.html when editing a module, or the browser serves the cached copy.
 
+## Terminology — CANONICAL (Ryan confirmed 2026-07-05)
+| UI term (always use) | Legacy term (never in user-facing text) |
+|---|---|
+| **Inventory** | Pantry |
+| **Tasks** | Chores |
+
+- Every user-visible string, label, and AI prompt says **Inventory**, never "Pantry".
+- "Pantry Closet" survives ONLY as a physical storage-location name (a real cupboard),
+  alongside "Spice Drawer", "Fridge", "Freezer".
+- Internal identifiers (`PantryTab`, `pantryItems`, `pantryMatch`) and Firebase paths
+  (`ml/food/pantry`) keep the legacy name DELIBERATELY — renaming storage paths would
+  orphan existing user data. Do not "fix" these.
+- The X/Y inventory match on meal cards comes from `pantryMatch()` in food-tab.js —
+  it reads the LIVE inventory (same Firebase node the Inventory tab edits), counts main
+  ingredients only (seasonings/oils are "assumed staples"), and returns matchedPairs so
+  the UI can show which inventory item satisfied each ingredient.
+
 ## Critical Architecture Rules
 
 ### NEVER inline JS in index.html

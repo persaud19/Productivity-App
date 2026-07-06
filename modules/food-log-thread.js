@@ -94,6 +94,24 @@
 
   const threadKey = date => 'ml:food:thread:' + date;
 
+  // Resize + compress image to max 1200px wide JPEG — shared with MealBuilder
+  const compressImage = file => new Promise((res, rej) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1200;
+      let w = img.naturalWidth, hh = img.naturalHeight;
+      if (w > MAX) { hh = Math.round(hh * MAX / w); w = MAX; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = hh;
+      c.getContext('2d').drawImage(img, 0, 0, w, hh);
+      res(c.toDataURL('image/jpeg', 0.82).split(',')[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('bad image')); };
+    img.src = url;
+  });
+
   // ── MealCard — the studio-styled hero card ──
   function MealCard({ meal, slot, ts, size = 'hero', deleted, onUndo, onClick, delay = 0 }) {
     const grad = gradFor(meal.name);
@@ -160,7 +178,7 @@
   }
 
   // ── Main component ──
-  function FoodLogThread({ logDate, setLogDate, today, mealLog, dailyLogged, macroTargets, mealLibrary, allMeals, userName, onSaveMeal, onDeleteEntry }) {
+  function FoodLogThread({ logDate, setLogDate, today, mealLog, dailyLogged, macroTargets, mealLibrary, allMeals, userName, onSaveMeal, onDeleteEntry, onSaveLibraryMeal }) {
     const [msgs, setMsgs] = useState(null); // null = loading
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -226,8 +244,8 @@
       if (Math.abs(dx) > 64 && Math.abs(dx) > Math.abs(dy) * 1.6) page(dx < 0 ? 1 : -1);
     };
 
-    // ── Shared: append a logged-meal card ──
-    const logMeal = async (parsed, note) => {
+    // ── Shared: append a logged-meal card (followUp lands after the card) ──
+    const logMeal = async (parsed, note, followUp) => {
       const slot = ['breakfast', 'lunch', 'dinner', 'snack'].includes(parsed.slot) ? parsed.slot : inferSlotByTime(mealLog);
       const saved = await onSaveMeal(slot, parsed);
       const card = {
@@ -236,7 +254,8 @@
         meal: { name: parsed.name, emoji: parsed.emoji || '', calories: parsed.calories || 0, protein: parsed.protein || 0, carbs: parsed.carbs || 0, fat: parsed.fat || 0, portionDesc: parsed.portionDesc || '' }
       };
       const withNote = note ? [{ role: 'assistant', content: note }] : [];
-      persist([...(msgsRef.current || []), ...withNote, card]);
+      const withFollowUp = followUp ? [{ role: 'assistant', content: followUp, ts: new Date().toISOString() }] : [];
+      persist([...(msgsRef.current || []), ...withNote, card, ...withFollowUp]);
     };
 
     const undoCard = async (idx) => {
@@ -270,18 +289,45 @@ Rules:
 - To log food, respond with ONLY valid JSON, no other text:
 {"action":"save","slot":"lunch","name":"Chicken Curry & Roti","emoji":"🍛","calories":620,"protein":38,"carbs":72,"fat":14,"portionDesc":"medium bowl + 2 roti","isNew":true}
 - "emoji": the single food emoji that best represents the dish. "isNew": true when not in KNOWN MEALS.
+- After a NEW meal is logged, the app offers to save it to the library. If the user then describes what's in it (ingredients, rough amounts), respond with ONLY:
+{"action":"enrich","name":"Breakfast Shake","emoji":"🥤","cat":["B","S"],"cal":420,"prot":38,"carbs":45,"fat":9,"prep":5,"cook":0,"tags":["quick"],"ing":["1 scoop whey protein","1 banana","1 cup milk"],"steps":[],"portionDesc":"1 large glass"}
+Keep name + macros from the meal just logged unless the user corrects them. cat: array from "B","L","D","S".
+- If the user declines the library offer, just carry on — never push.
 - Questions about progress/remaining macros: answer conversationally from the numbers above.
 - Plain-text replies: 1–2 sentences max.`;
     };
 
-    const parseSave = reply => {
+    const parseAction = reply => {
       try {
         let s = String(reply || '').trim();
         const wrapped = s.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (wrapped) s = wrapped[1].trim();
-        if (s.startsWith('{')) { const p = JSON.parse(s); if (p && p.action === 'save') return p; }
+        if (s.startsWith('{')) { const p = JSON.parse(s); if (p && p.action) return p; }
       } catch (e) {}
       return null;
+    };
+
+    // Dispatch an AI reply: log a meal, enrich the library, or plain text
+    const handleReply = async reply => {
+      const parsed = parseAction(reply);
+      if (parsed && parsed.action === 'save') {
+        const followUp = parsed.isNew && onSaveLibraryMeal
+          ? `That one's not in your library yet — tell me roughly what's in it and I'll save **${parsed.name}** as a full meal you can plan with. Or just say "skip".`
+          : null;
+        await logMeal(parsed, null, followUp);
+      } else if (parsed && parsed.action === 'enrich' && onSaveLibraryMeal) {
+        const saved = await onSaveLibraryMeal({
+          name: parsed.name, emoji: parsed.emoji || '',
+          cat: Array.isArray(parsed.cat) ? parsed.cat : [parsed.cat || 'S'],
+          cal: parsed.cal || 0, prot: parsed.prot || 0, carbs: parsed.carbs || 0, fat: parsed.fat || 0,
+          prep: parsed.prep || 0, cook: parsed.cook || 0, cad: parsed.cad || 0,
+          tags: parsed.tags || [], ing: parsed.ing || [], steps: parsed.steps || [],
+          portionDesc: parsed.portionDesc || '', source: 'log-enrich'
+        });
+        persist([...(msgsRef.current || []), { role: 'assistant', content: `📚 **${saved.name}** saved to your Library as a complete meal — it'll show up in the Week planner too.`, ts: new Date().toISOString() }]);
+      } else {
+        persist([...(msgsRef.current || []), { role: 'assistant', content: reply, ts: new Date().toISOString() }]);
+      }
     };
 
     const callAI = async (apiMsgs, model, maxTokens) => {
@@ -311,9 +357,7 @@ Rules:
       setLoading(true);
       try {
         const reply = await callAI(toApiMsgs(next));
-        const parsed = parseSave(reply);
-        if (parsed) await logMeal(parsed);
-        else persist([...(msgsRef.current || []), { role: 'assistant', content: reply, ts: new Date().toISOString() }]);
+        await handleReply(reply);
       } catch (e) {
         persist([...(msgsRef.current || []), { role: 'assistant', content: e.name === 'AbortError' ? 'Request timed out — try again in a moment.' : "I couldn't reach the kitchen 🧑‍🍳 Check your connection, or use the 📚 library to log without me.", ts: new Date().toISOString() }]);
       }
@@ -321,22 +365,6 @@ Rules:
     };
 
     // ── Photo ──
-    const compressImage = file => new Promise((res, rej) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        const MAX = 1200;
-        let w = img.naturalWidth, hh = img.naturalHeight;
-        if (w > MAX) { hh = Math.round(hh * MAX / w); w = MAX; }
-        const c = document.createElement('canvas');
-        c.width = w; c.height = hh;
-        c.getContext('2d').drawImage(img, 0, 0, w, hh);
-        res(c.toDataURL('image/jpeg', 0.82).split(',')[1]);
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('bad image')); };
-      img.src = url;
-    });
     const handlePhoto = async file => {
       if (!file || loading || msgs === null) return;
       setLoading(true);
@@ -345,9 +373,7 @@ Rules:
         const next = [...msgs, { role: 'user', content: '📷 Meal photo', _imageB64: b64, ts: new Date().toISOString() }];
         persist(next);
         const reply = await callAI(toApiMsgs(next), 'claude-sonnet-4-6', 400);
-        const parsed = parseSave(reply);
-        if (parsed) await logMeal(parsed);
-        else persist([...(msgsRef.current || []), { role: 'assistant', content: reply, ts: new Date().toISOString() }]);
+        await handleReply(reply);
       } catch (e) {
         persist([...(msgsRef.current || []), { role: 'assistant', content: "Couldn't read that photo — try again or just tell me what it was.", ts: new Date().toISOString() }]);
       }
@@ -558,4 +584,7 @@ Rules:
   }
 
   window.FoodLogThread = FoodLogThread;
+  // Shared visual language — MealBuilder and the Week planner reuse these so
+  // every meal in the app renders with the same studio card styling.
+  window.__mlCards = { gradFor, emojiFor, PALETTES, SLOT_META, MealCard, TypingDots, compressImage, rich };
 })();

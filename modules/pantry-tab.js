@@ -1401,7 +1401,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 400,
-          system: "You are helping a user identify a grocery item from a receipt. The receipt shows: \"" + current.rawText + "\". The user's pantry contains: " + pantryNames + ".\n\nRespond with ONLY valid JSON:\n{\"action\":\"resolved\"|\"skip\"|\"clarify\",\"pantryMatch\":\"exact name from pantry or null\",\"newItem\":{\"name\":\"\",\"qty\":1,\"unit\":\"piece\",\"cat\":\"Other\"}|null,\"qty\":1,\"reply\":\"short reply\"}\n\nRules:\n- resolved: user identified the item. Set pantryMatch if it exists in pantry, else newItem.\n- skip: user wants to skip.\n- clarify: response is ambiguous — ask one specific follow-up question.\n- qty: quantity purchased (from receipt or user message, default 1).\n- reply: 1-2 sentences. If resolved, confirm the match. If clarifying, ask one specific question.",
+          system: "You are helping a user identify a grocery item from a receipt. The receipt shows: \"" + current.rawText + "\". The user's inventory contains: " + pantryNames + ".\n\nRespond with ONLY valid JSON:\n{\"action\":\"resolved\"|\"skip\"|\"clarify\",\"pantryMatch\":\"exact name from inventory or null\",\"newItem\":{\"name\":\"\",\"qty\":1,\"unit\":\"piece\",\"cat\":\"Other\"}|null,\"qty\":1,\"reply\":\"short reply\"}\n\nRules:\n- resolved: user identified the item. Set pantryMatch if it exists in pantry, else newItem.\n- skip: user wants to skip.\n- clarify: response is ambiguous — ask one specific follow-up question.\n- qty: quantity purchased (from receipt or user message, default 1).\n- reply: 1-2 sentences. If resolved, confirm the match. If clarifying, ask one specific question.",
           messages: newMsgs.filter((m, i) => !(i === 0 && m.role === "assistant"))
         })
       });
@@ -1434,7 +1434,7 @@ function PantryReceiptScanner({ pantryItems, onApply, onClose }) {
           setTimeout(() => {
             setClarifyMsgs(prev => [...prev, {
               role: "assistant",
-              content: "All done! Tap \u201CApply to Pantry\u201D to save everything."
+              content: "All done! Tap \u201CApply to Inventory\u201D to save everything."
             }]);
             setPhase("done");
           }, 500);
@@ -2244,7 +2244,7 @@ Return JSON only, no markdown:
     /*#__PURE__*/React.createElement("button", {
       onClick: onClose,
       style: { padding: "12px 32px", background: "rgba(52,211,153,.15)", border: "1px solid rgba(52,211,153,.4)", color: "#34d399", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif" }
-    }, "Back to Pantry")
+    }, "Back to Inventory")
   );
 
   return null;
@@ -3236,13 +3236,13 @@ function PantryEditor({
       fontSize: 13,
       margin: "0 0 4px"
     }
-  }, "Pantry is empty"), /*#__PURE__*/React.createElement("p", {
+  }, "Inventory is empty"), /*#__PURE__*/React.createElement("p", {
     style: {
       color: "var(--text-muted)",
       fontSize: 11,
       margin: "0 0 14px"
     }
-  }, "Use the PANTRY tab above to add items by voice, barcode, or manually")), filtered.map(item => /*#__PURE__*/React.createElement(PantryItemRow, {
+  }, "Use the INVENTORY tab above to add items by voice, barcode, or manually")), filtered.map(item => /*#__PURE__*/React.createElement(PantryItemRow, {
     key: item.id,
     item: item,
     onEdit: i => { setIsNew(false); setEditItem(i); },
@@ -3259,7 +3259,7 @@ function PantryEditor({
       /*#__PURE__*/React.createElement("span", null, showArchived ? "\u25B4" : "\u25BE")
     ),
     showArchived && /*#__PURE__*/React.createElement("div", { style: { marginTop: 8 } },
-      /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "0 0 8px" } }, "These items are hidden from your main pantry. Tap \u2605 to restore."),
+      /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 10, margin: "0 0 8px" } }, "These items are hidden from your main inventory. Tap \u2605 to restore."),
       archivedItems.filter(p => !search || (p.name || "").toLowerCase().includes(search.toLowerCase())).map(item =>
         /*#__PURE__*/React.createElement("div", {
           key: item.id,

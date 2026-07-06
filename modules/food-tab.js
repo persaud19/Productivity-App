@@ -65,7 +65,7 @@
   }
   
   // ─────────────────────────────────────────────────────────────────────────────
-  // PANTRY MATCHING — score 0–100 how many ingredients are already in pantry
+  // INVENTORY MATCHING — score 0–100 how many ingredients are already in inventory
   // ─────────────────────────────────────────────────────────────────────────────
   
   // Extract the core ingredient name from a string like "2 tbsp soy sauce (low sodium)"
@@ -76,43 +76,62 @@
     .trim().split(/\s+/).slice(0, 4).join(" "); // first 4 words only
   }
   
-  // Return {matched, total, pct, missing[]} for a meal against a pantry list
+  // Words that modify a food without changing what it is — ignored when comparing.
+  // Includes prep states, cuts, fat levels, and store brands.
+  const ING_MODIFIERS = new Set(["rolled", "quick", "instant", "steel", "cut", "large", "small", "medium", "fresh", "frozen", "organic", "whole", "skim", "plain", "greek", "unsalted", "salted", "raw", "cooked", "ground", "boneless", "skinless", "breast", "breasts", "thigh", "thighs", "fillet", "fillets", "lean", "extra", "light", "low", "sodium", "fat", "free", "reduced", "natural", "pure", "baby", "ripe", "sliced", "diced", "chopped", "shredded", "grated", "canned", "dried", "dry", "uncooked", "percent", "style", "mini", "jumbo", "wild", "smoked", "mixed", "can", "pack", "bag", "box", "jar", "bottle", "kirkland", "noname", "compliments", "selection", "president", "choice", "great", "value"]);
+  const ingSingular = w => w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w;
+  const ingTokens = s => s.toLowerCase().replace(/\(.*?\)/g, " ").replace(/[^a-z\s]/g, " ").split(/\s+/).map(ingSingular).filter(w => w.length > 2 && !ING_MODIFIERS.has(w));
+  // Token match: equal, or one contains the other (absorbs plurals + compounds like blueberries/berries)
+  const ingTokEq = (a, b) => a === b || (a.length >= 5 && b.length >= 5 ? a.includes(b) || b.includes(a) : b.length >= 5 && b.includes(a) && a.length >= 4 || a.length >= 5 && a.includes(b) && b.length >= 4);
+  // Do these two token lists describe the same food?
+  // Mutual fuzzy-subset = same food. One-sided subset only counts when the subset
+  // side has 2+ tokens (so "milk" does NOT match "coconut milk", but
+  // "tomato paste" matches "crushed tomato paste").
+  function sameFood(aT, bT) {
+    if (!aT.length || !bT.length) return false;
+    const aInB = aT.every(a => bT.some(b => ingTokEq(a, b)));
+    const bInA = bT.every(b => aT.some(a => ingTokEq(a, b)));
+    if (aInB && bInA) return true;
+    if (aInB && aT.length >= 2) return true;
+    if (bInA && bT.length >= 2) return true;
+    return false;
+  }
+  const SEASONING_RE = /\bsalt\b|pepper\b|olive oil|avocado oil|coconut oil|vegetable oil|garlic powder|onion powder|cumin|paprika|turmeric|cinnamon|seasoning|spice|herb|bay leaf|thyme|rosemary|oregano|dill|parsley|cilantro|basil|cloves|allspice|nutmeg/i;
+
+  // Return a transparent match report for a meal against the live Inventory:
+  // { matched, total, pct, missing[], matchedIngs[], matchedPairs[{ing,item}], assumed[] }
+  // - total counts MAIN ingredients only; seasonings/oils land in `assumed`
+  // - matchedPairs names the exact inventory item each ingredient matched, so
+  //   the UI can show its work instead of a bare score
   function pantryMatch(meal, pantryItems) {
-    if (!pantryItems || pantryItems.length === 0) return {
-      matched: 0,
-      total: 0,
-      pct: 0,
-      missing: []
-    };
-  
-    // Build a single searchable string from all pantry item names
-    const pantryStr = pantryItems.map(p => p.name.toLowerCase()).join(" | ");
-  
-    // Filter out pure seasonings/oils/spices — they're almost always in-pantry background
-    const mainIngs = meal.ing.filter(ing => {
-      const s = ing.toLowerCase();
-      return !/^\s*salt|pepper\b|olive oil|avocado oil|coconut oil|vegetable oil|garlic powder|onion powder|cumin|paprika|turmeric|cinnamon|seasoning|spice|herb|bay leaf|thyme|rosemary|oregano|dill|parsley|cilantro|basil|cloves|allspice|nutmeg|Italian seasoning/.test(s);
+    const empty = { matched: 0, total: 0, pct: 0, missing: [], matchedIngs: [], matchedPairs: [], assumed: [] };
+    if (!pantryItems || pantryItems.length === 0) return empty;
+    const assumed = [];
+    const mainIngs = [];
+    (meal.ing || []).forEach(ing => {
+      if (SEASONING_RE.test(ing.toLowerCase())) assumed.push(ing);else mainIngs.push(ing);
     });
-    if (mainIngs.length === 0) return {
-      matched: 0,
-      total: 0,
-      pct: 100,
-      missing: []
-    };
+    if (mainIngs.length === 0) return { ...empty, pct: 100, assumed };
+    const itemTokens = pantryItems.map(p => ({ item: p, tokens: ingTokens(p.name) }));
     const missing = [];
-    let matched = 0;
+    const matchedIngs = [];
+    const matchedPairs = [];
     mainIngs.forEach(ing => {
-      const core = coreIngredient(ing);
-      // Check if any pantry item name contains the core ingredient or vice versa
-      const words = core.split(/\s+/).filter(w => w.length > 2); // meaningful words only
-      const hit = words.some(w => pantryStr.includes(w));
-      if (hit) matched++;else missing.push(ing);
+      const core = ingTokens(coreIngredient(ing));
+      const hit = itemTokens.find(it => sameFood(core, it.tokens));
+      if (hit) {
+        matchedIngs.push(ing);
+        matchedPairs.push({ ing, item: hit.item.name });
+      } else missing.push(ing);
     });
     return {
-      matched,
+      matched: matchedIngs.length,
       total: mainIngs.length,
-      pct: Math.round(matched / mainIngs.length * 100),
-      missing
+      pct: Math.round(matchedIngs.length / mainIngs.length * 100),
+      missing,
+      matchedIngs,
+      matchedPairs,
+      assumed
     };
   }
   
@@ -283,7 +302,9 @@
   // (C, CL, inp, Lbl, DAYS, SHORT_DAYS, SLOTS already declared above)
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const SHORT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const SLOTS = ["B", "L", "D"];
+  // S (Snack) is a planned healthy wildcard — fruit/nuts/yogurt to reach for during the day.
+  // It's optional: weekDone and day-complete checks only require B/L/D.
+  const SLOTS = ["B", "L", "D", "S"];
   
   // ─────────────────────────────────────────────────────────────────────────────
   // MEAL CARD — with expandable cooking steps
@@ -379,7 +400,7 @@
         padding: "1px 6px",
         flexShrink: 0
       }
-    }, pm.pct >= 80 ? "🟢" : pm.pct >= 50 ? "🟡" : "🔴", " ", pm.matched, "/", pm.total, " in pantry")), /*#__PURE__*/React.createElement("div", {
+    }, pm.pct >= 80 ? "🟢" : pm.pct >= 50 ? "🟡" : "🔴", " ", pm.matched, "/", pm.total, " in inventory")), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
         gap: 10,
@@ -466,27 +487,34 @@
         fontWeight: 600
       }
     }, "Ingredients (per serving)"), meal.ing.map((i, idx) => {
-      const inPantry = pantryItems.length > 0 && coreIngredient(i).split(/\s+/).filter(w => w.length > 2).some(w => pantryItems.map(p => p.name.toLowerCase()).join(" ").includes(w));
+      // pm is the single source of truth — same matcher that produces the X/Y chip
+      const pair = pm.matchedPairs.find(mp => mp.ing === i);
+      const isAssumed = pm.assumed.includes(i);
       return /*#__PURE__*/React.createElement("p", {
         key: idx,
         style: {
-          color: inPantry ? "var(--text-secondary)" : "var(--text-secondary)",
+          color: "var(--text-secondary)",
           fontSize: 12,
-          margin: "0 0 3px",
-          textDecoration: inPantry ? "none" : "none"
+          margin: "0 0 3px"
         }
       }, /*#__PURE__*/React.createElement("span", {
         style: {
-          color: inPantry ? "var(--color-success)" : "var(--text-muted)",
+          color: pair ? "var(--color-success)" : isAssumed ? "var(--color-primary)" : "var(--text-muted)",
           marginRight: 4
         }
-      }, inPantry ? "✓" : "·"), i, inPantry && /*#__PURE__*/React.createElement("span", {
+      }, pair ? "✓" : isAssumed ? "~" : "·"), i, pair && /*#__PURE__*/React.createElement("span", {
         style: {
           color: "var(--text-muted)",
           fontSize: 9,
           marginLeft: 5
         }
-      }, "in pantry"));
+      }, "→ " + pair.item), isAssumed && /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: "var(--text-muted)",
+          fontSize: 9,
+          marginLeft: 5
+        }
+      }, "staple — assumed on hand"));
     }), pantryItems.length > 0 && pm.missing.length > 0 && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: 8,
@@ -625,17 +653,212 @@
   // ─────────────────────────────────────────────────────────────────────────────
   // WEEK PLAN TAB
   // ─────────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // PLAN SLOT CARD — studio hero card for a planned meal (same visual language
+  // as the Log's meal cards via window.__mlCards). Tap to expand ingredients,
+  // inventory match detail, steps, and Mark-as-Cooked.
+  // ───────────────────────────────────────────────────────────────────────────
+  function PlanSlotCard({ meal, slot, isCooked, onCook, onSwap, onRemove, pantryItems }) {
+    const [open, setOpen] = useState(false);
+    const cards = window.__mlCards || {};
+    const grad = cards.gradFor ? cards.gradFor(meal.name) : "var(--card-bg-2)";
+    const emoji = meal.emoji || (cards.emojiFor ? cards.emojiFor(meal) : "🍽️");
+    const pm = pantryMatch(meal, pantryItems);
+    const glassBtn = { background: "rgba(0,0,0,.34)", backdropFilter: "blur(6px)", border: "none", color: "rgba(255,255,255,.92)", fontSize: 12, fontWeight: 700, width: 30, height: 30, minHeight: 30, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" };
+    return /*#__PURE__*/React.createElement("div", null,
+      /*#__PURE__*/React.createElement("div", {
+        className: "flt-press",
+        onClick: () => setOpen(!open),
+        style: { position: "relative", borderRadius: 18, overflow: "hidden", aspectRatio: "16/7", background: grad, boxShadow: "0 8px 22px -10px rgba(0,0,0,.4)", cursor: "pointer", opacity: isCooked ? 0.62 : 1, filter: isCooked ? "saturate(.55)" : "none", transition: "opacity .3s, filter .3s", WebkitTapHighlightColor: "transparent" }
+      },
+        /*#__PURE__*/React.createElement("div", { style: { position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 46, paddingBottom: 26, filter: "drop-shadow(0 8px 12px rgba(0,0,0,.28))" } }, emoji),
+        /*#__PURE__*/React.createElement("div", { style: { position: "absolute", top: 8, right: 8, fontSize: 10, fontWeight: 800, color: "#1a1a1a", background: "rgba(255,255,255,.85)", padding: "3px 9px", borderRadius: 20, fontFamily: "'Syne',sans-serif" } }, (meal.cal || 0) + " cal"),
+        isCooked && /*#__PURE__*/React.createElement("div", { style: { position: "absolute", top: 8, left: 8, fontSize: 10, fontWeight: 800, color: "#fff", background: "rgba(34,197,94,.75)", padding: "3px 9px", borderRadius: 20, fontFamily: "'Syne',sans-serif", letterSpacing: ".05em" } }, "COOKED ✓"),
+        /*#__PURE__*/React.createElement("div", { style: { position: "absolute", left: 0, right: 0, bottom: 0, padding: "22px 12px 9px", background: "linear-gradient(transparent, rgba(0,0,0,.6))" } },
+          /*#__PURE__*/React.createElement("p", { style: { margin: 0, color: "#fff", fontWeight: 700, fontSize: 14, lineHeight: 1.25, textShadow: "0 1px 6px rgba(0,0,0,.4)", paddingRight: 74, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, meal.name),
+          /*#__PURE__*/React.createElement("p", { style: { margin: "2px 0 0", color: "rgba(255,255,255,.85)", fontSize: 10, fontWeight: 600 } },
+            (meal.prot || 0) + "g P · " + (meal.carbs || 0) + "g C · " + (meal.fat || 0) + "g F",
+            pantryItems.length > 0 && pm.total > 0 ? " · " + pm.matched + "/" + pm.total + " in inventory" : "")
+        ),
+        /*#__PURE__*/React.createElement("div", { style: { position: "absolute", bottom: 8, right: 8, display: "flex", gap: 6 } },
+          onSwap && /*#__PURE__*/React.createElement("button", { className: "flt-press", title: "Swap meal", onClick: e => { e.stopPropagation(); onSwap(); }, style: glassBtn }, "↻"),
+          onRemove && /*#__PURE__*/React.createElement("button", { className: "flt-press", title: "Remove", onClick: e => { e.stopPropagation(); onRemove(); }, style: glassBtn }, "×"))
+      ),
+      open && /*#__PURE__*/React.createElement("div", { className: "flt-msg", style: { background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 12, padding: "12px 14px", marginTop: 6 } },
+        /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 10, margin: "0 0 6px", textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 600 } }, "Ingredients"),
+        (meal.ing || []).map((i, idx) => {
+          const pair = pm.matchedPairs.find(mp => mp.ing === i);
+          const isAssumed = pm.assumed.includes(i);
+          return /*#__PURE__*/React.createElement("p", { key: idx, style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 3px" } },
+            /*#__PURE__*/React.createElement("span", { style: { color: pair ? "var(--color-success)" : isAssumed ? "var(--color-primary)" : "var(--text-muted)", marginRight: 4 } }, pair ? "✓" : isAssumed ? "~" : "·"),
+            i,
+            pair && /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 9, marginLeft: 5 } }, "→ " + pair.item),
+            isAssumed && /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 9, marginLeft: 5 } }, "staple — assumed on hand"));
+        }),
+        (meal.steps || []).length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null,
+          /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-secondary)", fontSize: 10, margin: "10px 0 6px", textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 600 } }, "How to cook"),
+          meal.steps.map((s, idx) => /*#__PURE__*/React.createElement("p", { key: idx, style: { color: "var(--text-secondary)", fontSize: 12, margin: "0 0 5px", lineHeight: 1.5 } },
+            /*#__PURE__*/React.createElement("span", { style: { color: "var(--color-accent-blue)", fontWeight: 700, marginRight: 5 } }, (idx + 1) + "."), s))),
+        onCook && !isCooked && /*#__PURE__*/React.createElement("button", {
+          className: "flt-press", onClick: onCook,
+          style: { width: "100%", marginTop: 10, padding: "11px 0", background: "rgba(74,222,128,.13)", border: "1px solid rgba(74,222,128,.3)", color: "var(--color-success)", borderRadius: 10, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em" }
+        }, "MARK AS COOKED ✓")
+      )
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // PLAN ASSISTANT — conversational week planning ("swap Tuesday dinner for
+  // salmon", "fill Friday with high-protein meals"). Same agent protocol style
+  // as the Log thread; edits the plan through structured JSON actions.
+  // ───────────────────────────────────────────────────────────────────────────
+  function PlanAssistant({ plan, setPlan, allMeals, userName }) {
+    const [open, setOpen] = useState(false);
+    const [msgs, setMsgs] = useState([]);
+    const [input, setInput] = useState("");
+    const [loading, setLoading] = useState(false);
+    const endRef = useRef(null);
+    useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs, loading]);
+
+    const findMeal = name => {
+      const n = String(name || "").toLowerCase();
+      return allMeals.find(m => m.name.toLowerCase() === n) || allMeals.find(m => m.name.toLowerCase().includes(n) || n.includes(m.name.toLowerCase()));
+    };
+
+    const applyActions = async actions => {
+      const up = { ...plan };
+      const applied = [];
+      (actions || []).forEach(a => {
+        if (a.op === "assign") {
+          const m = findMeal(a.meal);
+          if (m && a.day >= 0 && a.day <= 6 && SLOTS.includes(a.slot)) {
+            up[a.day] = { ...(up[a.day] || {}), [a.slot]: m };
+            applied.push(`${SHORT_DAYS[a.day]} ${CL[a.slot]}: ${m.name}`);
+          }
+        } else if (a.op === "clear" && up[a.day]) {
+          const d = { ...up[a.day] };
+          delete d[a.slot];
+          up[a.day] = d;
+          applied.push(`cleared ${SHORT_DAYS[a.day]} ${CL[a.slot]}`);
+        } else if (a.op === "clearDay") {
+          delete up[a.day];
+          applied.push(`cleared ${SHORT_DAYS[a.day]}`);
+        }
+      });
+      if (applied.length) await setPlan(up);
+      return applied;
+    };
+
+    const systemPrompt = () => {
+      const planLines = [0, 1, 2, 3, 4, 5, 6].map(d =>
+        `${d} ${SHORT_DAYS[d]}: ` + SLOTS.map(s => `${s}=${plan[d] && plan[d][s] ? plan[d][s].name : "—"}`).join(" | ")).join("\n");
+      return `You are ${userName || "the user"}'s meal-planning assistant for the week ahead.
+CURRENT PLAN (day index, B=Breakfast L=Lunch D=Dinner S=Snack):
+${planLines}
+LIBRARY MEALS (use EXACT names): ${allMeals.slice(0, 80).map(m => m.name).join("; ")}
+
+To change the plan, respond with ONLY this JSON (no fences, no extra text):
+{"actions":[{"op":"assign","day":1,"slot":"D","meal":"Exact Library Name"},{"op":"clear","day":2,"slot":"L"},{"op":"clearDay","day":3}],"note":"Done — Tuesday dinner is now salmon."}
+- day: 0=Mon … 6=Sun. Multiple actions allowed in one response.
+- "meal" MUST be an exact name from LIBRARY MEALS. If nothing fits, say so in plain text and suggest the closest options.
+- For questions or advice, reply in plain text, 1–2 sentences, warm and practical.`;
+    };
+
+    const send = async text => {
+      if (!text.trim() || loading) return;
+      const next = [...msgs, { role: "user", content: text.trim() }];
+      setMsgs(next);
+      setInput("");
+      setLoading(true);
+      try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 30000);
+        const res = await fetch("/api/claude", {
+          method: "POST",
+          body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 600, system: systemPrompt(), messages: next.slice(-12).map(m => ({ role: m.role, content: m.content })) }),
+          signal: controller.signal
+        });
+        clearTimeout(tid);
+        const data = await res.json();
+        const reply = (data.content && data.content[0] && data.content[0].text) || "";
+        let parsed = null;
+        try {
+          let s = reply.trim();
+          const wrapped = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+          if (wrapped) s = wrapped[1].trim();
+          if (s.startsWith("{")) parsed = JSON.parse(s);
+        } catch (e) {}
+        if (parsed && Array.isArray(parsed.actions)) {
+          const applied = await applyActions(parsed.actions);
+          setMsgs(prev => [...prev, { role: "assistant", content: applied.length ? (parsed.note || "Done!") + "\n" + applied.map(a => "• " + a).join("\n") : "I couldn't match that to your library — try the exact meal name?" }]);
+        } else {
+          setMsgs(prev => [...prev, { role: "assistant", content: reply }]);
+        }
+      } catch (e) {
+        setMsgs(prev => [...prev, { role: "assistant", content: "Couldn't reach the planner — check your connection and try again." }]);
+      }
+      setLoading(false);
+    };
+
+    const cardsHelpers = window.__mlCards || {};
+    const rich = cardsHelpers.rich || (t => t);
+    return /*#__PURE__*/React.createElement("div", { style: { marginBottom: 14, borderRadius: 14, border: "1px solid var(--card-border)", background: "var(--card-bg)", overflow: "hidden" } },
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => setOpen(!open),
+        style: { width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "transparent", border: "none", cursor: "pointer" }
+      },
+        /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 800, color: "var(--color-success)", letterSpacing: ".05em" } }, "✨ PLAN WITH AI"),
+        /*#__PURE__*/React.createElement("span", { style: { color: "var(--text-muted)", fontSize: 11 } }, open ? "▲" : "“swap Tuesday dinner” ▼")),
+      open && /*#__PURE__*/React.createElement("div", { style: { borderTop: "1px solid var(--card-border)", padding: "10px 12px 12px" } },
+        /*#__PURE__*/React.createElement("div", { className: "flt-thread", style: { maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 } },
+          msgs.length === 0 && /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: "4px 0", lineHeight: 1.5 } }, "Try: “swap Tuesday dinner for something with salmon” \xB7 “clear Friday” \xB7 “what's my highest-protein day?”"),
+          msgs.map((m, i) => /*#__PURE__*/React.createElement("div", { key: i, className: "flt-msg", style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" } },
+            /*#__PURE__*/React.createElement("div", { style: { maxWidth: "88%", padding: "9px 13px", borderRadius: m.role === "user" ? "13px 13px 4px 13px" : "13px 13px 13px 4px", background: m.role === "user" ? "linear-gradient(135deg, var(--color-success), #22c55e)" : "var(--card-bg-2)", border: m.role === "user" ? "none" : "1px solid var(--card-border)", color: m.role === "user" ? "#fff" : "var(--text-primary)", fontSize: 12.5, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" } }, rich(m.content)))),
+          loading && /*#__PURE__*/React.createElement("p", { style: { color: "var(--text-muted)", fontSize: 12, margin: 0 } }, "…"),
+          /*#__PURE__*/React.createElement("div", { ref: endRef })),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 7 } },
+          /*#__PURE__*/React.createElement("input", {
+            type: "text", value: input, placeholder: "Tell me what to change…",
+            onChange: e => setInput(e.target.value),
+            onKeyDown: e => { if (e.key === "Enter") send(input); },
+            style: { flex: 1, minWidth: 0, background: "var(--card-bg-2)", border: "1px solid var(--card-border-2)", borderRadius: 18, padding: "9px 14px", fontSize: 14, color: "var(--text-primary)", outline: "none", fontFamily: "'DM Sans',sans-serif" }
+          }),
+          /*#__PURE__*/React.createElement("button", {
+            className: "flt-press", onClick: () => send(input), disabled: loading || !input.trim(),
+            style: { width: 36, height: 36, minHeight: 36, borderRadius: "50%", border: "none", background: input.trim() ? "var(--color-success)" : "var(--card-bg-2)", color: input.trim() ? "var(--ink-on-accent)" : "var(--text-muted)", fontWeight: 800, cursor: "pointer", flexShrink: 0 }
+          }, "↑"))));
+  }
+
   function WeekPlanTab({
     plan,
     setPlan,
     allMeals = MEALS_DB,
     pantryItems = [],
     cookedMeals = {},
-    onCookMeal
+    onCookMeal,
+    onCreateMeal,
+    userName
   }) {
     const [dayIdx, setDayIdx] = useState(0);
+    const [pageDir, setPageDir] = useState("r");
     const [picking, setPicking] = useState(null);
+    const [showBuilder, setShowBuilder] = useState(false);
     const [search, setSearch] = useState("");
+    const touchRef = useRef(null);
+    // Direction-aware day change so the slide animation matches the gesture
+    const goDay = i => {
+      if (i === dayIdx || i < 0 || i > 6) return;
+      setPageDir(i > dayIdx ? "r" : "l");
+      setDayIdx(i);
+    };
+    const onTouchStart = e => { touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+    const onTouchEnd = e => {
+      const t = touchRef.current;
+      if (!t) return;
+      const dx = e.changedTouches[0].clientX - t.x, dy = e.changedTouches[0].clientY - t.y;
+      touchRef.current = null;
+      if (Math.abs(dx) > 64 && Math.abs(dx) > Math.abs(dy) * 1.6) goDay(dayIdx + (dx < 0 ? 1 : -1));
+    };
     const [confirmKey, setConfirmKey] = useState(null); // "dayIdx:slot" pending confirm
     const [deductions, setDeductions] = useState([]);
     const assign = async meal => {
@@ -663,19 +886,25 @@
       await DB.set(KEYS.weekPlan(), up);
     };
   
-    // Auto-fill: pick meals with highest pantry match per category
+    // Auto-fill: pick meals with highest inventory match per category
     const autoFill = async () => {
       const sortByPantry = meals => [...meals].sort((a, b) => pantryMatch(b, pantryItems).pct - pantryMatch(a, pantryItems).pct);
       const hasCat = (m, c) => Array.isArray(m.cat) ? m.cat.includes(c) : m.cat === c;
       const B = sortByPantry(allMeals.filter(m => hasCat(m, "B")));
       const L = sortByPantry(allMeals.filter(m => hasCat(m, "L")));
       const D = sortByPantry(allMeals.filter(m => hasCat(m, "D")));
+      // Snacks: healthy wildcards first (fruit/nuts/yogurt), then by inventory match
+      const healthyScore = m => /fruit|berr|apple|banana|orange|grape|melon|nut|almond|walnut|cashew|yogurt|cottage/i.test(m.name + " " + (m.tags || []).join(" ")) ? 1 : 0;
+      const S = [...allMeals.filter(m => hasCat(m, "S"))].sort((a, b) => healthyScore(b) - healthyScore(a) || pantryMatch(b, pantryItems).pct - pantryMatch(a, pantryItems).pct);
       const up = {};
-      for (let d = 0; d < 7; d++) up[d] = {
-        B: B[d % B.length],
-        L: L[d % L.length],
-        D: D[d % D.length]
-      };
+      for (let d = 0; d < 7; d++) {
+        up[d] = {
+          B: B[d % B.length],
+          L: L[d % L.length],
+          D: D[d % D.length]
+        };
+        if (S.length) up[d].S = S[d % S.length];
+      }
       setPlan(up);
       await DB.set(KEYS.weekPlan(), up);
     };
@@ -700,7 +929,9 @@
     const totalCal = Object.values(day).reduce((a, m) => a + (m?.cal || 0), 0);
     const totalProt = Object.values(day).reduce((a, m) => a + (m?.prot || 0), 0);
     const weekDone = [0, 1, 2, 3, 4, 5, 6].every(d => plan[d]?.B && plan[d]?.L && plan[d]?.D);
-    const pickable = allMeals.filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => pantryMatch(b, pantryItems).pct - pantryMatch(a, pantryItems).pct);
+    // Picker list: meals matching the slot's category float to the top, then by inventory match
+    const slotCat = m => picking && (Array.isArray(m.cat) ? m.cat.includes(picking) : m.cat === picking) ? 1 : 0;
+    const pickable = allMeals.filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => slotCat(b) - slotCat(a) || pantryMatch(b, pantryItems).pct - pantryMatch(a, pantryItems).pct);
     return /*#__PURE__*/React.createElement("div", null, !weekDone && /*#__PURE__*/React.createElement("div", {
       style: {
         background: "rgba(74,222,128,.06)",
@@ -736,7 +967,12 @@
         fontWeight: 700,
         cursor: "pointer"
       }
-    }, "\u26A1 AUTO-FILL WEEK \u2192")), /*#__PURE__*/React.createElement("div", {
+    }, "\u26A1 AUTO-FILL WEEK \u2192")), /*#__PURE__*/React.createElement(PlanAssistant, {
+      plan: plan,
+      setPlan: setPlan,
+      allMeals: allMeals,
+      userName: userName
+    }), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
         gap: 4,
@@ -747,7 +983,7 @@
       const cookedCount = [`${i}:B`, `${i}:L`, `${i}:D`].filter(k => cookedMeals[k]).length;
       return /*#__PURE__*/React.createElement("button", {
         key: d,
-        onClick: () => setDayIdx(i),
+        onClick: () => goDay(i),
         style: {
           flex: 1,
           padding: "7px 2px",
@@ -849,7 +1085,7 @@
         margin: "0 0 14px",
         lineHeight: 1.5
       }
-    }, "This will update your pantry to reflect what was used."), deductions.length > 0 ? /*#__PURE__*/React.createElement("div", {
+    }, "This will update your inventory to reflect what was used."), deductions.length > 0 ? /*#__PURE__*/React.createElement("div", {
       style: {
         background: "var(--card-bg)",
         border: "1px solid var(--card-border)",
@@ -868,7 +1104,7 @@
         letterSpacing: ".07em",
         margin: "0 0 8px"
       }
-    }, "Pantry updates"), deductions.map((d, i) => /*#__PURE__*/React.createElement("div", {
+    }, "Inventory updates"), deductions.map((d, i) => /*#__PURE__*/React.createElement("div", {
       key: i,
       style: {
         display: "flex",
@@ -915,7 +1151,7 @@
         fontSize: 12,
         margin: 0
       }
-    }, "No matching pantry items found to deduct \u2014 meal will be marked cooked without pantry changes.")), /*#__PURE__*/React.createElement("div", {
+    }, "No matching inventory items found to deduct \u2014 meal will be marked cooked without inventory changes.")), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
         gap: 8
@@ -946,129 +1182,35 @@
         fontSize: 13,
         cursor: "pointer"
       }
-    }, "Cancel")))), SLOTS.map(slot => {
+    }, "Cancel")))), /*#__PURE__*/React.createElement("div", {
+      key: dayIdx,
+      className: pageDir === "r" ? "flt-page-r" : "flt-page-l",
+      onTouchStart: onTouchStart,
+      onTouchEnd: onTouchEnd
+    }, SLOTS.map(slot => {
       const meal = day[slot];
       const cc = C[slot];
       const cookKey = `${dayIdx}:${slot}`;
       const isCooked = !!cookedMeals[cookKey];
       return /*#__PURE__*/React.createElement("div", {
         key: slot,
-        style: {
-          marginBottom: 14
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 5
-        }
+        style: { marginBottom: 14 }
       }, /*#__PURE__*/React.createElement("p", {
-        style: {
-          color: cc,
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: ".07em",
-          textTransform: "uppercase",
-          margin: 0
-        }
-      }, CL[slot]), meal && /*#__PURE__*/React.createElement("button", {
-        onClick: () => isCooked ? null : requestCook(dayIdx, slot, meal),
-        disabled: isCooked,
-        style: {
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          padding: "4px 10px",
-          borderRadius: 7,
-          border: `1px solid ${isCooked ? "rgba(74,222,128,.35)" : "var(--card-border-2)"}`,
-          background: isCooked ? "rgba(74,222,128,.1)" : "var(--card-bg-3)",
-          color: isCooked ? "var(--color-success)" : "var(--text-secondary)",
-          fontSize: 11,
-          fontWeight: isCooked ? 700 : 400,
-          cursor: isCooked ? "default" : "pointer",
-          transition: "all .15s"
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          width: 14,
-          height: 14,
-          borderRadius: 3,
-          border: `2px solid ${isCooked ? "var(--color-success)" : "var(--border-strong)"}`,
-          background: isCooked ? "var(--color-success)" : "transparent",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 9,
-          color: "var(--ink-on-accent)",
-          fontWeight: 800,
-          flexShrink: 0
-        }
-      }, isCooked ? "✓" : ""), isCooked ? "Cooked ✓" : "Mark as Cooked")), meal ? /*#__PURE__*/React.createElement("div", {
-        style: {
-          display: "flex",
-          gap: 7,
-          alignItems: "flex-start"
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          flex: 1,
-          minWidth: 0,
-          opacity: isCooked ? 0.6 : 1
-        }
-      }, /*#__PURE__*/React.createElement(MealCard, {
+        style: { color: cc, fontSize: 10, fontWeight: 700, letterSpacing: ".07em", textTransform: "uppercase", margin: "0 0 6px" }
+      }, CL[slot]), meal ? /*#__PURE__*/React.createElement(PlanSlotCard, {
         meal: meal,
-        pantryItems: pantryItems
-      })), /*#__PURE__*/React.createElement("div", {
-        style: {
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          flexShrink: 0
-        }
-      }, /*#__PURE__*/React.createElement("button", {
-        onClick: () => {
-          setPicking(slot);
-          setSearch("");
-        },
-        style: {
-          padding: "6px 10px",
-          background: "var(--card-bg-2)",
-          border: "1px solid var(--card-border-2)",
-          color: "var(--text-secondary)",
-          borderRadius: 7,
-          fontSize: 10,
-          cursor: "pointer"
-        }
-      }, "\u21BB"), /*#__PURE__*/React.createElement("button", {
-        onClick: () => remove(dayIdx, slot),
-        style: {
-          padding: "6px 10px",
-          background: "transparent",
-          border: "1px solid var(--card-border)",
-          color: "var(--text-muted)",
-          borderRadius: 7,
-          fontSize: 10,
-          cursor: "pointer"
-        }
-      }, "\xD7"))) : /*#__PURE__*/React.createElement("button", {
-        onClick: () => {
-          setPicking(slot);
-          setSearch("");
-        },
-        style: {
-          width: "100%",
-          padding: "14px 0",
-          background: "var(--card-bg)",
-          border: `2px dashed ${cc}40`,
-          borderRadius: 9,
-          color: cc,
-          fontSize: 12,
-          cursor: "pointer",
-          fontWeight: 600
-        }
+        slot: slot,
+        isCooked: isCooked,
+        pantryItems: pantryItems,
+        onCook: slot === "S" ? null : () => requestCook(dayIdx, slot, meal),
+        onSwap: () => { setPicking(slot); setSearch(""); },
+        onRemove: () => remove(dayIdx, slot)
+      }) : /*#__PURE__*/React.createElement("button", {
+        className: "flt-press",
+        onClick: () => { setPicking(slot); setSearch(""); },
+        style: { width: "100%", padding: "18px 0", background: "var(--card-bg)", border: `2px dashed ${cc}45`, borderRadius: 16, color: cc, fontSize: 12, cursor: "pointer", fontWeight: 700 }
       }, "+ Pick ", CL[slot]));
-    }), picking && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    })), picking && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
       style: {
         position: "fixed",
         top: 0,
@@ -1137,7 +1279,21 @@
         overflowY: "auto",
         flex: 1
       }
-    }, pickable.length === 0 && /*#__PURE__*/React.createElement("p", {
+    }, onCreateMeal && window.MealBuilder && /*#__PURE__*/React.createElement("button", {
+      onClick: () => setShowBuilder(true),
+      style: {
+        width: "100%",
+        padding: "12px 0",
+        marginBottom: 8,
+        background: "var(--card-bg)",
+        border: `2px dashed ${C[picking] || "var(--color-success)"}55`,
+        borderRadius: 10,
+        color: C[picking] || "var(--color-success)",
+        fontSize: 12,
+        fontWeight: 700,
+        cursor: "pointer"
+      }
+    }, "✨ Can't find it? Create a new meal →"), pickable.length === 0 && /*#__PURE__*/React.createElement("p", {
       style: {
         color: "var(--text-muted)",
         fontSize: 12,
@@ -1148,7 +1304,20 @@
       meal: m,
       onPick: assign,
       pantryItems: pantryItems
-    }))))));
+    })))),
+
+    /* MealBuilder — conversational meal creation; saves to Library then fills the slot */
+    showBuilder && window.MealBuilder && /*#__PURE__*/React.createElement(window.MealBuilder, {
+      slotHint: picking,
+      userName: userName,
+      allMeals: allMeals,
+      onClose: () => setShowBuilder(false),
+      onSave: async meal => {
+        const entry = await onCreateMeal(meal);
+        setShowBuilder(false);
+        if (picking) await assign(entry);
+      }
+    })));
   }
   
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1280,7 +1449,7 @@
         color: "var(--color-success)",
         fontWeight: 700
       }
-    }, canMakeNow), " meals 80%+ covered by your pantry") : "Tap any card for ingredients + steps")),
+    }, canMakeNow), " meals 80%+ covered by your inventory") : "Tap any card for ingredients + steps")),
     // Only show + Add button when viewing own custom meals section
     libSection === "custom" && /*#__PURE__*/React.createElement("button", {
       onClick: () => setShowAdd(true),
@@ -1375,7 +1544,7 @@
       }
     }, /*#__PURE__*/React.createElement("option", {
       value: "pantry"
-    }, "\uD83D\uDFE2 Pantry First"), /*#__PURE__*/React.createElement("option", {
+    }, "\uD83D\uDFE2 Inventory First"), /*#__PURE__*/React.createElement("option", {
       value: "cal"
     }, "\u2191 Calories"), /*#__PURE__*/React.createElement("option", {
       value: "prot"
@@ -2192,11 +2361,12 @@
   function GroceryTab({
     plan,
     checked,
-    setChecked
+    setChecked,
+    settings
   }) {
     const [activeRouteId, setActiveRouteId] = useState(null);
     const [expandedStore, setExpandedStore] = useState(null);
-    const hasPlan = Object.values(plan).some(d => d?.B || d?.L || d?.D);
+    const hasPlan = Object.values(plan).some(d => d?.B || d?.L || d?.D || d?.S);
   
     // Collect and deduplicate ingredients
     const allIng = [];
@@ -2219,8 +2389,8 @@
         ...checked,
         [key]: !checked[key]
       };
-      setChecked(up);
-      await DB.set(KEYS.checked(), up);
+      // setChecked (from FoodTab) persists to the correct grocery-check key
+      await setChecked(up);
     };
     return /*#__PURE__*/React.createElement("div", null, !hasPlan && /*#__PURE__*/React.createElement("div", {
       style: {
@@ -3115,7 +3285,7 @@ Rules:
       },
         /*#__PURE__*/React.createElement("p", {
           style: { fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, color: "var(--color-accent-orange)", letterSpacing: ".05em", textTransform: "uppercase", margin: "0 0 4px" }
-        }, "Deduct from pantry?"),
+        }, "Deduct from inventory?"),
         /*#__PURE__*/React.createElement("p", {
           style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 14px", lineHeight: 1.5 }
         }, "Based on “", mealName, "” — tap to unselect anything that wasn’t used."),
@@ -3363,12 +3533,12 @@ Rules:
               role: "user",
               content: `User logged eating: "${mealName}"
 
-Pantry inventory (name [qty unit] id):
+Inventory (name [qty unit] id):
 ${itemsList}
 
-Identify which pantry item(s) were likely consumed. Understand synonyms:
+Identify which inventory item(s) were likely consumed. Understand synonyms:
 - "toast" / "bread slice" → bread loaf
-- "sandwich" → bread + any matching protein/cheese in pantry
+- "sandwich" → bread + any matching protein/cheese in inventory
 - "coffee" → coffee beans/grounds
 - "cereal" → matching cereal box
 - "1 glass of milk" → milk
@@ -3379,7 +3549,7 @@ Return ONLY valid JSON (no markdown):
 Rules:
 - qty defaults to 1 unless the meal explicitly states a count (e.g. "2 slices of toast" → qty 2)
 - Include at most 3 matches, only if you're confident
-- If nothing in pantry matches, return {"matches":[]}`
+- If nothing in inventory matches, return {"matches":[]}`
             }]
           })
         });
@@ -3397,7 +3567,7 @@ Rules:
           return { id: item.id, name: item.name, qty: parseFloat(m.qty) || 1, unit: item.unit || "unit", currentQty: parseFloat(item.qty || 0), reason: m.reason || "" };
         }).filter(Boolean);
       } catch (e) {
-        console.warn("[FoodTab] AI pantry match failed:", e);
+        console.warn("[FoodTab] AI inventory match failed:", e);
         return [];
       }
     };
@@ -3476,6 +3646,17 @@ Rules:
       if (slot === "snack") updated.snacks = (updated.snacks || []).filter(s => s.id !== snackId);
       else delete updated[slot];
       await saveMealLog(updated);
+    };
+
+    // Save/replace a COMPLETE meal in the Library (customMeals) — used by
+    // MealBuilder (Week planner) and FoodLogThread enrichment. Upserts by name.
+    const upsertLibraryMeal = async meal => {
+      const hid = window.__current_household_id;
+      const entry = { id: meal.id || `c${Date.now()}`, ...meal };
+      const u = [...customMeals.filter(m => (m.name || "").toLowerCase() !== (entry.name || "").toLowerCase()), entry];
+      setCustomMeals(u);
+      await DB.set(hid ? KEYS.hhCustomMeals() : KEYS.customMeals(), u);
+      return entry;
     };
   
     const handleSabrinaResponse = async (prompt, same) => {
@@ -3638,7 +3819,8 @@ Rules:
       allMeals: allMeals,
       userName: isPartner ? partnerName : userName,
       onSaveMeal: handleSlotSave,
-      onDeleteEntry: handleDeleteEntry
+      onDeleteEntry: handleDeleteEntry,
+      onSaveLibraryMeal: upsertLibraryMeal
     }),
   
     /* ── PLAN sub-tab ── */
@@ -3652,7 +3834,9 @@ Rules:
       allMeals: allMeals,
       pantryItems: pantryItems,
       cookedMeals: cookedMeals,
-      onCookMeal: handleCookMeal
+      onCookMeal: handleCookMeal,
+      onCreateMeal: upsertLibraryMeal,
+      userName: isPartner ? partnerName : userName
     }), subTab === "library" && /*#__PURE__*/React.createElement(LibraryTab, {
       customMeals: customMeals,
       importedMeals: importedMeals,
@@ -3672,6 +3856,7 @@ Rules:
       pantryItems: pantryItems
     }), subTab === "grocery" && /*#__PURE__*/React.createElement(GroceryTab, {
       plan: weekPlan,
+      settings: settings,
       checked: checkedItems,
       setChecked: async c => {
         const hid = window.__current_household_id;
