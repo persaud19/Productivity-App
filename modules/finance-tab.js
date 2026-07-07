@@ -213,6 +213,159 @@ const ENV_COLORS = [
   "#f43f5e","#eab308","var(--color-accent-teal)","#64748b","#e879f9","#38bdf8",
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DASHBOARD — Mint-style overview: cash flow, budget bars with spend pace,
+// month trend, week-over-week deltas, and the single biggest anomaly.
+// The landing view of Finance: everything needed to course-correct at a glance.
+// ─────────────────────────────────────────────────────────────────────────────
+function DashboardView({ envelopes, spentByEnvelope, rolloverIn, totalIncome, netSpent, netCashFlow, transactions, currentMonth, allMonths, monthLabel, fmt, setView }) {
+  const [history, setHistory] = useState(null); // { months: [{month,label,spent}], allTx: [] }
+
+  const isCurrentMonth = currentMonth === getToday().slice(0, 7);
+  const today = new Date();
+  const daysInMonth = new Date(parseInt(currentMonth.slice(0, 4)), parseInt(currentMonth.slice(5, 7)), 0).getDate();
+  const dayOfMonth = isCurrentMonth ? today.getDate() : daysInMonth;
+  const dayFrac = Math.max(0.02, dayOfMonth / daysInMonth);
+
+  // Load up to 6 months of transactions once for the trend + week deltas
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const months = [...new Set([...(allMonths || []), currentMonth])].sort().filter(m => m <= currentMonth).slice(-6);
+      const out = [];
+      let allTx = [];
+      for (const m of months) {
+        const tx = m === currentMonth ? transactions : (await DB.get(FK.transactions(m))) || [];
+        const gross = tx.filter(t => !t.isRefund).reduce((a, t) => a + (t.amount || 0), 0);
+        const refunds = tx.filter(t => t.isRefund).reduce((a, t) => a + Math.abs(t.amount || 0), 0);
+        out.push({ month: m, label: new Date(m + "-15").toLocaleDateString("en-CA", { month: "short" }), spent: Math.max(0, Math.round(gross - refunds)) });
+        allTx = allTx.concat(tx);
+      }
+      if (live) setHistory({ months: out, allTx });
+    })();
+    return () => { live = false; };
+  }, [currentMonth, transactions, allMonths]);
+
+  // ── Pace ──
+  const available = env => (env.allocated || 0) + (rolloverIn[env.id] || 0);
+  const budgetTotal = envelopes.reduce((a, e) => a + available(e), 0);
+  const paceExpected = budgetTotal * dayFrac;
+  const paceDelta = paceExpected - netSpent; // positive = under pace
+  const projected = netSpent / dayFrac;
+
+  // ── Budget bars ──
+  const rows = envelopes
+    .map(e => {
+      const avail = available(e);
+      const spent = spentByEnvelope[e.id] || 0;
+      if (avail <= 0 && spent <= 0) return null;
+      const pct = avail > 0 ? spent / avail : 1;
+      const state = avail > 0 && spent > avail ? "over" : avail > 0 && spent > avail * dayFrac * 1.15 ? "hot" : "ok";
+      return { env: e, avail, spent, pct, state };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (a.state === "over" ? 0 : a.state === "hot" ? 1 : 2) - (b.state === "over" ? 0 : b.state === "hot" ? 1 : 2) || b.pct - a.pct);
+
+  // ── Week over week (current month view only) ──
+  let weekDelta = null;
+  if (isCurrentMonth && history) {
+    const iso = d => d.toISOString().slice(0, 10);
+    const nowEnd = iso(today);
+    const nowStart = iso(new Date(today.getTime() - 6 * 864e5));
+    const prevEnd = iso(new Date(today.getTime() - 7 * 864e5));
+    const prevStart = iso(new Date(today.getTime() - 13 * 864e5));
+    const sumRange = (a, b) => history.allTx.filter(t => !t.isRefund && t.date >= a && t.date <= b).reduce((s, t) => s + (t.amount || 0), 0);
+    const nowSum = sumRange(nowStart, nowEnd);
+    const prevSum = sumRange(prevStart, prevEnd);
+    weekDelta = { now: nowSum, prev: prevSum, diff: nowSum - prevSum };
+  }
+
+  // ── Anomaly: envelope furthest ahead of its pace ──
+  const anomaly = rows
+    .filter(r => r.avail > 0)
+    .map(r => ({ ...r, overBy: r.spent - r.avail * dayFrac }))
+    .sort((a, b) => b.overBy - a.overBy)[0];
+  const biggestTxn = [...transactions].filter(t => !t.isRefund).sort((a, b) => (b.amount || 0) - (a.amount || 0))[0];
+
+  const stateColor = s => s === "over" ? "var(--color-danger)" : s === "hot" ? "var(--color-primary)" : "var(--color-success)";
+  const R = window.Recharts || {};
+  const card = { background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: 16, padding: "15px 16px", marginBottom: 12 };
+  const head = t => /*#__PURE__*/React.createElement("p", { style: { margin: "0 0 11px", fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: ".07em", color: "var(--text-secondary)", textTransform: "uppercase" } }, t);
+
+  return /*#__PURE__*/React.createElement("div", { className: "flt-msg" },
+
+    // ── 1. Cash flow hero ──
+    /*#__PURE__*/React.createElement("div", { style: { ...card, background: netCashFlow >= 0 ? "rgba(74,222,128,.06)" : "rgba(239,68,68,.05)", borderColor: netCashFlow >= 0 ? "rgba(74,222,128,.2)" : "rgba(239,68,68,.18)" } },
+      head(monthLabel(currentMonth) + " cash flow"),
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 } },
+        /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 34, fontWeight: 800, color: netCashFlow >= 0 ? "var(--color-success)" : "var(--color-danger)", lineHeight: 1 } }, (netCashFlow >= 0 ? "+" : "−") + fmt(netCashFlow)),
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)", fontWeight: 600 } }, netCashFlow >= 0 ? "kept this month" : "more out than in")),
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 14 } },
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--color-success)", fontWeight: 700 } }, "↓ In " + fmt(totalIncome)),
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: "var(--color-accent-orange)", fontWeight: 700 } }, "↑ Out " + fmt(netSpent))),
+      totalIncome > 0 && /*#__PURE__*/React.createElement("div", { style: { height: 7, background: "var(--card-bg-2)", borderRadius: 4, overflow: "hidden", marginTop: 10 } },
+        /*#__PURE__*/React.createElement("div", { style: { width: Math.min(100, netSpent / totalIncome * 100) + "%", height: "100%", background: netSpent > totalIncome ? "var(--color-danger)" : "var(--color-accent-orange)", borderRadius: 4, transition: "width .5s" } }))),
+
+    // ── 2. Spend pace ──
+    budgetTotal > 0 && /*#__PURE__*/React.createElement("div", { style: card },
+      head(isCurrentMonth ? "Am I on track? · day " + dayOfMonth + " of " + daysInMonth : "Final for " + monthLabel(currentMonth)),
+      /*#__PURE__*/React.createElement("p", { style: { margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: paceDelta >= 0 ? "var(--color-success)" : "var(--color-danger)" } },
+        paceDelta >= 0 ? "🟢 " + fmt(paceDelta) + " under pace" : "🔴 " + fmt(paceDelta) + " over pace"),
+      /*#__PURE__*/React.createElement("p", { style: { margin: 0, fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.5 } },
+        "Spent " + fmt(netSpent) + " of " + fmt(budgetTotal) + " budget" + (isCurrentMonth ? " · projected month-end: " + fmt(projected) + (projected > budgetTotal ? " ⚠️" : " ✓") : "")),
+      /*#__PURE__*/React.createElement("div", { style: { position: "relative", height: 9, background: "var(--card-bg-2)", borderRadius: 5, marginTop: 10 } },
+        /*#__PURE__*/React.createElement("div", { style: { width: Math.min(100, netSpent / budgetTotal * 100) + "%", height: "100%", background: netSpent > budgetTotal ? "var(--color-danger)" : paceDelta >= 0 ? "var(--color-success)" : "var(--color-primary)", borderRadius: 5, transition: "width .5s" } }),
+        isCurrentMonth && /*#__PURE__*/React.createElement("div", { title: "today's pace", style: { position: "absolute", left: Math.min(99, dayFrac * 100) + "%", top: -3, bottom: -3, width: 2, background: "var(--text-secondary)", borderRadius: 1 } }))),
+
+    // ── 3. Anomaly alert ──
+    anomaly && anomaly.overBy > 25 && /*#__PURE__*/React.createElement("button", {
+      className: "flt-press", onClick: () => setView("transactions"),
+      style: { ...card, width: "100%", textAlign: "left", cursor: "pointer", background: "rgba(239,68,68,.05)", borderColor: "rgba(239,68,68,.2)" }
+    },
+      /*#__PURE__*/React.createElement("p", { style: { margin: "0 0 3px", fontSize: 12.5, fontWeight: 800, color: "var(--color-danger)", fontFamily: "'Syne',sans-serif" } }, "⚠️ " + anomaly.env.icon + " " + anomaly.env.name + " is running hot"),
+      /*#__PURE__*/React.createElement("p", { style: { margin: 0, fontSize: 11.5, color: "var(--text-secondary)", lineHeight: 1.5 } },
+        fmt(anomaly.spent) + " spent — pace says " + fmt(anomaly.avail * dayFrac) + " by now" + (biggestTxn ? " · biggest hit: " + (biggestTxn.desc || "?").slice(0, 26) + " " + fmt(biggestTxn.amount) : "") + " · tap to review ›")),
+
+    // ── 4. Budget bars (Mint-style) ──
+    rows.length > 0 && /*#__PURE__*/React.createElement("div", { style: card },
+      head("Budgets · left to spend"),
+      rows.slice(0, 8).map(r => /*#__PURE__*/React.createElement("div", { key: r.env.id, style: { marginBottom: 11 } },
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 } },
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" } }, r.env.icon + " " + r.env.name),
+          /*#__PURE__*/React.createElement("span", { style: { fontSize: 11.5, fontWeight: 700, color: stateColor(r.state) } },
+            r.avail > 0 ? (r.spent > r.avail ? fmt(r.spent - r.avail) + " over" : fmt(r.avail - r.spent) + " left") : fmt(r.spent) + " unbudgeted")),
+        /*#__PURE__*/React.createElement("div", { style: { position: "relative", height: 8, background: "var(--card-bg-2)", borderRadius: 4, overflow: "hidden" } },
+          /*#__PURE__*/React.createElement("div", { style: { width: Math.min(100, r.pct * 100) + "%", height: "100%", background: stateColor(r.state), borderRadius: 4, transition: "width .5s" } }),
+          isCurrentMonth && r.avail > 0 && /*#__PURE__*/React.createElement("div", { style: { position: "absolute", left: Math.min(99, dayFrac * 100) + "%", top: 0, bottom: 0, width: 1.5, background: "var(--border-strong)" } })))),
+      /*#__PURE__*/React.createElement("button", { className: "flt-press", onClick: () => setView("envelopes"), style: { width: "100%", padding: "9px 0", background: "transparent", border: "1px dashed var(--card-border-2)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 11, fontWeight: 700, cursor: "pointer" } }, rows.length > 8 ? "All " + rows.length + " envelopes →" : "Manage envelopes →")),
+
+    // ── 5. Week over week ──
+    weekDelta && (weekDelta.now > 0 || weekDelta.prev > 0) && /*#__PURE__*/React.createElement("div", { style: card },
+      head("This week vs last week"),
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: 8 } },
+        /*#__PURE__*/React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontSize: 22, fontWeight: 800, color: weekDelta.diff <= 0 ? "var(--color-success)" : "var(--color-danger)" } }, (weekDelta.diff <= 0 ? "−" : "+") + fmt(weekDelta.diff)),
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 11.5, color: "var(--text-muted)" } }, fmt(weekDelta.now) + " this week · " + fmt(weekDelta.prev) + " last week")),
+      /*#__PURE__*/React.createElement("p", { style: { margin: "6px 0 0", fontSize: 11, color: "var(--text-muted)" } }, weekDelta.diff <= 0 ? "Trending the right way — keep it rolling." : "Running hotter than last week — worth a look before it compounds.")),
+
+    // ── 6. Six-month trend ──
+    history && history.months.length > 1 && /*#__PURE__*/React.createElement("div", { style: card },
+      head("Spending trend"),
+      R.ResponsiveContainer && R.BarChart
+        ? /*#__PURE__*/React.createElement(R.ResponsiveContainer, { width: "100%", height: 140 },
+            /*#__PURE__*/React.createElement(R.BarChart, { data: history.months, margin: { top: 4, right: 4, left: 4, bottom: 0 } },
+              /*#__PURE__*/React.createElement(R.XAxis, { dataKey: "label", tick: { fontSize: 10, fill: "var(--text-muted)" }, axisLine: false, tickLine: false }),
+              /*#__PURE__*/React.createElement(R.Tooltip, { formatter: v => fmt(v), contentStyle: { background: "var(--bg-tooltip)", border: "1px solid var(--card-border-2)", borderRadius: 8, fontSize: 12 } }),
+              /*#__PURE__*/React.createElement(R.Bar, { dataKey: "spent", fill: "#34d399", radius: [6, 6, 0, 0] })))
+        : /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "flex-end", gap: 8, height: 110 } },
+            history.months.map(m => {
+              const max = Math.max(...history.months.map(x => x.spent), 1);
+              return /*#__PURE__*/React.createElement("div", { key: m.month, style: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 } },
+                /*#__PURE__*/React.createElement("div", { style: { width: "100%", height: Math.max(4, m.spent / max * 88) + "px", background: m.month === currentMonth ? "var(--color-accent-teal)" : "var(--card-bg-4)", borderRadius: "6px 6px 0 0" } }),
+                /*#__PURE__*/React.createElement("span", { style: { fontSize: 9, color: "var(--text-muted)" } }, m.label));
+            })))
+  );
+}
+
 // FinanceTab component
 function FinanceTab({ settings, householdId }) {
   // Build card list from user's configured cards (setup step 8) + fixed utility options.
@@ -223,7 +376,7 @@ function FinanceTab({ settings, householdId }) {
     return [...new Set([...base, "Banking", "Other"])];
   }, [settings?.myCards]);
 
-  const [view, setView] = useState("envelopes"); // envelopes | transactions | summary | import
+  const [view, setView] = useState("dashboard"); // dashboard | envelopes | transactions | summary | import
   const [currentMonth, setCurrentMonth] = useState(() => getToday().slice(0, 7));
   const [envelopes, setEnvelopes] = useState([]); // [{ ...default, allocated: 0 }]
   const [transactions, setTransactions] = useState([]);
@@ -1462,7 +1615,8 @@ Return exactly ${bRows.length} objects. No markdown.`;
 
   // ── Render ──────────────────────────────────────────────────────────────
   // Derive active main tab from view
-  const finTab = ["envelopes","transactions","income"].includes(view) ? "budget"
+  const finTab = view === "dashboard" ? "overview"
+    : ["envelopes","transactions","income"].includes(view) ? "budget"
     : ["summary","coach"].includes(view) ? "insights"
     : "import";
 
@@ -1516,6 +1670,7 @@ Return exactly ${bRows.length} objects. No markdown.`;
 
     // Main tabs (3 consolidated)
     /*#__PURE__*/React.createElement("div", { style: { display: "flex", borderBottom: "1px solid var(--card-bg-2)", marginBottom: 12 } },
+      mainTabBtn("overview", "🏠 OVERVIEW", "244,168,35",  "dashboard"),
       mainTabBtn("budget",   "💰 BUDGET",   "52,211,153",  "envelopes"),
       mainTabBtn("insights", "📊 INSIGHTS", "251,146,60",  "summary"),
       mainTabBtn("import",   "📥 IMPORT",   "167,139,250", "import")
@@ -1540,6 +1695,22 @@ Return exactly ${bRows.length} objects. No markdown.`;
         }, "⚡ Rules")
       )
     ),
+
+    // ── DASHBOARD VIEW (Mint-style overview, the landing tab) ───────────
+    view === "dashboard" && /*#__PURE__*/React.createElement(DashboardView, {
+      envelopes: envelopes,
+      spentByEnvelope: spentByEnvelope,
+      rolloverIn: rolloverIn,
+      totalIncome: totalIncome,
+      netSpent: netSpent,
+      netCashFlow: netCashFlow,
+      transactions: transactions,
+      currentMonth: currentMonth,
+      allMonths: allMonths,
+      monthLabel: monthLabel,
+      fmt: fmt,
+      setView: setView
+    }),
 
     // ── ENVELOPES VIEW ──────────────────────────────────────────────────
     view === "envelopes" && /*#__PURE__*/React.createElement("div", null,

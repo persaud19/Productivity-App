@@ -1248,11 +1248,12 @@ function Train({
         gap: 5
       }
     }, "\u2190 Back"),
-    /*#__PURE__*/React.createElement(StrengthSession, {
+    /*#__PURE__*/React.createElement(window.StrengthLogger || StrengthSession, {
       date: date,
       pair: strengthPair,
-      onDone: () => logSession("strength", {
-        pair: strengthPair.name
+      onDone: (summary) => logSession("strength", {
+        pair: strengthPair.name,
+        ...(summary && typeof summary === "object" ? { sets: summary.sets, volume: summary.volume, durationMin: summary.durationMin, prs: summary.prs } : {})
       })
     })
   ),

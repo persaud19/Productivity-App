@@ -770,6 +770,20 @@ function Morning({
     onSave && onSave();
   };
 
+  // Map fields parsed from a spoken check-in (VoiceCheckin) onto the form state
+  const applyVoiceFields = f => {
+    if (f.weight != null) setWt(String(f.weight));
+    if (f.wakeTime) setWake(f.wakeTime);
+    if (f.sleep >= 1 && f.sleep <= 5) setSl(f.sleep);
+    if (f.showingUp >= 1 && f.showingUp <= 5) setShowUp(f.showingUp);
+    if (f.intention) setIt(String(f.intention).slice(0, 60));
+    if (f.reflection) setReflection(String(f.reflection).slice(0, 500));
+    if (f.exceptionalDay) {
+      setIsExceptional(true);
+      if (f.exceptionalReason) setExceptionalReason(f.exceptionalReason);
+    }
+  };
+
   const insightBanner = useMemo(() => {
     if (isHistory || allLogsArr.length < 3) return null;
     const last7 = allLogsArr.slice(0, 7);
@@ -866,6 +880,13 @@ function Morning({
         ),
         backfill && React.createElement("input", { type: "date", value: backfillDate, onChange: function(e) { setBackfillDate(e.target.value); }, style: { ...inp, marginTop: 8, fontSize: 13, colorScheme: "var(--input-color-scheme)" } })
       ),
+
+      window.VoiceCheckin && React.createElement(window.VoiceCheckin, {
+        mode: "morning",
+        promptText: promptInfo.prompt,
+        userName: settings?.name,
+        onParsed: applyVoiceFields
+      }),
 
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 13 } },
 
@@ -1005,6 +1026,7 @@ function MobilityTab({ todayLog, onSave }) {
   const [weekPlan, setWeekPlan] = useState(null);
   const [mobLoading, setMobLoading] = useState(true);
   const [showPoolManager, setShowPoolManager] = useState(false);
+  const [showFlow, setShowFlow] = useState(false);
   const [poolForm, setPoolForm] = useState({ name: "", zone: "full", reps: "", tip: "" });
 
   useEffect(() => {
@@ -1075,6 +1097,21 @@ function MobilityTab({ todayLog, onSave }) {
   return /*#__PURE__*/React.createElement("div", null,
     /*#__PURE__*/React.createElement(SectionHead, { label: "Mobility", color: "var(--color-accent-purple)" }),
     /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px 13px" } }, fmtMid(getToday()) + " \xB7 " + mobDone + "/10 done"),
+
+    // Guided flow — one stretch at a time with a hold timer (MobilityFlow module)
+    !mobLoading && dailyList.length > 0 && mobDone < dailyList.length && window.MobilityFlow && /*#__PURE__*/React.createElement("button", {
+      className: "flt-press",
+      onClick: () => setShowFlow(true),
+      style: { width: "100%", padding: "15px 0", marginBottom: 12, background: "var(--color-accent-purple)", border: "none", borderRadius: 14, color: "var(--ink-on-accent)", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "'Syne',sans-serif", letterSpacing: ".04em", boxShadow: "0 8px 22px -8px rgba(167,139,250,.6)" }
+    }, "▶ START GUIDED FLOW · ~" + Math.max(1, Math.round((dailyList.length - mobDone) * 0.6)) + " MIN"),
+    showFlow && window.MobilityFlow && /*#__PURE__*/React.createElement(window.MobilityFlow, {
+      exercises: dailyList,
+      checked: mobility,
+      onCheck: id => setMobility(prev => ({ ...prev, [id]: true })),
+      zoneColors: ZONE_COLORS,
+      onClose: () => setShowFlow(false)
+    }),
+
     /*#__PURE__*/React.createElement(Card, {
       ch: mobLoading
         ? /*#__PURE__*/React.createElement("div", { style: { padding: "16px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 12 } }, "Loading mobility plan\u2026")
@@ -1242,6 +1279,21 @@ function Evening({
     onSave && onSave();
   };
 
+  // Map fields parsed from a spoken check-in (VoiceCheckin) onto the form state
+  const applyVoiceFields = function(f) {
+    if (f.steps != null) setSteps(String(f.steps));
+    if (f.glasses != null) setGlasses(Math.max(0, Math.min(8, parseInt(f.glasses) || 0)));
+    if (f.dayRating >= 1 && f.dayRating <= 5) setDr(f.dayRating);
+    if (f.win) setWi(String(f.win).slice(0, 200));
+    if (f.bedtime) setBedtime(f.bedtime);
+    if (f.reflection) setReflection(String(f.reflection).slice(0, 500));
+    if (f.dailyMemory) setDailyMemory(String(f.dailyMemory).slice(0, 300));
+    if (f.exceptionalDay) {
+      setExceptional(true);
+      if (f.exceptionalReason) setExceptReason(f.exceptionalReason);
+    }
+  };
+
   // Accountability banners
   var accountabilityBanners = [];
 
@@ -1288,6 +1340,13 @@ function Evening({
         "✓ Today's training: " + [didStrength && "Strength", didCardio && "Cardio"].filter(Boolean).join(" + ") + " (" + todaySessions.length + " session" + (todaySessions.length !== 1 ? "s" : "") + ")"
       )
     ),
+
+    (view === "log" || isHistory) && window.VoiceCheckin && React.createElement(window.VoiceCheckin, {
+      mode: "evening",
+      promptText: promptInfo.prompt,
+      userName: settings?.name,
+      onParsed: applyVoiceFields
+    }),
 
     (view === "log" || isHistory) && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 13 } },
 
