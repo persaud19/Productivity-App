@@ -869,17 +869,42 @@ function TodayStrip({
   streak,
   settings,
   overdueChores,
-  pantryLowCount
+  pantryLowCount,
+  allLogs,
+  mealLog,
+  macroTargets
 }) {
   const m = todayLog?.morning || {};
   const e = todayLog?.evening || {};
   const morningDone = !!(m.weight || m.intention);
   const eveningDone = !!e.win;
   const mobDone = m.mobilityCount || 0;
-  const workouts = [mobDone > 0, e.cardio, e.strength].filter(Boolean).length;
-  const steps = m.steps || 0;
   const stepGoal = settings?.stepGoal || 10000;
-  const stepPct = Math.min(100, Math.round(steps / stepGoal * 100));
+
+  // Weekly training frequency (Mon-based). A day counts if it had strength,
+  // cardio, OR hit the step goal — so a walk-only day still earns its mark.
+  // Target N = planned training days from onboarding (fallback 4).
+  const today = getToday();
+  const weekStart = getMondayOfWeek(today);
+  const trainTarget = (settings?.trainingDays && settings.trainingDays.length) || 4;
+  const trainByDate = {};
+  (allLogs || []).forEach(l => { if (l.date >= weekStart && l.date <= today) trainByDate[l.date] = l; });
+  if (todayLog) trainByDate[today] = todayLog; // freshest copy of today's data
+  const trainedDays = Object.values(trainByDate).filter(l => {
+    const mm = l.morning || {}, ee = l.evening || {};
+    return ee.cardio || ee.strength || (parseInt(mm.steps) || 0) >= stepGoal;
+  }).length;
+  const trainMet = trainedDays >= trainTarget;
+
+  // Calories today: remaining-vs-target is the motivating framing (mirrors the
+  // food log's "left in the tank" and finance "left to spend"). Falls back to
+  // consumed when no target is set; the block hides entirely when there's no data.
+  const calIn = mealLog
+    ? ["breakfast", "lunch", "dinner"].reduce((a, s) => a + ((mealLog[s] && mealLog[s].calories) || 0), 0)
+      + (mealLog.snacks || []).reduce((a, s) => a + (s.calories || 0), 0)
+    : 0;
+  const calTarget = (macroTargets && macroTargets.calories) || 0;
+  const calLeft = calTarget - calIn;
   const isExceptional = e.exceptionalDay;
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -946,62 +971,71 @@ function TodayStrip({
     style: {
       textAlign: "center",
       flexShrink: 0
-    }
+    },
+    title: "Training days this week — strength, cardio, or 10k+ steps"
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: workouts === 3 ? "var(--color-success)" : workouts > 0 ? "var(--color-primary)" : "var(--text-disabled)",
+      color: trainMet ? "var(--color-success)" : trainedDays > 0 ? "var(--color-primary)" : "var(--text-disabled)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 18,
       fontWeight: 800,
       margin: 0,
       lineHeight: 1
     }
-  }, workouts, "/3"), /*#__PURE__*/React.createElement("p", {
+  }, trainedDays, "/", trainTarget), /*#__PURE__*/React.createElement("p", {
     style: {
       color: "var(--text-muted)",
       fontSize: 9,
       margin: 0,
       letterSpacing: ".04em"
     }
-  }, "SESSIONS")), steps > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      flexShrink: 0,
-      minWidth: 60
-    }
-  }, /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: stepPct >= 100 ? "var(--color-success)" : "var(--text-secondary)",
-      fontSize: 11,
-      fontWeight: 700,
-      margin: "0 0 2px"
-    }
-  }, steps.toLocaleString()), /*#__PURE__*/React.createElement(ProgBar, {
-    pct: stepPct,
-    col: stepPct >= 100 ? "var(--color-success)" : "var(--color-accent-blue)",
-    h: 3
-  }), /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: "var(--text-muted)",
-      fontSize: 9,
-      margin: "1px 0 0"
-    }
-  }, "STEPS")), mobDone > 0 && /*#__PURE__*/React.createElement("div", {
+  }, "TRAIN/WK")), (calTarget > 0 || calIn > 0) && /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "center",
       flexShrink: 0
-    }
+    },
+    title: calTarget > 0 ? "Calories left today (target " + calTarget.toLocaleString() + ", eaten " + calIn.toLocaleString() + ")" : "Calories eaten today"
   }, /*#__PURE__*/React.createElement("p", {
     style: {
-      color: mobDone === 10 ? "var(--color-success)" : "var(--color-accent-orange)",
+      color: calTarget > 0 ? (calLeft >= 0 ? "var(--color-accent-teal)" : "var(--color-danger)") : "var(--color-accent-orange)",
       fontFamily: "'Syne',sans-serif",
       fontSize: 18,
       fontWeight: 800,
       margin: 0,
       lineHeight: 1
     }
-  }, mobDone, "/10"), /*#__PURE__*/React.createElement("p", {
+  }, calTarget > 0 ? Math.abs(calLeft).toLocaleString() : calIn.toLocaleString()), /*#__PURE__*/React.createElement("p", {
     style: {
       color: "var(--text-muted)",
+      fontSize: 9,
+      margin: 0,
+      letterSpacing: ".04em"
+    }
+  }, calTarget > 0 ? (calLeft >= 0 ? "CAL LEFT" : "CAL OVER") : "CAL IN")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      flexShrink: 0
+    },
+    title: mobDone >= 10 ? "Mobility done today" : "Mobility not done yet"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 22,
+      height: 22,
+      minHeight: 22,
+      borderRadius: "50%",
+      margin: "0 auto 3px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: mobDone >= 10 ? "var(--color-accent-purple)" : "transparent",
+      border: mobDone >= 10 ? "none" : "2px solid var(--border-strong)",
+      color: "var(--ink-on-accent)",
+      fontSize: 12,
+      fontWeight: 800
+    }
+  }, mobDone >= 10 ? "✓" : ""), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: mobDone >= 10 ? "var(--color-accent-purple)" : "var(--text-muted)",
       fontSize: 9,
       margin: 0,
       letterSpacing: ".04em"
@@ -3416,6 +3450,9 @@ function App() {
     todayLog: todayLog,
     streak: streak,
     settings: settings,
+    allLogs: allLogs,
+    mealLog: todayMealLog,
+    macroTargets: macroTargets,
     overdueChores: overdueChores,
     pantryLowCount: pantryItems.filter(p => {
       const qty = parseFloat(p.qty || 0);
