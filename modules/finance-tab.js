@@ -749,6 +749,7 @@ Return ONLY a JSON array, no markdown:
       // Skip inter-card payments
       if (/^(payment|cibc|amex|td|visa payment|mastercard payment|e-transfer)$/i.test(desc.trim())) continue;
       if (debit > 0)  csvRows.push([date, desc, debit]);
+      else if (debit < 0) csvRows.push([date, "REFUND: " + desc, Math.abs(debit)]); // negative amount = return (e.g. Amex-style single Amount column)
       else if (credit > 0) csvRows.push([date, "REFUND: " + desc, credit]);
     }
     return csvRows.map(r => r.map(c => {
@@ -810,6 +811,31 @@ Return ONLY a JSON array, no markdown:
       cols.push(cur);
       return cols.map(c => c.trim().replace(/^"|"$/g, ""));
     };
+    // Normalise any statement date to YYYY-MM-DD — a non-ISO date corrupts the month
+    // key (t.date.slice(0,7)) and the import silently lands in a garbage month
+    const normDate = (raw) => {
+      const s = (raw || "").trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+      if (m) {
+        let mo = parseInt(m[1], 10), da = parseInt(m[2], 10);
+        let y = m[3].length === 2 ? "20" + m[3] : m[3];
+        if (mo > 12) { const t = mo; mo = da; da = t; } // DD/MM file
+        return `${y}-${String(mo).padStart(2, "0")}-${String(da).padStart(2, "0")}`;
+      }
+      // "16 Jul 2026" or "Jul 16, 2026"
+      m = s.match(/^(\d{1,2})[ .-]([A-Za-z]{3,})\.?[ .-](\d{2,4})$/) || s.match(/^([A-Za-z]{3,})\.?\s+(\d{1,2}),?\s+(\d{2,4})$/);
+      if (m) {
+        const MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+        const dayFirst = /^\d/.test(s);
+        const day = parseInt(dayFirst ? m[1] : m[2], 10);
+        const mo  = MONTHS[(dayFirst ? m[2] : m[1]).slice(0, 3).toLowerCase()];
+        const y   = m[3].length === 2 ? "20" + m[3] : m[3];
+        if (!mo) return "";
+        return `${y}-${String(mo).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      }
+      return "";
+    };
     const hdr = splitLine(lines[0]);
     const di  = hdr.findIndex(h => /^date$/i.test(h));
     const ni  = hdr.findIndex(h => /^desc/i.test(h));
@@ -819,12 +845,16 @@ Return ONLY a JSON array, no markdown:
     const rows = [];
     for (let i = 1; i < lines.length; i++) {
       const c = splitLine(lines[i]);
-      const date    = c[di >= 0 ? di : 0] || "";
+      const date    = normDate(c[di >= 0 ? di : 0] || "");
       const rawDesc = (c[ni >= 0 ? ni : 1] || "").replace(/^REFUND:\s*/i, "");
-      const isRefund = (c[ni >= 0 ? ni : 1] || "").toUpperCase().startsWith("REFUND:");
+      let isRefund = (c[ni >= 0 ? ni : 1] || "").toUpperCase().startsWith("REFUND:");
+      // Statement payments are neither expenses nor refunds — skip
+      if (/payment.*thank you|thank you.*payment|^payment received/i.test(rawDesc)) continue;
       let amount = 0;
       if (ai >= 0) {
-        amount = Math.abs(parseFloat(c[ai]) || 0);
+        const rawAmt = parseFloat(String(c[ai]).replace(/[$,]/g, "")) || 0;
+        if (rawAmt < 0) isRefund = true; // Amex-style: negative Amount = return / money back
+        amount = Math.abs(rawAmt);
       } else {
         const deb = parseFloat(c[dbi] || "") || 0;
         const cred = parseFloat(c[cri] || "") || 0;
@@ -1115,40 +1145,50 @@ Return exactly ${bRows.length} objects. No markdown.`;
   const confirmCardResults = async () => {
     if (!cardResults) return;
     const { expenses = [], income: incItems = [], label = "" } = cardResults;
-
-    // Save expenses (with merchant rules applied)
-    if (expenses.length) {
-      const ruled = applyMerchantRules(expenses, merchantRules);
-      const byMonth = {};
-      ruled.forEach(t => { if (!byMonth[t.month]) byMonth[t.month] = []; byMonth[t.month].push(t); });
-      for (const m of Object.keys(byMonth)) {
-        const existing = await DB.get(FK.transactions(m)) || [];
-        const ids = new Set(existing.map(t => t.id));
-        await DB.set(FK.transactions(m), [...existing, ...byMonth[m].map(t => ({ ...t, needsReview: flaggedCardIds.has(t.id) })).filter(t => !ids.has(t.id))]);
+    try {
+      // Save expenses (with merchant rules applied)
+      if (expenses.length) {
+        const ruled = applyMerchantRules(expenses, merchantRules);
+        const byMonth = {};
+        ruled.forEach(t => { const mk = /^\d{4}-\d{2}$/.test(t.month || "") ? t.month : (t.date || "").slice(0, 7); if (!byMonth[mk]) byMonth[mk] = []; byMonth[mk].push(t); });
+        let added = 0, dupes = 0;
+        for (const m of Object.keys(byMonth)) {
+          const existing = await DB.get(FK.transactions(m)) || [];
+          const ids = new Set(existing.map(t => t.id));
+          const fresh = byMonth[m].filter(t => !ids.has(t.id)).map(t => ({ ...t, needsReview: flaggedCardIds.has(t.id) }));
+          added += fresh.length;
+          dupes += byMonth[m].length - fresh.length;
+          if (fresh.length) await DB.set(FK.transactions(m), [...existing, ...fresh]);
+        }
+        setFlaggedCardIds(new Set());
+        const months = [...new Set([...allMonths, ...Object.keys(byMonth)])].sort();
+        await DB.set(FK.allMonths(), months); setAllMonths(months);
+        const ruleCount = ruled.filter(t => t._ruleApplied).length;
+        let msg = added
+          ? `Saved ${added} expense${added !== 1 ? "s" : ""}${ruleCount ? " (" + ruleCount + " matched rules)" : ""}`
+          : "No new expenses saved";
+        if (dupes) msg += ` — ${dupes} duplicate${dupes !== 1 ? "s" : ""} already imported, skipped`;
+        setImportMsg(incItems.length ? msg + " + " + incItems.length + " income entries from " + label + "." : msg + " from " + label + ".");
       }
-      setFlaggedCardIds(new Set());
-      const months = [...new Set([...allMonths, ...Object.keys(byMonth)])].sort();
-      await DB.set(FK.allMonths(), months); setAllMonths(months);
-      const ruleCount = ruled.filter(t => t._ruleApplied).length;
-      const msg = `Saved ${ruled.length} expense${ruled.length !== 1 ? "s" : ""}${ruleCount ? " (" + ruleCount + " matched rules)" : ""}`;
-      setImportMsg(incItems.length ? msg + " + " + incItems.length + " income entries from " + label + "." : msg + " from " + label + ".");
-    }
 
-    // Save income entries
-    if (incItems.length) {
-      for (const inc of incItems) {
-        const m = inc.month;
-        if (!m) continue;
-        const existing = await DB.get(FK.income(m)) || [];
-        const ids = new Set(existing.map(i => i.id));
-        if (!ids.has(inc.id)) await DB.set(FK.income(m), [...existing, inc]);
+      // Save income entries
+      if (incItems.length) {
+        for (const inc of incItems) {
+          const m = inc.month;
+          if (!m) continue;
+          const existing = await DB.get(FK.income(m)) || [];
+          const ids = new Set(existing.map(i => i.id));
+          if (!ids.has(inc.id)) await DB.set(FK.income(m), [...existing, inc]);
+        }
+        if (!expenses.length) setImportMsg(`Saved ${incItems.length} income entries from ${label}.`);
       }
-      if (!expenses.length) setImportMsg(`Saved ${incItems.length} income entries from ${label}.`);
-    }
 
-    setCardResults(null);
-    await loadMonth(currentMonth);
-    setView(incItems.length && !expenses.length ? "income" : "transactions");
+      setCardResults(null);
+      await loadMonth(currentMonth);
+      setView(incItems.length && !expenses.length ? "income" : "transactions");
+    } catch (err) {
+      setImportMsg("Import failed: " + (err.message || String(err)));
+    }
   };
 
   const handleEditTxn = async (txn, newEnvelopeId, newSubCat, newDesc) => {
